@@ -2,7 +2,7 @@
 
 Agent Memory Lane Harness is a meta-first whiteboard framework for routing coding-agent work through project-scoped memory lanes, lightweight guardrails, claim checks, and paired improvement records.
 
-Current version: `v0.2.0`
+Current version: `v0.5.0`
 
 Formerly: Agent Harness Skill Tree.
 
@@ -12,7 +12,9 @@ It is not tied to one agent runtime. It is a neutral starting point that can be 
 
 - **Codex field use:** this framework has been used smoothly in a Codex-based workflow. After the root instruction file, harness policy, project registry, and skill tree are installed, new conversations can keep following the same routing chain instead of rediscovering the workflow from scratch.
 - **Independent project lanes:** separate projects can run separate local chains. With clear global routing boundaries, each project keeps its own instructions, memory roots, and progress records, which reduces silent memory bleed and cross-project contamination.
-- **Mandatory dynamic evaluation governance:** nontrivial tasks must run pre-evaluation, runtime re-evaluation on trigger events, and a final claim/memory/version boundary check.
+- **Mandatory advisory control plane:** nontrivial tasks must create a lightweight routing receipt, re-evaluate only on trigger events, and final-check claim/memory/search boundaries without wrapping every tool call.
+- **Source-grounded search and learning:** current facts, GitHub/open-source review, unfamiliar mechanisms, and anti-closed-door-invention tasks are split into official-source search, repository inspection, general web cross-check, source-grounded intake, and local validation.
+- **Selective hook/wrapper/tool proxy runtime:** only critical boundaries such as R5, high-risk tools, low-confidence routes, long-term memory writes, and final strong claims need hard stops.
 - **Meta-first memory retrieval:** memory lookup is not a direct file dive. The required chain is meta summary or `_META_INDEX`, then category or point index, then only the matching capsule or paired record.
 - **No continuous skill generation by default:** the framework does not keep creating new skills automatically. Too many self-generated skills can pollute project boundaries, weaken routing discipline, and make it unclear which rule owns a task. Reusable knowledge should instead be added to a clearly registered skill knowledge library, reference pack, or tool content pack, then routed explicitly.
 - **Sanitized whiteboard examples:** This public repository was sanitized before publication. Private records, local project details, machine paths, and real incident history from the original working setup are not included. The included examples are synthetic records used only to help agents and adopters understand how to adapt the framework: routing, layered memory indexes, project memory capsules, paired error/solution records, claim boundaries, and client-update drift handling.
@@ -37,7 +39,9 @@ This project gives those pieces a simple shared structure.
 user request
 -> root microkernel
 -> intake router R0-R5
--> mandatory dynamic evaluation governance
+-> mandatory advisory control plane
+-> lightweight routing receipt
+-> event-triggered re-evaluation
 -> only needed gates
 -> project instructions and memory boundary
 -> execution
@@ -49,7 +53,10 @@ user request
 
 - **Root microkernel**: the small always-on rule set for language, evidence, risk, memory boundaries, and high-risk stops.
 - **Intake router**: deterministic R0-R5 task classification.
-- **Dynamic evaluation governance**: mandatory pre-evaluation, runtime re-evaluation, and final boundary check for skill/tool/plugin/search/memory/claim-gate decisions.
+- **Mandatory advisory control plane**: routing receipt, event-triggered dynamic review, and final boundary checks for skill/tool/plugin/search/memory/claim-gate decisions.
+- **Governance/routing update handling**: framework-rule, trigger-term, routing-rule, decision-matrix, and dynamic-evaluation edits are treated as R3 changes even when they are documentation-only.
+- **Selective runtime enforcer scripts**: hook, wrapper, and tool-proxy entry points that return nonzero only at configured hard-stop boundaries when called by the adopting runtime.
+- **Search and learning decision matrix**: routes public facts, GitHub repository evidence, general web cross-checks, external mechanism intake, and local validation boundaries.
 - **Additive routing**: if a task matches more than one risk type, it keeps the highest risk label and returns the union of needed gates.
 - **Memory isolation gate**: prevents accidental cross-project memory use unless the user clearly asks for it.
 - **External research gate**: detects currentness signals such as latest, current, version, release, GitHub, and official sources.
@@ -80,6 +87,9 @@ user request
 │   ├── agent-error-memory/
 │   ├── bug-solution-memory/
 │   ├── embedded-harness/
+│   │   ├── harness_runtime_enforcer.ps1
+│   │   ├── harness_task_wrapper.ps1
+│   │   └── harness_tool_proxy.ps1
 │   ├── shared-semantic-anchors/
 │   └── troubleshooting-skill-matrix/
 └── templates/
@@ -115,19 +125,22 @@ small root rules
 
 New skills should be created only when they remove real repeated work and have a clear scope, owner, retrieval surface, and non-applicable boundary. Routine facts, solved incidents, examples, and reference notes can live in memory capsules or knowledge packs without becoming new active skills.
 
-## Mandatory Dynamic Evaluation Governance
+## Mandatory Advisory Control Plane
 
-For nontrivial tasks, the framework requires three checkpoints:
+For nontrivial tasks, the framework requires a low-cost control plane:
 
 ```text
-pre-evaluation
+routing receipt
 -> execute the cheapest sufficient route
--> runtime re-evaluation when trigger events appear
+-> event-triggered re-evaluation
 -> final claim, memory, version, and verification boundary check
+-> selective runtime hard gate only for critical risks
 ```
 
-At each checkpoint, the agent must decide whether the task needs:
+The routing receipt should decide:
 
+- task type and active lane;
+- risk level and required gates;
 - project instructions or project router;
 - memory retrieval and memory isolation;
 - an existing skill, tool, plugin, or adapter;
@@ -135,7 +148,23 @@ At each checkpoint, the agent must decide whether the task needs:
 - claim-schema or evidence-boundary checks;
 - human confirmation for high-risk actions.
 
-Runtime re-evaluation is required after new evidence, missing files, tool errors, scope changes, user corrections, cross-project terminology, version/currentness claims, cost escalation, or risk escalation. The governance layer is not a reason to load every skill or every memory file; it must choose the cheapest sufficient route. If the dynamic layer is skipped or cannot be completed, the final answer must say so and must not present the result as fully verified.
+Re-evaluation is event-triggered, not continuous. Trigger events include new evidence, missing files, tool errors, scope changes, user corrections, cross-project terminology, version/currentness claims, GitHub/open-source mechanism intake, cost escalation, risk escalation, strong claims, R5 actions, or memory writes.
+
+This control plane is mandatory, but it is not a reason to load every skill, every memory file, or wrap every tool call. If the control plane is skipped or cannot be completed, the final answer must say so and must not present the result as fully verified.
+
+## Mandatory Search And Learning Decision Matrix
+
+The framework treats external research as a routed workflow, not a vague instruction to search. Use this matrix when the task involves current facts, public products, policy, law, price, version, release data, GitHub/open-source repositories, unfamiliar mechanisms, architecture comparison, or avoiding closed-door invention.
+
+| Route | Use when | Boundary |
+| --- | --- | --- |
+| Official / authority source search | Drift-prone public facts such as product, institution, policy, law, price, version, release date, or named role | Prefer official or authority sources first; cross-check when practical. |
+| GitHub / open-source repository search | Repository intent, source tree, release notes, issues, changelog, license, project activity, or examples | Separate README claims, code facts, release or issue evidence, and license boundaries. |
+| General web cross-check | Ecosystem trend, mechanism comparison, third-party guide, community experience, or uncertain public claim | Use independent sources when practical; mark source limits when not. |
+| Source-grounded learning intake | Learn-from-open-source tasks, external mechanism review, architecture comparison, or anti-closed-door-invention work | Build a source ledger and classify material before adapting it. |
+| Local validation route | Strong adoption, success, performance, or compatibility claims | Require local files, scripts, tests, reproduction, or a concrete evidence chain. |
+
+Outside material should be classified as `fact`, `source_prior`, `hypothesis`, `inspiration`, `unverified_implementation_path`, or `not_applicable`. Reading external material can guide the work, but it is not local validation by itself.
 
 ## Mandatory Meta-First Memory Lookup
 

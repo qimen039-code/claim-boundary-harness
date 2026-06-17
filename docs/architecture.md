@@ -26,16 +26,76 @@ The microkernel should stay short. Put project details elsewhere.
 
 The intake router classifies work into R0-R5 and returns required gates.
 
-Dynamic evaluation governance is mandatory around the router:
+The mandatory advisory control plane sits around the router:
 
 ```text
-pre-evaluation
+routing receipt
 -> intake route and cheapest sufficient gate selection
--> runtime re-evaluation when trigger events appear
+-> event-triggered re-evaluation
 -> final claim, memory, version, and verification boundary check
+-> selective hard runtime gate only for critical risks
 ```
 
-The dynamic layer decides whether to use project instructions, a project router, memory retrieval, existing skills/tools/plugins, external research, claim checks, or human confirmation. It should not expand into every memory or every skill by default.
+The control plane decides whether to use project instructions, a project router, memory retrieval, existing skills/tools/plugins, external research, claim checks, or human confirmation. It should not expand into every memory, every skill, or every tool call by default.
+
+## Selective Runtime Enforcement Layer
+
+The framework becomes hard runtime only for selected critical boundaries when an adopting agent routes execution through the runtime entry scripts:
+
+```text
+pre-task hook
+-> harness_runtime_enforcer.ps1
+-> task route, dynamic evaluation, constitution check
+
+tool-call proxy
+-> harness_tool_proxy.ps1
+-> high-risk tool-call check
+
+command wrapper
+-> harness_task_wrapper.ps1
+-> route check before command execution
+
+final-answer gate
+-> harness_runtime_enforcer.ps1 -Stage final
+-> claim schema check for strong claims
+```
+
+Hard-stop conditions:
+
+- R5 without explicit human confirmation.
+- Low-confidence route without boundary review.
+- Nontrivial task with no available constitution entry.
+- High-risk tool call without explicit human confirmation.
+- Long-term memory write without explicit user request.
+- Final strong claim without claim schema evidence boundary.
+
+Ordinary tool calls should stay on the advisory control plane. This is not a sandbox. If an agent bypasses the hook, wrapper, or tool proxy, the scripts cannot stop it.
+
+## Search And Learning Decision Matrix
+
+External research is split into route types so the agent does not treat all outside lookup as the same operation:
+
+| Route | Evidence surface | Output |
+| --- | --- | --- |
+| Official / authority source search | official docs, public notices, policy, law, price, version, release date, named role | current fact with source boundary |
+| GitHub / open-source repository search | README, source tree, release notes, issues, changelog, license, examples | repository-grounded evidence with reuse boundary |
+| General web cross-check | independent articles, tutorials, ecosystem notes, community reports | cross-checked public context with source limits |
+| Source-grounded learning intake | external mechanism, external architecture comparison, learn-from-open-source task | source ledger plus classification labels |
+| Local validation route | local files, scripts, tests, reproduction, smoke checks | local evidence boundary for strong claims |
+
+The learning classifier uses these labels:
+
+```text
+fact
+source_prior
+hypothesis
+inspiration
+unverified_implementation_path
+not_applicable
+local_validated
+```
+
+This keeps external learning useful without letting it become an unsupported local success claim.
 
 ## 3. Skill Tree
 

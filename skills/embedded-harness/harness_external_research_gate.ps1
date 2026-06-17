@@ -26,14 +26,33 @@ if ($combined -match 'https?://|github\.com') {
   $matchedTriggers += "url_or_github_pattern"
 }
 
+$recommendedModes = @()
+if ($combined -match '(?i)github|github\.com|repo|repository|open source|release|changelog|issue|license') {
+  $recommendedModes += "github_open_source_repository_search"
+}
+if ($combined -match '(?i)official|authority|policy|law|price|product|institution|current|latest|version|release|CEO|president') {
+  $recommendedModes += "official_authority_source_search"
+}
+if ($combined -match '(?i)compare|comparison|ecosystem|community|trend|tutorial') {
+  $recommendedModes += "general_web_cross_check"
+}
+if ($combined -match '(?i)mechanism|external architecture|architecture comparison|learn from|source-grounded|external mechanism|avoid closed-door') {
+  $recommendedModes += "source_grounded_learning_intake"
+}
+
 $needs = $matchedTriggers.Count -gt 0
+if ($needs -and $recommendedModes.Count -eq 0) {
+  $recommendedModes += "general_web_cross_check"
+}
 $result = [ordered]@{
   ts = (Get-Date).ToString("o")
   phase = "external_research_gate"
   status = "pass"
   needs_external_research = $needs
   matched_triggers = @($matchedTriggers | Select-Object -Unique)
-  rule = "deterministic string/date/version/url trigger; no extra LLM judgment"
+  recommended_search_modes = @($recommendedModes | Select-Object -Unique)
+  learning_classification_labels = @($policy.search_and_learning_decision_matrix.classification_labels)
+  rule = "deterministic string/date/version/url trigger plus search-mode routing; no extra LLM judgment"
 }
 
 $json = $result | ConvertTo-Json -Depth 20

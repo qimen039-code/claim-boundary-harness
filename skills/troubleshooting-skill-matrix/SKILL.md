@@ -37,20 +37,49 @@ request
 
 If no meta layer exists yet, use this router manifest and the compact point index as the temporary meta layer. Do not scan every point payload before choosing by retrieval surface.
 
-## Mandatory Dynamic Evaluation Governance
+## Mandatory Advisory Control Plane
 
-Use this router under the required dynamic governance layer:
+Use this router under the required advisory control plane:
 
 ```text
-pre-evaluation
+routing receipt
 -> select the smallest needed router/skill/memory surface
--> runtime re-evaluation after trigger events
+-> event-triggered re-evaluation after trigger events
 -> final claim/memory/version boundary check
 ```
 
 Trigger events include new evidence, missing files, tool errors, scope changes, user corrections, cross-project terminology, currentness/version claims, and risk or cost escalation.
 
-Do not load every skill or memory record because this layer is active. If the layer is skipped or incomplete, the final result must say so.
+Do not load every skill or memory record, and do not wrap every ordinary tool call, because this layer is active. If the layer is skipped or incomplete, the final result must say so.
+
+## Selective Runtime Enforcement Surfaces
+
+Use these entry points when an adopting runtime supports hooks, wrappers, or tool-call interception:
+
+```text
+pre-task hook -> harness_runtime_enforcer.ps1
+tool-call proxy -> harness_tool_proxy.ps1
+command wrapper -> harness_task_wrapper.ps1
+final-answer gate -> harness_runtime_enforcer.ps1 -Stage final
+```
+
+These gates are hard only when the caller invokes the runtime entry scripts. They block R5 without human confirmation, low-confidence routes without boundary review, missing constitution entry for nontrivial tasks, high-risk tool calls without confirmation, long-term memory writes without explicit request, and strong final claims without claim schema. Ordinary tool calls stay on the advisory control plane.
+
+## Source-Grounded Search And Learning Workflow
+
+Use this workflow whenever the task asks for current facts, GitHub/open-source review, unfamiliar mechanisms, external architecture comparison, or avoiding closed-door invention:
+
+```text
+trigger detected by dynamic evaluation
+-> choose search route: official source / GitHub repository / general web cross-check / source-grounded learning
+-> build a compact source ledger
+-> classify each item: fact, source_prior, hypothesis, inspiration, unverified_implementation_path, or not_applicable
+-> map only compatible parts into the local router, semantic anchors, memory capsules, or paired point records
+-> keep non-applicable and risk notes
+-> require local validation before claiming adoption success
+```
+
+For GitHub or open-source projects, inspect the surfaces that match the claim: README for stated intent, source tree for implementation facts, release notes or changelog for version facts, issues/discussions for known failures, and license/provenance for reuse boundaries. If a source cannot be reached or cross-checked, mark the resulting statement as `unverified` or `source_prior`, not as validated.
 
 ## Recording Workflow
 

@@ -14,7 +14,7 @@
   "risk_trigger_rules": {
     "R5": ["delete", "remove", "Remove-Item", "git commit", "install", "login", "permission", "firewall", "proxy", "private value", "sensitive value", "long-term memory", "write memory", "payment"],
     "R4": ["experiment", "benchmark", "performance", "GPU", "runtime", "network", "search the web", "latest", "current", "GitHub", "open source", "official", "price", "policy", "law", "release"],
-    "R3": ["modify", "update", "implement", "fix", "code", "config", "AGENTS", "harness", "script", "apply_patch", "patch", "edit"],
+    "R3": ["modify", "update", "implement", "fix", "code", "config", "AGENTS", "harness", "script", "dynamic evaluation", "decision layer", "governance layer", "governance update", "routing rule", "route rule", "trigger rule", "risk rule", "decision matrix", "framework rule", "framework behavior", "rule update", "rule change", "apply_patch", "patch", "edit"],
     "R2": ["report", "handoff", "ledger", "archive", "document", "write file", "create file", "generate file"],
     "R1": ["inspect", "check", "read", "local search", "read-only", "locate", "rg", "Get-Content", "memory", "retrieve", "meta", "index", "capsule", "_META_INDEX"]
   },
@@ -83,10 +83,49 @@
     "cost_rule": "Use the cheapest sufficient route; do not load all memory, all skills, or all history because the dynamic layer is active.",
     "failure_rule": "If dynamic evaluation cannot be completed, mark the final answer as dynamically incomplete or unverified."
   },
+  "mandatory_advisory_control_plane": {
+    "mandatory": true,
+    "purpose": "make routing, dynamic evaluation, and constitution governance continuously effective without wrapping every tool call",
+    "default_mode": "receipt_and_event_triggered_review",
+    "routing_receipt_fields": ["task_type", "project_lane", "risk_level", "required_gates", "external_search_need", "memory_need", "claim_gate_need", "human_confirmation_need"],
+    "event_triggered_review": ["new_evidence", "missing_file", "tool_error", "scope_change", "user_correction", "cross_project_term", "currentness_or_version_claim", "github_or_open_source_mechanism", "cost_or_risk_escalation", "before_high_confidence_claim", "before_R5_action", "before_long_term_memory_write"],
+    "cost_rule": "Use L0 only for ordinary chat; use lightweight receipts for nontrivial work; run script gates only for ambiguous boundaries, R4/R5, strong claims, memory writes, or explicit hardening.",
+    "failure_rule": "If the control plane was skipped, downgrade final claims and say which boundary was not checked."
+  },
+  "search_and_learning_decision_matrix": {
+    "mandatory": true,
+    "purpose": "avoid closed-door invention and assumption-filled external claims",
+    "search_modes": {
+      "official_authority_source_search": {
+        "triggers": ["official", "authority", "policy", "law", "price", "product", "institution", "current", "latest", "version", "release"],
+        "boundary": "Use official or authority sources first for drift-prone public facts; cross-check when practical."
+      },
+      "github_open_source_repository_search": {
+        "triggers": ["GitHub", "repo", "repository", "open source", "release", "changelog", "issue", "license"],
+        "boundary": "Separate README intent, source-code facts, release or issue evidence, activity signals, and license boundaries."
+      },
+      "general_web_cross_check": {
+        "triggers": ["compare", "comparison", "ecosystem", "community", "tutorial", "trend"],
+        "boundary": "Use independent sources when practical; mark source limits when evidence is thin."
+      },
+      "source_grounded_learning_intake": {
+        "triggers": ["mechanism", "external architecture", "architecture comparison", "learn from", "source-grounded", "external mechanism", "avoid closed-door invention"],
+        "boundary": "Build a source ledger, classify material, preserve non-applicable boundaries, and require local validation before adoption-success claims."
+      }
+    },
+    "classification_labels": ["fact", "source_prior", "hypothesis", "inspiration", "unverified_implementation_path", "not_applicable", "local_validated"],
+    "anti_closed_door_rule": "For external mechanisms, public repositories, current facts, or unfamiliar methods, do not rely on local reasoning alone. Search or mark the result as unverified."
+  },
+  "runtime_enforcement": {
+    "mode": "selective_hook_wrapper_tool_proxy",
+    "mandatory": true,
+    "entry_scripts": ["harness_runtime_enforcer.ps1", "harness_task_wrapper.ps1", "harness_tool_proxy.ps1"],
+    "hard_block_conditions": ["R5_without_human_confirmation", "low_confidence_route_without_boundary_review", "nontrivial_task_without_constitution_entry", "strong_final_claim_without_claim_schema", "high_risk_tool_call_without_human_confirmation"],
+    "activation_boundary": "The runtime is hard-enforcing only for selected critical boundaries when agent hooks, wrappers, or tool-call paths invoke these scripts before work or tool use. Ordinary tool calls should stay on the advisory control plane."
+  },
   "approval_required_actions": ["delete_files", "git_commit", "install_package", "login", "payment", "permission_change", "network_firewall_proxy_edit", "sensitive_data_transfer", "long_term_memory_write"],
-  "external_research_triggers": ["today", "latest", "current", "version", "release", "GitHub", "repo", "open source", "official", "price", "law", "policy", "CEO", "president"],
+  "external_research_triggers": ["today", "latest", "current", "version", "release", "GitHub", "repo", "repository", "open source", "official", "authority", "price", "law", "policy", "CEO", "president", "changelog", "issue", "license", "mechanism", "external architecture", "architecture comparison", "compare", "comparison", "learn from", "source-grounded", "avoid closed-door invention"],
   "skill_matrix_triggers": ["skill matrix", "semantic anchor", "reflection", "self-improvement", "Computer Use", "Chrome", "network failure", "plugin"],
   "blocked_claim_phrases_without_schema": ["validated", "verified successfully", "stable pass", "complete proof", "proven effective"],
-  "gate_enforcement_boundary": "These gates are advisory runtime checks. They return JSON status and nonzero exit codes for blocked states, but they do not enforce sandbox-level hard stops unless the caller honors them."
+  "gate_enforcement_boundary": "These gates are hard runtime checks when called through hook/wrapper/tool proxy scripts. They still cannot enforce sandbox-level stops if the caller bypasses the runtime entry scripts."
 }
-

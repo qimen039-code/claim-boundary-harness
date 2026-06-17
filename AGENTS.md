@@ -12,24 +12,79 @@ This is a generic foundation file. It does not contain project-specific policy, 
 4. Keep memory isolated by project. Cross-project memory use must be explicit.
 5. Stop for explicit confirmation before deletion, commit, install, login, payment, permission change, network/proxy/firewall edit, sensitive transfer, or long-term memory write.
 
-## Mandatory Dynamic Evaluation Governance
+## Mandatory Advisory Control Plane
 
-For every nontrivial task, run this governance layer as a required chain:
+For every nontrivial task, run this control plane as a required chain. It is mandatory, but it should not wrap every tool call by default:
 
 ```text
-pre-evaluation
+routing receipt
 -> execution with the cheapest sufficient route
--> runtime re-evaluation on trigger events
+-> event-triggered re-evaluation
 -> final claim/memory/version boundary check
+-> selective runtime hard gate only for critical risks
 ```
 
-Pre-evaluation must decide task type, active lane, risk level, evidence need, memory need, skill/tool/plugin need, external research need, claim-gate need, and human-confirmation need.
+Routing receipt fields: task type, active lane, risk level, required gates, evidence need, memory need, skill/tool/plugin need, external research need, claim-gate need, and human-confirmation need.
 
-Runtime re-evaluation is required after new evidence, missing files, tool errors, scope changes, user corrections, cross-project terminology, currentness/version claims, or risk/cost escalation.
+Re-evaluation is required after trigger events: new evidence, missing files, tool errors, scope changes, user corrections, cross-project terminology, currentness/version claims, GitHub/open-source mechanism intake, risk/cost escalation, strong claims, R5 actions, or memory writes.
 
 Final boundary check must verify claim scope, memory scope, unresolved verification debt, and whether version metadata or paired ERR/SOL records need updates.
 
-Do not load all skills, all memory, or all history just because this layer is active. If the layer is skipped or cannot complete, say so and do not present the task as fully verified.
+Do not load all skills, all memory, all history, or wrap every tool call just because this layer is active. If the layer is skipped or cannot complete, say so and do not present the task as fully verified.
+
+Governance-layer updates, dynamic-evaluation rule changes, routing-rule changes, trigger-term updates, decision-matrix edits, and framework behavior changes are `R3` even when they are documentation-only.
+
+## Selective Runtime Enforcement Surface
+
+The routing, dynamic evaluation, and constitution rules become hard runtime checks only at selected critical boundaries and only when the adopting agent routes work through one of these surfaces:
+
+```text
+hook before task execution
+wrapper around command execution
+tool proxy before tool calls
+final-answer gate before strong claims
+```
+
+Required runtime entry scripts:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File <HARNESS_ROOT>\harness_runtime_enforcer.ps1 -Stage pre_task -TaskText "<user task>" -Cwd "<cwd>"
+powershell -ExecutionPolicy Bypass -File <HARNESS_ROOT>\harness_tool_proxy.ps1 -Stage pre_tool -TaskText "<user task>" -ToolName "<tool>" -ToolInputJson "<json>"
+powershell -ExecutionPolicy Bypass -File <HARNESS_ROOT>\harness_task_wrapper.ps1 -TaskText "<user task>" -CommandPath "<command>" -CommandArgs @("<arg>")
+```
+
+Hard-stop conditions:
+
+- R5 without explicit human confirmation.
+- Low-confidence route without boundary review.
+- Nontrivial task with no available constitution entry.
+- High-risk tool call without explicit human confirmation.
+- Long-term memory write without explicit user request.
+- Final strong claim without claim schema evidence boundary.
+
+Ordinary tool calls stay under the advisory control plane. This is not a sandbox. It is hard enforcement only for callers that invoke the hook, wrapper, or tool proxy before continuing.
+
+## Mandatory Search And Learning Decision Matrix
+
+External research is not a single yes/no flag. When dynamic evaluation sees current facts, open-source projects, unfamiliar mechanisms, repository comparisons, or an explicit request to avoid closed-door invention, split the route:
+
+```text
+official / authority source search
+-> GitHub / open-source repository search when repo evidence is involved
+-> general web cross-check when independent public context is needed
+-> source-grounded learning intake for external mechanisms
+-> local validation before strong adoption or success claims
+```
+
+Use the smallest route that can support the claim:
+
+- Official / authority source search: product, institution, policy, law, price, version, release date, named role, or other drift-prone public facts.
+- GitHub / open-source repository search: repository intent, source tree, release notes, issues, changelog, license, project activity, and examples.
+- General web cross-check: ecosystem trend, mechanism comparison, third-party guide, community experience, or uncertain public claim.
+- Source-grounded learning intake: external architecture comparison, learn-from-open-source work, unfamiliar mechanisms, or anti-closed-door-invention tasks.
+- Local validation route: required before claiming that an external mechanism was successfully adopted or verified in the local workspace.
+
+Classify outside material as `fact`, `source_prior`, `hypothesis`, `inspiration`, `unverified_implementation_path`, or `not_applicable`. External reading can guide the work, but it is not local validation by itself.
 
 ## Mandatory Memory Retrieval Chain
 

@@ -62,13 +62,52 @@ Stronger setups can run:
 - claim schema verifier before final strong claims;
 - high-risk checks before tool calls.
 
-Also make dynamic evaluation governance mandatory:
+Also make the advisory control plane mandatory:
 
-1. Pre-evaluate task type, lane, risk, evidence, memory, skill/tool/plugin, external research, claim gate, and confirmation needs.
-2. Re-evaluate after new evidence, missing files, tool errors, scope changes, user corrections, cross-project terminology, currentness/version claims, or risk/cost escalation.
+1. Create a lightweight routing receipt for nontrivial work: task type, lane, risk, required gates, external search need, memory need, claim gate need, and confirmation need.
+2. Re-evaluate only after trigger events: new evidence, missing files, tool errors, scope changes, user corrections, cross-project terminology, currentness/version claims, GitHub/open-source mechanism intake, risk/cost escalation, strong claims, R5 actions, or memory writes.
 3. Final-check claim scope, memory scope, version metadata, and unresolved verification debt.
 
-Do not make this expensive by default. The dynamic layer should choose the cheapest sufficient route.
+Do not make this expensive by default. The control plane should choose the cheapest sufficient route and should not wrap every tool call.
+
+For selective runtime hard stops, route only critical boundaries through these entry points:
+
+```text
+pre-task hook -> skills/embedded-harness/harness_runtime_enforcer.ps1
+tool-call proxy -> skills/embedded-harness/harness_tool_proxy.ps1
+command wrapper -> skills/embedded-harness/harness_task_wrapper.ps1
+final-answer gate -> skills/embedded-harness/harness_runtime_enforcer.ps1 -Stage final
+```
+
+Do not replace your normal agent launcher until the scripts pass local smoke checks. Start with high-risk blocking, final-claim checks, and memory-write checks. Keep ordinary tool calls on the advisory control plane unless you have a reason to harden them. Keep a fallback path so a bad adapter can be disabled without losing workspace access.
+
+## Step 4a: Configure Search And Learning Routes
+
+Tune `search_and_learning_decision_matrix` and `external_research_triggers` in `skills/embedded-harness/embedded_harness_policy.json`.
+
+Use separate routes for:
+
+- official or authority source checks for drift-prone public facts;
+- GitHub or open-source repository inspection for repository claims and reuse boundaries;
+- general web cross-checks for ecosystem context and uncertain public claims;
+- source-grounded learning intake for external mechanisms and external architecture comparison;
+- local validation before claiming adoption, success, performance, or compatibility.
+
+For external mechanism intake, write a compact source ledger before adapting anything:
+
+```text
+source
+date checked
+claim or mechanism
+classification label
+applicable boundary
+non-applicable boundary
+risk
+validation path
+adoption decision
+```
+
+Recommended labels are `fact`, `source_prior`, `hypothesis`, `inspiration`, `unverified_implementation_path`, `not_applicable`, and `local_validated`. Reserve `local_validated` for evidence produced in the adopting workspace.
 
 ## Step 5: Keep The Core Clean
 
