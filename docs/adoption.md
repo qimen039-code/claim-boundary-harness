@@ -43,3 +43,17 @@ Stronger setups can run:
 ## Step 5: Keep The Core Clean
 
 The whiteboard core should not contain private project content. Add project rules, real memory capsules, and solved incident records inside the adopting project only.
+
+## Project Lane Isolation
+
+For multi-project use, create one lane per project in the harness policy and one registry entry per project in `PROJECT_SKILL_MATRIX_REGISTRY.md`.
+
+Each lane should have its own:
+
+- project instruction entry;
+- memory roots;
+- optional project router;
+- incident records;
+- retrieval log.
+
+Shared rules should stay in the whiteboard core. Project-specific rules should stay inside the project lane. This keeps separate projects usable across new conversations without mixing unrelated memory, progress, or failure records.

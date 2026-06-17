@@ -78,6 +78,12 @@ This framework can be adapted to agents that support one or more of these surfac
 
 If an agent only reads instruction files, this framework acts as a soft workflow contract. If an agent also supports hooks or wrappers, the gate scripts can become stronger runtime checks.
 
+## Field Use Note
+
+This framework has been used smoothly in a Codex-based workflow. Once the root instruction file, harness policy, project registry, and skill tree are in place, new conversations can continue to follow the same routing chain instead of rediscovering the workflow from scratch.
+
+It also supports independent project lanes. After global routing boundaries are configured, each project can keep its own instructions, memory roots, and incident records. That makes it possible to run separate local chains for separate projects without silent memory bleed, cross-project contamination, or unrelated progress records being mixed together.
+
 ## Quick Start
 
 1. Copy this package into a new workspace.
