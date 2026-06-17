@@ -10,7 +10,7 @@ It is not tied to one agent runtime. It is a neutral starting point that can be 
 - **Independent project lanes:** separate projects can run separate local chains. With clear global routing boundaries, each project keeps its own instructions, memory roots, and progress records, which reduces silent memory bleed and cross-project contamination.
 - **Meta-first memory retrieval:** memory lookup is not a direct file dive. The required chain is meta summary or `_META_INDEX`, then category or point index, then only the matching capsule or paired record.
 - **No continuous skill generation by default:** the framework does not keep creating new skills automatically. Too many self-generated skills can pollute project boundaries, weaken routing discipline, and make it unclear which rule owns a task. Reusable knowledge should instead be added to a clearly registered skill knowledge library, reference pack, or tool content pack, then routed explicitly.
-- **Whiteboard examples are synthetic:** this public package intentionally removes private project records. To avoid leaving only abstract constitution text, the repository includes safe synthetic examples for routing, layered memory library indexes, project memory capsules, paired error and solution records, claim boundaries, and client-update drift handling.
+- **Sanitized whiteboard examples:** This public repository was sanitized before publication. Private records, local project details, machine paths, and real incident history from the original working setup are not included. The included examples are synthetic records used only to help agents and adopters understand how to adapt the framework: routing, layered memory indexes, project memory capsules, paired error/solution records, claim boundaries, and client-update drift handling.
 - **PowerShell-only reference scripts:** the included scripts are PowerShell because the original working environment was Windows. Other operating systems have not been adapted or tested here. The design is portable, but Bash, Python, Node, or native hook adapters should be written and validated by users on their own target systems.
 - **Agent client updates require re-adaptation:** Codex, Claude Code, and other agent clients may change paths, launchers, hook behavior, skill loading, or bundled runtimes after updates. Re-run adapter checks and smoke tests after client updates so stale paths do not silently disable the harness.
 
@@ -126,7 +126,7 @@ It also supports independent project lanes. After global routing boundaries are 
 
 ## Concrete Examples
 
-The package includes sanitized examples that show the intended record shapes without exposing any private project history:
+The package includes synthetic examples that show the intended record shapes without exposing any private project history:
 
 - [examples/sample-routing.md](examples/sample-routing.md): routing examples for mixed risk and vague tasks.
 - [examples/memory-capsule-examples.md](examples/memory-capsule-examples.md): project memory capsule, paired error/solution records, claim boundary record, and client-update drift record.
