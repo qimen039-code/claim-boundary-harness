@@ -8,6 +8,7 @@ Default chain:
 root AGENTS.md microkernel
 -> deterministic intake router
 -> optional project router / project AGENTS / project memory
+-> memory meta summary / category index / matching capsule, if memory is needed
 -> optional executable project harness gates
 -> final claim and memory boundary check
 ```
@@ -18,7 +19,16 @@ Design boundaries:
 - `R4` includes `R3` change and claim gates, plus external research and verification gates.
 - If no deterministic risk rule matches but the text looks like a nontrivial task, the router sets `fallback_model_judgment_recommended=true` rather than silently treating it as high-confidence `R0`.
 - `GLOBAL` memory is manual-only by default.
+- Memory retrieval is meta-first: read `_META_INDEX.md`, a memory summary, or a router manifest before opening category indexes or capsule payloads.
 - These scripts are advisory runtime checks, not sandbox-level hard enforcement.
+
+Mandatory memory retrieval chain:
+
+```text
+meta summary / _META_INDEX / router manifest
+-> category index / point index / outer_retrieval_surface
+-> matching capsule / ERR-* / SOL-* payload
+```
 
 Scripts:
 

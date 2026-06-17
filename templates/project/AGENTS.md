@@ -11,7 +11,9 @@ Replace placeholders before use.
 ## Execution Rules
 
 - Read this file before nontrivial project work.
-- Read only the memory/status files needed for the task.
+- Start project memory lookup from `memory-library/_META_INDEX.md` or equivalent meta summary.
+- Select one category index from the meta layer before opening a capsule.
+- Read only the memory/status files selected by that meta/index route.
 - Keep project memory isolated unless the user explicitly requests cross-project synthesis.
 - Before edits, state which files will be touched.
 - After edits, report changes, verification, and unresolved risks.

@@ -16,7 +16,7 @@
     "R4": ["experiment", "benchmark", "performance", "GPU", "runtime", "network", "search the web", "latest", "current", "GitHub", "open source", "official", "price", "policy", "law", "release"],
     "R3": ["modify", "update", "implement", "fix", "code", "config", "AGENTS", "harness", "script", "apply_patch", "patch", "edit"],
     "R2": ["report", "handoff", "ledger", "archive", "document", "write file", "create file", "generate file"],
-    "R1": ["inspect", "check", "read", "local search", "read-only", "locate", "rg", "Get-Content"]
+    "R1": ["inspect", "check", "read", "local search", "read-only", "locate", "rg", "Get-Content", "memory", "retrieve", "meta", "index", "capsule", "_META_INDEX"]
   },
   "risk_gate_rules": {
     "R1": ["read_only_context_gate"],
@@ -40,6 +40,15 @@
     "lane": "GLOBAL",
     "auto_detect_from_cwd": false,
     "rule": "GLOBAL memory is manual-only; do not infer it from cwd unless the user explicitly requests global memory work."
+  },
+  "memory_retrieval_chain": {
+    "mandatory": true,
+    "steps": [
+      "read memory_summary, _META_INDEX, or router manifest first",
+      "select one category index, point index, or outer_retrieval_surface",
+      "open only the matching capsule, ERR point, SOL point, or status payload"
+    ],
+    "missing_meta_rule": "If no meta summary exists, use the smallest available top-level index or manifest as a temporary meta layer, mark the missing meta layer as an adaptation gap, and avoid broad memory/history scans."
   },
   "approval_required_actions": ["delete_files", "git_commit", "install_package", "login", "payment", "permission_change", "network_firewall_proxy_edit", "sensitive_data_transfer", "long_term_memory_write"],
   "external_research_triggers": ["today", "latest", "current", "version", "release", "GitHub", "repo", "open source", "official", "price", "law", "policy", "CEO", "president"],

@@ -12,6 +12,18 @@ This is a generic foundation file. It does not contain project-specific policy, 
 4. Keep memory isolated by project. Cross-project memory use must be explicit.
 5. Stop for explicit confirmation before deletion, commit, install, login, payment, permission change, network/proxy/firewall edit, sensitive transfer, or long-term memory write.
 
+## Mandatory Memory Retrieval Chain
+
+For any nontrivial memory lookup, read the meta layer first. Do not jump directly into deep memory files.
+
+```text
+memory_summary / _META_INDEX / router manifest
+-> category index / point index / outer_retrieval_surface
+-> only the matching capsule / ERR-* / SOL-* payload
+```
+
+If an adopting project has no `_META_INDEX.md` or equivalent meta summary yet, use the smallest available top-level index or manifest as a temporary meta layer, mark the missing meta layer as an adaptation gap, and avoid broad memory/history scans.
+
 ## Embedded Harness Entry
 
 ```powershell

@@ -28,11 +28,14 @@ Use this router when a task involves:
 
 ```text
 request
+-> read memory_summary / _META_INDEX / router manifest first
 -> scan the compact point index
 -> select matching ERR/SOL/anchor by retrieval surface
 -> read only the selected payload
 -> apply to the current task
 ```
+
+If no meta layer exists yet, use this router manifest and the compact point index as the temporary meta layer. Do not scan every point payload before choosing by retrieval surface.
 
 ## Recording Workflow
 

@@ -17,6 +17,28 @@ Edit `skills/embedded-harness/embedded_harness_policy.json`:
 - replace memory roots;
 - tune trigger terms.
 
+Then copy `templates/project/memory-library` into the project memory root and keep the layered layout:
+
+```text
+_META_INDEX.md
+governance/_INDEX.md
+memory_hierarchy/_INDEX.md
+external_references/_INDEX.md
+raw_logs/_INDEX.md
+```
+
+Do not collapse the library into one large summary file. The point of the meta index is to select the category first, then open only the relevant category index and capsule.
+
+Make this lookup order mandatory in the adopting agent instructions:
+
+```text
+_META_INDEX.md or equivalent meta summary
+-> one category index
+-> one matching capsule
+```
+
+If the agent cannot confirm that it read the meta layer first, treat the memory result as incomplete rather than authoritative.
+
 ## Step 3: Register The Skill Folders
 
 If your agent supports skills or commands, register these folders:
@@ -43,6 +65,8 @@ Stronger setups can run:
 ## Step 5: Keep The Core Clean
 
 The whiteboard core should not contain private project content. Add project rules, real memory capsules, and solved incident records inside the adopting project only.
+
+Use the public demo records as shape examples only. They are synthetic and are not claims about your environment.
 
 ## Project Lane Isolation
 

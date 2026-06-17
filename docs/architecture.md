@@ -41,6 +41,43 @@ The ledgers start empty in this whiteboard package.
 
 `templates/project` contains a project instruction file and a memory-library skeleton. Each adopting project should copy and edit these templates instead of placing private project content into the shared core.
 
+## Layered Memory Library
+
+Project memory is intentionally not a single flat summary file. A flat file is cheap at first, but it becomes another overloaded history blob as records grow. The mandatory retrieval path is:
+
+```text
+memory-library/_META_INDEX.md
+-> choose one category
+-> category/_INDEX.md
+-> open only the matching capsule
+```
+
+Do not skip the meta index. If a project has no meta index yet, use the smallest available top-level index or router manifest as a temporary meta layer and mark the missing layer as an adoption gap.
+
+The default categories are:
+
+- `governance`: project rules, decision records, boundaries, and operating contracts.
+- `memory_hierarchy`: reusable memory capsules, active context, progress notes, and supersession chains.
+- `external_references`: source notes, outside mechanisms, citations, and adoption boundaries.
+- `raw_logs`: raw or near-raw observations that should not be treated as final memory.
+
+Each category index should keep records small and searchable:
+
+```text
+ID | Record Type | Status | Summary | Retrieval Terms | Supersedes | Superseded By
+```
+
+Recommended status values:
+
+- `ACTIVE`: currently preferred record.
+- `SUPERSEDED_BY:<ID>`: replaced by a newer record.
+- `DEPRECATED`: retained for audit value but not used as current guidance.
+- `TEMPLATE`: example or placeholder only.
+
+When a new capsule replaces an old one, update both sides: the old row should point to `SUPERSEDED_BY:<ID>`, and the new row should declare `Supersedes`. This keeps long-horizon memory auditable without forcing the agent to reread old records on every task.
+
+See [../examples/memory-library-demo/_META_INDEX.md](../examples/memory-library-demo/_META_INDEX.md) for a synthetic end-to-end example.
+
 ## Routing Model
 
 ```text
