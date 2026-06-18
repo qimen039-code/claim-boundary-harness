@@ -39,13 +39,17 @@ bash "$CODEBUDDY_PROJECT_DIR/integrations/workbuddy-python-runtime/scripts/workb
 
 The runner reads hook JSON from stdin. On `UserPromptSubmit`, it stores the original prompt and returns compact route context. On `PreToolUse`, it calls `runtime_enforcer(...)`. If the decision is blocked, it prints a WorkBuddy hook denial payload with `permissionDecision: deny` and exits with code `2`.
 
+Wire both stages when you want active routing. `UserPromptSubmit` gives the agent the compact route, memory/search/claim decision, and original-task state before planning. `PreToolUse` enforces the protected tool path before execution.
+
 If your WorkBuddy build runs command hooks through a Bash-compatible shell, call `scripts/workbuddy-hook.sh` with `bash` as shown above. If your build runs native commands another way, call the Python module directly:
 
 ```bash
 python -m workbuddy_harness.hook_runner --stage pre_tool --constitution-path "$CODEBUDDY_PROJECT_DIR/AGENTS.md"
 ```
 
-Set `PYTHON_BIN=python` or `PYTHON_BIN=python3` when the shell cannot find the intended interpreter. Use `--fail-open` only during first-time hook setup; hard enforcement should fail closed.
+On Windows, if `bash` is not available on PATH, use `scripts/workbuddy-hook.cmd` through `cmd.exe /c` and set `PYTHON_BIN` when plain `python` is not the intended interpreter.
+
+Set `PYTHON_BIN=python`, `PYTHON_BIN=python3`, or an absolute Python executable path when the shell cannot find the intended interpreter. Use `--fail-open` only during first-time hook setup; hard enforcement should fail closed.
 
 ## Expected Host Hook
 
@@ -87,6 +91,8 @@ decision = runtime_enforcer(
 The adapter also accepts `risk_level="R5"` as an explicit override when the host already classified the task. Do not pass only `"R5"` as a replacement for the original task text unless you intentionally want a risk-level-only fallback.
 
 Optional JSONL event logging can write to a specific file with `log_path` or to a directory with `log_dir`. In `log_dir` mode the adapter writes `workbuddy_harness_events.jsonl` inside that directory.
+
+Hook payloads are sanitized before routing and logging. If the host passes stdin JSON containing lone UTF-16 surrogate escapes such as `\udcac` or `\udc80`, the runner replaces them with `<invalid-surrogate>` so malformed payload text does not disable active routing or pre-tool enforcement.
 
 ## Verify
 

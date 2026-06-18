@@ -1,0 +1,19 @@
+@echo off
+setlocal
+
+if "%AGENT_MEMORY_LANE_WORKBUDDY_ADAPTER_ROOT%"=="" (
+  set "AGENT_MEMORY_LANE_WORKBUDDY_ADAPTER_ROOT=%~dp0.."
+)
+
+if "%PYTHON_BIN%"=="" (
+  set "PYTHON_BIN=python"
+)
+
+if "%PYTHONPATH%"=="" (
+  set "PYTHONPATH=%AGENT_MEMORY_LANE_WORKBUDDY_ADAPTER_ROOT%"
+) else (
+  set "PYTHONPATH=%AGENT_MEMORY_LANE_WORKBUDDY_ADAPTER_ROOT%;%PYTHONPATH%"
+)
+
+"%PYTHON_BIN%" -m workbuddy_harness.hook_runner %*
+exit /b %ERRORLEVEL%

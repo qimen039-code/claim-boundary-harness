@@ -215,6 +215,14 @@ class HarnessGateTests(unittest.TestCase):
             self.assertEqual(result["written"], 1)
             self.assertTrue(log_path.exists())
 
+    def test_flush_logs_sanitizes_lone_surrogates(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            result = flush_logs(log_dir=tmp, events=[{"phase": "test", "text": "bad \udcac"}])
+            log_path = Path(result["path"])
+            content = log_path.read_text(encoding="utf-8")
+            self.assertIn("<invalid-surrogate>", content)
+            self.assertNotIn("\\udcac", content)
+
     def test_runtime_log_dir_writes_event_file(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             decision = runtime_enforcer(
@@ -275,6 +283,27 @@ class HarnessGateTests(unittest.TestCase):
             self.assertIn("Agent Memory Lane Harness route", hook_output["additionalContext"])
             state_path = Path(tmp) / "workbuddy_hook_state.json"
             self.assertTrue(state_path.exists())
+
+    def test_workbuddy_user_prompt_hook_sanitizes_lone_surrogate_payload(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            result = self._run_hook(
+                {
+                    "hook_event_name": "UserPromptSubmit",
+                    "session_id": "session-surrogate",
+                    "cwd": tmp,
+                    "prompt": "bad \udcac",
+                },
+                "--stage",
+                "user_prompt",
+                log_dir=tmp,
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+            output = json.loads(result.stdout)
+            self.assertTrue(output["continue"])
+            state_path = Path(tmp) / "workbuddy_hook_state.json"
+            state_text = state_path.read_text(encoding="utf-8")
+            self.assertIn("<invalid-surrogate>", state_text)
+            self.assertNotIn("\\udcac", state_text)
 
     def test_workbuddy_pre_tool_hook_blocks_hard_tool(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

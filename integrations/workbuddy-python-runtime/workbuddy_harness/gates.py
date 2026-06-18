@@ -14,6 +14,7 @@ from .policy import load_policy
 NEGATION_RE = re.compile(r"(?i)(\bdo\s+not\b|\bdon't\b|\bnever\b|\bnot\b|\bno\b)[\s\w'-]{0,36}$")
 RISK_LABEL_RE = re.compile(r"^R[0-5]$")
 DEFAULT_LOG_FILENAME = "workbuddy_harness_events.jsonl"
+SURROGATE_RE = re.compile(r"[\ud800-\udfff]")
 HARD_TOOL_PATTERNS = [
     r"(?i)\bRemove-Item\b",
     r"(?i)\brmdir\b",
@@ -46,6 +47,19 @@ CHANGE_TOOL_PATTERNS = [
     r"(?i)\bgit\s+add\b",
 ]
 _PENDING_LOGS: list[dict[str, Any]] = []
+
+
+def sanitize_json_value(value: Any) -> Any:
+    """Return a JSON-serializable value without lone UTF-16 surrogate code points."""
+    if isinstance(value, str):
+        return SURROGATE_RE.sub("<invalid-surrogate>", value)
+    if isinstance(value, list):
+        return [sanitize_json_value(item) for item in value]
+    if isinstance(value, tuple):
+        return [sanitize_json_value(item) for item in value]
+    if isinstance(value, dict):
+        return {str(sanitize_json_value(key)): sanitize_json_value(item) for key, item in value.items()}
+    return value
 
 
 def _now() -> str:
@@ -180,7 +194,7 @@ def flush_logs(
     if pending:
         with path.open("a", encoding="utf-8") as handle:
             for event in pending:
-                handle.write(json.dumps(event, ensure_ascii=False, sort_keys=True) + "\n")
+                handle.write(json.dumps(sanitize_json_value(event), ensure_ascii=False, sort_keys=True) + "\n")
         if events is None:
             del _PENDING_LOGS[: len(pending)]
 

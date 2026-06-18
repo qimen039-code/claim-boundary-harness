@@ -38,7 +38,7 @@ Most adopters should aim for L1 plus L2. Do not try to wrap every tool call unti
 | DEP-003 | The hook runs, returns blocked, but the tool still runs | The host ignores the hook result, exit code, or denial schema | Use the host-supported denial format and exit code; if unsupported, mark the path advisory | Confirm logs show both hook invocation and blocked tool suppression |
 | DEP-004 | A command wrapper works in tests but not during agent use | The agent uses another shell, terminal, or internal tool executor | Identify the actual executor and move the wrapper there | Compare wrapper logs with the agent's real tool calls |
 | DEP-005 | `PreToolUse` routing is wrong or loses context | The pre-tool event lacks the original user prompt | Store prompt/session state at prompt submit time and reload it in pre-tool checks | Verify the pre-tool log contains the original task text, not only `R5` or a compact receipt field |
-| DEP-006 | Hook command fails only on Windows or only on macOS/Linux | Shell, quoting, executable bit, path separator, or Python launcher differs | Use explicit shell invocation, quote workspace paths, and expose `PYTHON_BIN` or equivalent | Run the hook command from the same shell the agent uses |
+| DEP-006 | Hook command fails only on Windows or only on macOS/Linux | Shell, quoting, executable bit, path separator, `bash` availability, or Python launcher differs | Use explicit shell invocation, quote workspace paths, and expose `PYTHON_BIN` or equivalent; on Windows use `cmd.exe` wrappers when Bash is unavailable | Run the hook command from the same shell the agent uses |
 | DEP-007 | The adapter passes unit tests but not inside the agent | Tests cover the decision layer, not the host hook pipeline | Add one end-to-end blocked-action test inside the actual agent runtime | Confirm the protected action never happens, not just that the adapter returned `blocked` |
 | DEP-008 | Logs are missing or permission errors appear | Log directory is treated as a file, blocked by sandbox policy, or outside the workspace | Use a workspace-local log directory and create it before enforcement | Verify the JSONL event file is written after both pass and block cases |
 | DEP-009 | Memory isolation appears to work but cross-project data leaks | Memory roots are broad, symbolic paths are unresolved, or the agent reads memory before the gate | Use resolved absolute roots and run memory isolation before payload reads | Test allowed root, sibling-prefix blocked root, and cross-lane blocked root |
@@ -51,6 +51,8 @@ Most adopters should aim for L1 plus L2. Do not try to wrap every tool call unti
 | DEP-016 | Human confirmation becomes too broad | A confirmation flag is reused for future actions | Bind confirmation to the current concrete action only | Confirm a second destructive action still requires a fresh confirmation |
 | DEP-017 | Built-in background actions bypass gates | The agent performs background indexing, auto-fixes, or hidden commands outside tool hooks | Identify background execution surfaces and mark unhooked surfaces advisory | Check runtime logs during startup, indexing, and automatic actions |
 | DEP-018 | Tool input parsing misses dangerous commands | The command is nested under a tool-specific field not parsed by the adapter | Update the adapter to inspect the actual tool schema used by the host | Capture one real tool event JSON and verify hard patterns are detected |
+| DEP-019 | Hook runner logs `codec can't encode character '\ud...'` | Host stdin JSON decoded to lone UTF-16 surrogate values, then output/logging writes them as Unicode | Sanitize hook payloads before routing and log/output writes; prefer ASCII-escaped hook output | Replay a captured hook payload with `\udcac` or `\udc80` and confirm routing still returns context |
+| DEP-020 | Pre-tool blocking works, but the agent says it did not proactively route the task | Only the tool-stage hook is wired, or the prompt-stage hook failed before adding route context | Wire `UserPromptSubmit` or equivalent prompt-stage hook to store the original prompt and inject compact route context | Start a normal task and confirm the agent receives a compact routing receipt before tool planning |
 
 ## Agent-Facing Troubleshooting Runbook
 
@@ -133,6 +135,7 @@ Inspect:
 - the harness JSONL log file;
 - event fields such as event name, session id, cwd, tool name, and tool input;
 - state file used to preserve the original prompt.
+- raw stdin JSON when the hook runner reports decoding or encoding errors.
 
 Expected fields:
 
@@ -146,6 +149,8 @@ original user task or stored prompt state
 ```
 
 If the payload lacks the original task, add a prompt-stage hook that stores it. If the tool command is nested in an unexpected field, update the adapter to parse that field.
+
+If the payload contains invalid Unicode such as lone surrogate escapes (`\udcac`, `\udc80`), sanitize nested strings before routing, state writes, JSONL logging, or hook output. Do not rely on the host to clean these values.
 
 ### 5. Confirm The Host Honors The Blocked Result
 

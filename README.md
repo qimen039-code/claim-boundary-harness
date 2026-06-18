@@ -2,7 +2,7 @@
 
 Stop your coding agent from calling weak evidence "validated." Agent Memory Lane Harness adds deterministic routing, memory isolation, and claim checks to coding-agent workflows.
 
-Current version: `v0.13.0`
+Current version: `v0.13.1`
 
 Formerly: Agent Harness Skill Tree.
 
@@ -50,6 +50,7 @@ flowchart TD
 - **Sanitized whiteboard examples:** This public repository was sanitized before publication. Private records, local project details, machine paths, and real incident history from the original working setup are not included. The included examples are synthetic records used only to help agents and adopters understand how to adapt the framework: routing, layered memory indexes, project memory capsules, paired error/solution records, claim boundaries, and client-update drift handling.
 - **Reference adapters are early:** the main scripts are PowerShell, and the four core gates also have Bash counterparts under `skills/embedded-harness/bash`. Bash scripts require `jq`. The repository also includes an experimental WorkBuddy-oriented Python runtime adapter under `integrations/workbuddy-python-runtime`. These adapters have not been fully tested across devices, operating systems, client versions, or real production loops; they are reference starting points.
 - **WorkBuddy hard enforcement requires hooks:** the WorkBuddy adapter is advisory until the adopter wires it into WorkBuddy/CodeBuddy hooks. For tool execution, use `PreToolUse` so the hook runner can return `permissionDecision: deny` and exit code `2` before the tool runs. Do not patch the installed WorkBuddy app; configure the supported hook surface in the adopting workspace.
+- **WorkBuddy active routing needs prompt-stage hooks:** use `UserPromptSubmit` to store the original prompt and inject compact route context before `PreToolUse` enforces tool calls. The Python hook runner sanitizes lone UTF-16 surrogate values sometimes found in host stdin JSON so malformed payload text does not disable routing.
 - **Deployment is path-specific:** every agent runtime has its own instruction, hook, wrapper, middleware, or sandbox surface. A gate is hard only on the execution path that invokes it and honors the blocked result; other paths remain advisory until separately wired and tested.
 - **Agent client updates require re-adaptation:** Codex, Claude Code, and other agent clients may change paths, launchers, hook behavior, skill loading, or bundled runtimes after updates. Re-run adapter checks and smoke tests after client updates so stale paths do not silently disable the harness.
 

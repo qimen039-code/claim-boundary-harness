@@ -4,6 +4,14 @@ All notable public changes should be recorded here.
 
 This project uses `vMAJOR.MINOR.PATCH` version labels while the framework is still early-stage.
 
+## v0.13.1 - 2026-06-18
+
+- Fixed the WorkBuddy Python hook runner so stdin JSON containing lone UTF-16 surrogate escapes is sanitized before routing, state writes, log writes, or hook output.
+- Made hook output ASCII-escaped and added surrogate-safe JSONL event logging to prevent malformed host payload text from disabling `UserPromptSubmit` active routing.
+- Added a Windows `cmd.exe` hook wrapper for WorkBuddy deployments where `bash` is not available on PATH.
+- Added regression tests for surrogate-safe hook routing and log writes.
+- Expanded WorkBuddy deployment guidance and the generic deployment-risk runbook with prompt-stage active routing and malformed hook-payload diagnostics.
+
 ## v0.13.0 - 2026-06-18
 
 - Added a public SkillOpt-style training layer that stages skill improvements as candidate edits, validation-gate reports, rejected-edit records, and slow-update proposals without replacing the bounded multi-skill matrix.

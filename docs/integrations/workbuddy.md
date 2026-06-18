@@ -35,6 +35,8 @@ PreToolUse hook
 
 That gives the harness a real pre-tool interception point without editing WorkBuddy internals.
 
+`UserPromptSubmit` is required for active routing. If only `PreToolUse` is wired, the runtime can still block high-risk tools, but the agent may not receive the compact route, memory/search decision, or original-task state before planning.
+
 ### 1. Place The Adapter In The Workspace
 
 Keep this directory inside the adopting workspace:
@@ -53,7 +55,7 @@ The runtime enforcer checks for this constitution entry on nontrivial work unles
 
 ### 2. Configure WorkBuddy Hooks
 
-Add hook commands through the hook/settings surface supported by your WorkBuddy version. Some WorkBuddy/CodeBuddy builds run command hooks through a Bash-compatible shell; for those, use the included Bash wrapper.
+Add hook commands through the hook/settings surface supported by your WorkBuddy version. Some WorkBuddy/CodeBuddy builds run command hooks through a Bash-compatible shell; for those, use the included Bash wrapper. On Windows builds where `bash` is not available, use the included `cmd.exe` wrapper instead.
 
 Example project-level hook shape:
 
@@ -101,6 +103,17 @@ If your shell does not expose `python3`, set `PYTHON_BIN=python` in the command.
 ```bash
 python -m workbuddy_harness.hook_runner --stage pre_tool --constitution-path "$CODEBUDDY_PROJECT_DIR/AGENTS.md"
 ```
+
+Windows `cmd.exe` wrapper shape:
+
+```json
+{
+  "type": "command",
+  "command": "cmd.exe /c \"\"%CODEBUDDY_PROJECT_DIR%\\integrations\\workbuddy-python-runtime\\scripts\\workbuddy-hook.cmd\" --stage user_prompt --constitution-path \"%CODEBUDDY_PROJECT_DIR%\\AGENTS.md\" --log-dir \"%CODEBUDDY_PROJECT_DIR%\\.harness-logs\"\""
+}
+```
+
+Set `PYTHON_BIN` to the intended Python executable when plain `python` is not the runtime you want.
 
 Use WorkBuddy's own hook review UI or hook inspection command after editing settings. Hook settings are version-specific, so confirm the exact path and review behavior for your installed WorkBuddy build.
 
@@ -153,6 +166,25 @@ When wiring a pre-tool hook after a pre-task router, preserve the original task 
 If event logging is enabled, pass `log_path` for a concrete JSONL file or `log_dir` for a directory. `log_dir` mode writes to `workbuddy_harness_events.jsonl` inside that directory.
 
 The hook runner also stores `workbuddy_hook_state.json` in the log directory so `PreToolUse` can use the original `UserPromptSubmit` text instead of routing from a compact field such as `R5`.
+
+## Hook Payload Encoding
+
+Some host builds can pass stdin JSON that contains lone UTF-16 surrogate escapes such as `\udcac` or `\udc80`. These are invalid Unicode scalar values after JSON decoding and can break Python output or JSONL logging if they are written with `ensure_ascii=False`.
+
+The hook runner sanitizes those values to `<invalid-surrogate>` before routing, state writes, log writes, and hook output. If you still see errors such as:
+
+```text
+'utf-8' codec can't encode character '\udcac'
+'utf-8' codec can't encode character '\udc80'
+```
+
+check these surfaces in order:
+
+1. The installed hook command is running the current adapter version.
+2. `UserPromptSubmit` and `PreToolUse` both point to the same adapter root.
+3. The hook output is ASCII-escaped or otherwise surrogate-safe.
+4. The log writer sanitizes nested payload values before `json.dumps(... ensure_ascii=False)`.
+5. The WorkBuddy client was restarted or reloaded after hook/settings changes.
 
 ## Smoke Test
 

@@ -8,7 +8,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from .gates import flush_logs, intake_router, runtime_enforcer
+from .gates import flush_logs, intake_router, runtime_enforcer, sanitize_json_value
 from .policy import load_policy
 
 
@@ -31,11 +31,12 @@ def _read_hook_payload() -> dict[str, Any]:
     if not raw.strip():
         return {}
     parsed = json.loads(raw)
+    parsed = sanitize_json_value(parsed)
     return parsed if isinstance(parsed, dict) else {"payload": parsed}
 
 
 def _write_json(payload: dict[str, Any]) -> None:
-    print(json.dumps(payload, ensure_ascii=False, sort_keys=True))
+    sys.stdout.write(json.dumps(sanitize_json_value(payload), ensure_ascii=True, sort_keys=True) + "\n")
 
 
 def _hook_event(payload: dict[str, Any]) -> str:
@@ -295,7 +296,7 @@ def _handle_passthrough(
 
 
 def _handle_error(args: argparse.Namespace, stage: str, exc: Exception) -> tuple[int, dict[str, Any]]:
-    reason = f"Agent Memory Lane Harness hook runner failed: {exc}"
+    reason = str(sanitize_json_value(f"Agent Memory Lane Harness hook runner failed: {exc}"))
     if args.fail_open:
         return 0, {
             "continue": True,
