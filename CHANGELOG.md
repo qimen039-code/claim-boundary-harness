@@ -4,6 +4,13 @@ All notable public changes should be recorded here.
 
 This project uses `vMAJOR.MINOR.PATCH` version labels while the framework is still early-stage.
 
+## v0.10.2 - 2026-06-18
+
+- Fixed WorkBuddy Python adapter logging so `log_dir` writes to `workbuddy_harness_events.jsonl` inside the directory instead of treating the directory itself as a file.
+- Added `original_task_text` and explicit `risk_level` handling to keep pre-tool enforcement from losing the original task evidence after a compact pre-task receipt.
+- Expanded WorkBuddy hard-tool detection to include Unix `rm -rf` / `rm -fr` style destructive commands.
+- Added regression tests for the three WorkBuddy deployment defects.
+
 ## v0.10.1 - 2026-06-18
 
 - Reworked the README opening around the concrete failure mode of weak evidence being overstated as validated.

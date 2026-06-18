@@ -33,6 +33,10 @@ Before relying on it:
 4. Wire the function before action execution.
 5. Test an allowed tool call, an R5 command, a memory-boundary violation, and a strong-claim final check.
 
+When wiring a pre-tool hook after a pre-task router, preserve the original task text. Passing only a compact field such as `risk_level` can remove the task evidence that the runtime enforcer needs for routing. The Python adapter accepts `original_task_text` and an explicit `risk_level` override for this case.
+
+If event logging is enabled, pass `log_path` for a concrete JSONL file or `log_dir` for a directory. `log_dir` mode writes to `workbuddy_harness_events.jsonl` inside that directory.
+
 ## Smoke Test
 
 ```bash

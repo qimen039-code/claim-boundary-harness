@@ -50,6 +50,23 @@ if decision["status"] == "blocked":
     raise RuntimeError(decision["blocked_reasons"])
 ```
 
+If your host pre-task router stores a routing receipt, keep the original user task text and pass it into pre-tool checks:
+
+```python
+decision = runtime_enforcer(
+    stage="pre_tool",
+    task_text=receipt["risk_level"],
+    original_task_text=receipt["original_task_text"],
+    tool_name=tool_name,
+    tool_input=tool_input,
+    constitution_reviewed=True,
+)
+```
+
+The adapter also accepts `risk_level="R5"` as an explicit override when the host already classified the task. Do not pass only `"R5"` as a replacement for the original task text unless you intentionally want a risk-level-only fallback.
+
+Optional JSONL event logging can write to a specific file with `log_path` or to a directory with `log_dir`. In `log_dir` mode the adapter writes `workbuddy_harness_events.jsonl` inside that directory.
+
 ## Verify
 
 From the repository root:

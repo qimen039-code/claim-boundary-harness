@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import os
 import re
+from copy import deepcopy
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -11,10 +12,15 @@ from .policy import load_policy
 
 
 NEGATION_RE = re.compile(r"(?i)(\bdo\s+not\b|\bdon't\b|\bnever\b|\bnot\b|\bno\b)[\s\w'-]{0,36}$")
+RISK_LABEL_RE = re.compile(r"^R[0-5]$")
+DEFAULT_LOG_FILENAME = "workbuddy_harness_events.jsonl"
 HARD_TOOL_PATTERNS = [
     r"(?i)\bRemove-Item\b",
     r"(?i)\brmdir\b",
     r"(?i)\bdel\b",
+    r"(?i)\brm\s+-(?:[a-z]*r[a-z]*f|[a-z]*f[a-z]*r)\b",
+    r"(?i)\brm\s+-[^\s]*r[^\s]*\s+-[^\s]*f\b",
+    r"(?i)\brm\s+-[^\s]*f[^\s]*\s+-[^\s]*r\b",
     r"(?i)\bgit\s+commit\b",
     r"(?i)\bgit\s+push\b",
     r"(?i)\bgit\s+reset\b",
@@ -39,6 +45,7 @@ CHANGE_TOOL_PATTERNS = [
     r"(?i)\bCopy-Item\b",
     r"(?i)\bgit\s+add\b",
 ]
+_PENDING_LOGS: list[dict[str, Any]] = []
 
 
 def _now() -> str:
@@ -51,6 +58,23 @@ def _as_list(value: Any) -> list[Any]:
     if isinstance(value, list):
         return value
     return [value]
+
+
+def _risk_rank(risk_level: str, policy: dict[str, Any]) -> int:
+    order = [str(item) for item in _as_list(policy.get("risk_order_high_to_low"))]
+    try:
+        return order.index(risk_level)
+    except ValueError:
+        return len(order)
+
+
+def _higher_risk(left: str, right: str, policy: dict[str, Any]) -> str:
+    return left if _risk_rank(left, policy) <= _risk_rank(right, policy) else right
+
+
+def _extract_risk_label(value: str = "") -> str:
+    text = str(value or "").strip()
+    return text if RISK_LABEL_RE.fullmatch(text) else ""
 
 
 def _flatten_triggers(value: Any) -> list[str]:
@@ -117,6 +141,58 @@ def _unique(items: list[str]) -> list[str]:
     return sorted(set(items), key=items.index)
 
 
+def _resolve_log_path(
+    *,
+    log_path: str | os.PathLike[str] | None = None,
+    log_dir: str | os.PathLike[str] | None = None,
+) -> Path | None:
+    if log_dir is not None:
+        return Path(log_dir) / DEFAULT_LOG_FILENAME
+    if log_path is None:
+        return None
+    path = Path(log_path)
+    if path.exists() and path.is_dir():
+        return path / DEFAULT_LOG_FILENAME
+    if str(log_path).endswith(("\\", "/")):
+        return path / DEFAULT_LOG_FILENAME
+    return path
+
+
+def flush_logs(
+    *,
+    log_path: str | os.PathLike[str] | None = None,
+    log_dir: str | os.PathLike[str] | None = None,
+    events: list[dict[str, Any]] | None = None,
+) -> dict[str, Any]:
+    path = _resolve_log_path(log_path=log_path, log_dir=log_dir)
+    pending = list(events) if events is not None else list(_PENDING_LOGS)
+    if path is None:
+        return {
+            "ts": _now(),
+            "phase": "flush_logs",
+            "status": "skipped",
+            "written": 0,
+            "path": "",
+            "reason": "no log_path or log_dir provided",
+        }
+
+    path.parent.mkdir(parents=True, exist_ok=True)
+    if pending:
+        with path.open("a", encoding="utf-8") as handle:
+            for event in pending:
+                handle.write(json.dumps(event, ensure_ascii=False, sort_keys=True) + "\n")
+        if events is None:
+            del _PENDING_LOGS[: len(pending)]
+
+    return {
+        "ts": _now(),
+        "phase": "flush_logs",
+        "status": "pass",
+        "written": len(pending),
+        "path": str(path),
+    }
+
+
 def _path_text(path: str | os.PathLike[str]) -> str:
     return os.path.normcase(os.path.abspath(os.path.realpath(os.fspath(path)))).rstrip("\\/")
 
@@ -154,6 +230,57 @@ def _tool_text(tool_name: str = "", tool_input: Any = None) -> str:
 
 def _pattern_hits(text: str, patterns: list[str]) -> list[str]:
     return sorted({pattern for pattern in patterns if re.search(pattern, text)})
+
+
+def _apply_risk_override(route: dict[str, Any], risk_level: str, policy: dict[str, Any]) -> dict[str, Any]:
+    risk = _extract_risk_label(risk_level)
+    if not risk:
+        return route
+
+    updated = deepcopy(route)
+    merged_risk = _higher_risk(str(updated.get("risk_level", "R0")), risk, policy)
+    updated["risk_level"] = merged_risk
+    updated["task_type"] = merged_risk
+
+    for receipt_key in ("routing_receipt", "compact_receipt"):
+        receipt = updated.get(receipt_key)
+        if isinstance(receipt, dict):
+            receipt["risk_level"] = merged_risk
+            receipt["task_type"] = merged_risk
+
+    if merged_risk != "R0":
+        triggered = _as_list(updated.get("triggered_risks"))
+        if merged_risk not in triggered:
+            triggered.append(merged_risk)
+        updated["triggered_risks"] = _unique([str(item) for item in triggered])
+        matched = dict(updated.get("matched_risk_triggers", {}))
+        matched.setdefault(merged_risk, [])
+        matched[merged_risk] = _unique([str(item) for item in matched[merged_risk]] + [f"explicit_risk_level:{risk}"])
+        updated["matched_risk_triggers"] = matched
+
+    gates = [str(item) for item in _as_list(updated.get("required_gates"))]
+    gates.extend(str(gate) for gate in _as_list(policy.get("risk_gate_rules", {}).get(merged_risk)))
+    updated["required_gates"] = _unique(gates)
+    if isinstance(updated.get("routing_receipt"), dict):
+        updated["routing_receipt"]["required_gates"] = updated["required_gates"]
+    if isinstance(updated.get("compact_receipt"), dict):
+        updated["compact_receipt"]["required_gates"] = updated["required_gates"]
+
+    approvals = [str(item) for item in _as_list(updated.get("approval_required"))]
+    approvals.extend(str(rule) for rule in _as_list(policy.get("risk_approval_rules", {}).get(merged_risk)))
+    updated["approval_required"] = _unique(approvals)
+    human_confirmation_need = bool(updated["approval_required"])
+    if isinstance(updated.get("compact_receipt"), dict):
+        updated["compact_receipt"]["human_confirmation_need"] = human_confirmation_need
+
+    module_need = [str(item) for item in _as_list(updated.get("module_need"))]
+    if merged_risk == "R5" or str(updated.get("classification_confidence")) == "low":
+        module_need.append("runtime_gate")
+    updated["module_need"] = _unique(module_need)
+    if isinstance(updated.get("routing_receipt"), dict):
+        updated["routing_receipt"]["module_need"] = updated["module_need"]
+
+    return updated
 
 
 def intake_router(task_text: str = "", cwd: str | None = None, policy: dict[str, Any] | None = None) -> dict[str, Any]:
@@ -502,6 +629,8 @@ def runtime_enforcer(
     *,
     stage: str = "pre_task",
     task_text: str = "",
+    original_task_text: str = "",
+    risk_level: str = "",
     cwd: str | None = None,
     tool_name: str = "",
     tool_input: Any = None,
@@ -511,12 +640,17 @@ def runtime_enforcer(
     boundary_reviewed: bool = False,
     constitution_reviewed: bool = False,
     constitution_path: str = "",
+    log_path: str | os.PathLike[str] | None = None,
+    log_dir: str | os.PathLike[str] | None = None,
     policy: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     policy = policy or load_policy()
     cwd = cwd or os.getcwd()
-    route_text = "\n".join(part for part in [task_text, tool_name, _tool_text(tool_input=tool_input)] if part)
+    task_text_for_route = original_task_text or ("" if _extract_risk_label(task_text) else task_text)
+    explicit_risk_level = risk_level or _extract_risk_label(task_text)
+    route_text = "\n".join(part for part in [task_text_for_route, tool_name, _tool_text(tool_input=tool_input)] if part)
     route = intake_router(route_text, cwd, policy)
+    route = _apply_risk_override(route, explicit_risk_level, policy)
     tool_text = _tool_text(tool_name, tool_input)
     hard_hits = _pattern_hits(tool_text, HARD_TOOL_PATTERNS)
     change_hits = _pattern_hits(tool_text, CHANGE_TOOL_PATTERNS)
@@ -549,13 +683,15 @@ def runtime_enforcer(
     if change_hits and route["risk_level"] == "R0":
         warnings.append("tool_looks_mutating_but_route_is_R0")
 
-    return {
+    result = {
         "ts": _now(),
         "phase": "runtime_enforcer",
         "stage": stage,
         "status": "blocked" if blocked else "pass",
         "cwd": cwd,
         "route": route,
+        "task_text_for_route": task_text_for_route,
+        "explicit_risk_level": explicit_risk_level,
         "tool_name": tool_name,
         "tool_hard_hits": hard_hits,
         "tool_change_hits": change_hits,
@@ -565,3 +701,6 @@ def runtime_enforcer(
         "final_text_scanned": bool(stage == "final" and final_text),
         "enforcement": "hard only when host treats this in-process function as the sole pre-execution gate",
     }
+    if log_path is not None or log_dir is not None:
+        result["log_flush"] = flush_logs(log_path=log_path, log_dir=log_dir, events=[result])
+    return result

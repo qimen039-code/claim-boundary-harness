@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -9,6 +10,7 @@ sys.path.insert(0, str(ROOT))
 
 from workbuddy_harness import (  # noqa: E402
     claim_schema_verifier,
+    flush_logs,
     intake_router,
     load_policy,
     memory_isolation_gate,
@@ -110,6 +112,47 @@ class HarnessGateTests(unittest.TestCase):
         self.assertEqual(decision["status"], "blocked")
         self.assertIn("tool_call_requires_human_confirmation", decision["blocked_reasons"])
 
+    def test_runtime_blocks_unix_rm_rf_without_confirmation(self) -> None:
+        decision = runtime_enforcer(
+            stage="pre_tool",
+            task_text="clean temporary build files",
+            tool_name="shell",
+            tool_input={"command": "rm -rf build"},
+            constitution_reviewed=True,
+            policy=self.policy,
+        )
+        self.assertEqual(decision["status"], "blocked")
+        self.assertIn("tool_call_requires_human_confirmation", decision["blocked_reasons"])
+        self.assertTrue(any("rm" in hit for hit in decision["tool_hard_hits"]))
+
+    def test_runtime_preserves_original_task_text_for_pre_tool(self) -> None:
+        decision = runtime_enforcer(
+            stage="pre_tool",
+            task_text="R5",
+            original_task_text="delete stale files after review",
+            tool_name="shell",
+            tool_input={"command": "echo ok"},
+            constitution_reviewed=True,
+            policy=self.policy,
+        )
+        self.assertEqual(decision["route"]["risk_level"], "R5")
+        self.assertEqual(decision["task_text_for_route"], "delete stale files after review")
+        self.assertEqual(decision["status"], "blocked")
+        self.assertIn("human_confirmation_required_for_R5", decision["blocked_reasons"])
+
+    def test_runtime_treats_risk_label_task_text_as_explicit_risk(self) -> None:
+        decision = runtime_enforcer(
+            stage="pre_tool",
+            task_text="R5",
+            tool_name="shell",
+            tool_input={"command": "echo ok"},
+            constitution_reviewed=True,
+            policy=self.policy,
+        )
+        self.assertEqual(decision["route"]["risk_level"], "R5")
+        self.assertEqual(decision["explicit_risk_level"], "R5")
+        self.assertEqual(decision["status"], "blocked")
+
     def test_runtime_passes_confirmed_hard_tool_when_constitution_reviewed(self) -> None:
         decision = runtime_enforcer(
             stage="pre_tool",
@@ -132,6 +175,32 @@ class HarnessGateTests(unittest.TestCase):
         )
         self.assertEqual(decision["status"], "blocked")
         self.assertIn("claim_schema_verifier_blocked", decision["blocked_reasons"])
+
+    def test_flush_logs_appends_default_file_inside_log_dir(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            result = flush_logs(log_dir=tmp, events=[{"phase": "test", "status": "pass"}])
+            log_path = Path(result["path"])
+            self.assertEqual(log_path.name, "workbuddy_harness_events.jsonl")
+            self.assertEqual(log_path.parent, Path(tmp))
+            self.assertEqual(result["status"], "pass")
+            self.assertEqual(result["written"], 1)
+            self.assertTrue(log_path.exists())
+
+    def test_runtime_log_dir_writes_event_file(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            decision = runtime_enforcer(
+                stage="pre_tool",
+                task_text="inspect repository",
+                tool_name="shell",
+                tool_input={"command": "echo ok"},
+                constitution_reviewed=True,
+                log_dir=tmp,
+                policy=self.policy,
+            )
+            log_path = Path(decision["log_flush"]["path"])
+            self.assertEqual(log_path.name, "workbuddy_harness_events.jsonl")
+            self.assertEqual(decision["log_flush"]["written"], 1)
+            self.assertTrue(log_path.exists())
 
 
 if __name__ == "__main__":

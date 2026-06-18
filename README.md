@@ -2,7 +2,7 @@
 
 Stop your coding agent from calling weak evidence "validated." Agent Memory Lane Harness adds deterministic routing, memory isolation, and claim checks to coding-agent workflows.
 
-Current version: `v0.10.1`
+Current version: `v0.10.2`
 
 Formerly: Agent Harness Skill Tree.
 
