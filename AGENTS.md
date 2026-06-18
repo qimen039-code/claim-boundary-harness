@@ -24,7 +24,9 @@ routing receipt
 -> selective runtime hard gate only for critical risks
 ```
 
-Routing receipt fields: task type, target surface, audience, active lane, risk level, semantic ambiguity, module need, memory need, memory mode, memory lane, record intent, external need, claim risk, projectization decision, and required gates.
+Routing receipt fields: task type, target surface, audience, active lane, risk level, semantic ambiguity, module need, memory need, memory mode, memory lane, record intent, external need, claim risk, projectization decision, receipt profile, and required gates.
+
+Use receipt profiles to keep runtime cost low: `compact_runtime` for ordinary local execution, `extended_governance` for public/framework/project-boundary work, and `debug_receipt` only for router diagnosis or explicit full-receipt requests.
 
 Re-evaluation is required after trigger events: new evidence, missing files, tool errors, scope changes, user corrections, cross-project terminology, currentness/version claims, GitHub/open-source mechanism intake, risk/cost escalation, strong claims, R5 actions, or memory writes.
 

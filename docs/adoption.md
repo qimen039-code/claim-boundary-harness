@@ -66,9 +66,11 @@ Stronger setups can run:
 
 Also make the advisory control plane mandatory:
 
-1. Create a lightweight routing receipt for nontrivial work: task type, target surface, audience, lane, risk, semantic ambiguity, module need, memory need, memory mode, memory lane, record intent, external need, claim risk, projectization decision, and required gates.
+1. Create a lightweight routing receipt for nontrivial work: task type, target surface, audience, lane, risk, semantic ambiguity, module need, memory need, memory mode, memory lane, record intent, external need, claim risk, projectization decision, receipt profile, and required gates.
 2. Re-evaluate only after trigger events: new evidence, missing files, tool errors, scope changes, user corrections, cross-project terminology, currentness/version claims, GitHub/open-source mechanism intake, risk/cost escalation, strong claims, R5 actions, or memory writes.
 3. Final-check claim scope, memory scope, version metadata, and unresolved verification debt.
+
+For local single-user adapters, start with `compact_runtime`. Expand to `extended_governance` only when public/private boundaries, framework rules, adapters, project memory, memory writes, semantic ambiguity, or projectization drift appear. Use `debug_receipt` only for router troubleshooting.
 
 Do not make this expensive by default. The control plane should choose the cheapest sufficient route and should not wrap every tool call.
 

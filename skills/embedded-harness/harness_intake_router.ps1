@@ -385,6 +385,36 @@ if (($risk -eq "R5") -or ($classificationConfidence -eq "low")) { $moduleNeed +=
 if ($moduleNeed.Count -eq 0) { $moduleNeed += "none" }
 $moduleNeed = @($moduleNeed | Select-Object -Unique)
 
+$debugTriggers = Get-ObjectPropertyValue $policy.receipt_profiles "debug_triggers"
+$debugHits = Get-MatchedTriggers $debugTriggers
+$receiptProfile = "compact_runtime"
+$profileReason = @("default_compact_runtime")
+if ($debugHits.Count -gt 0) {
+  $receiptProfile = "debug_receipt"
+  $profileReason += "debug_requested"
+} else {
+  if ($targetSurface -in @("public_docs", "local_harness", "project_memory", "skill_matrix", "adapter", "private_rule")) {
+    $profileReason += "governance_surface"
+  }
+  if ($audience -in @("public_user", "local_maintainer")) {
+    $profileReason += "audience_boundary"
+  }
+  if ($semanticAmbiguity.Count -gt 0) {
+    $profileReason += "semantic_ambiguity"
+  }
+  if (($memoryMode -eq "write") -or ($memoryMode -eq "update") -or ($recordIntent -ne "no_record")) {
+    $profileReason += "memory_write_or_record"
+  }
+  if ($projectizationDecision -eq "emergent_project_candidate") {
+    $profileReason += "projectization_candidate"
+  }
+  if ($profileReason.Count -gt 1) {
+    $receiptProfile = "extended_governance"
+  }
+}
+$profileReason = @($profileReason | Select-Object -Unique)
+$humanConfirmationNeed = (@($approval | Select-Object -Unique).Count -gt 0)
+
 $routingReceipt = [ordered]@{
   task_type = $risk
   target_surface = $targetSurface
@@ -400,8 +430,20 @@ $routingReceipt = [ordered]@{
   external_need = @($externalNeed)
   claim_risk = $claimRisk
   projectization_decision = $projectizationDecision
+  receipt_profile = $receiptProfile
   projectization_signals = @($projectizationSignals)
   required_gates = @($requiredGates | Select-Object -Unique)
+}
+
+$compactReceipt = [ordered]@{
+  task_type = $risk
+  risk_level = $risk
+  required_gates = @($requiredGates | Select-Object -Unique)
+  memory_mode = $memoryMode
+  memory_lane = $memoryLane
+  external_need = @($externalNeed)
+  claim_risk = $claimRisk
+  human_confirmation_need = $humanConfirmationNeed
 }
 
 $result = [ordered]@{
@@ -410,6 +452,9 @@ $result = [ordered]@{
   status = "pass"
   cwd = $Cwd
   routing_receipt = $routingReceipt
+  compact_receipt = $compactReceipt
+  receipt_profile = $receiptProfile
+  profile_reason = @($profileReason)
   target_surface = $targetSurface
   audience = $audience
   project_lane = $projectLane

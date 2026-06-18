@@ -327,7 +327,29 @@ def intake_router(task_text: str = "", cwd: str | None = None, policy: dict[str,
         module_need.append("none")
     module_need = _unique(module_need)
 
+    receipt_profile = "compact_runtime"
+    profile_reason = ["default_compact_runtime"]
+    debug_hits = _matching_triggers(task_text, policy.get("receipt_profiles", {}).get("debug_triggers", []))
+    if debug_hits:
+        receipt_profile = "debug_receipt"
+        profile_reason.append("debug_requested")
+    else:
+        if target_surface in {"public_docs", "local_harness", "project_memory", "skill_matrix", "adapter", "private_rule"}:
+            profile_reason.append("governance_surface")
+        if audience in {"public_user", "local_maintainer"}:
+            profile_reason.append("audience_boundary")
+        if semantic_ambiguity:
+            profile_reason.append("semantic_ambiguity")
+        if memory_mode in {"write", "update"} or record_intent != "no_record":
+            profile_reason.append("memory_write_or_record")
+        if projectization_decision == "emergent_project_candidate":
+            profile_reason.append("projectization_candidate")
+        if len(profile_reason) > 1:
+            receipt_profile = "extended_governance"
+    profile_reason = _unique(profile_reason)
+
     required_gates_out = _unique(required_gates)
+    human_confirmation_need = bool(_unique(approval_required))
     routing_receipt = {
         "task_type": risk_level,
         "target_surface": target_surface,
@@ -343,8 +365,19 @@ def intake_router(task_text: str = "", cwd: str | None = None, policy: dict[str,
         "external_need": external_need,
         "claim_risk": claim_risk,
         "projectization_decision": projectization_decision,
+        "receipt_profile": receipt_profile,
         "projectization_signals": projectization_signals,
         "required_gates": required_gates_out,
+    }
+    compact_receipt = {
+        "task_type": risk_level,
+        "risk_level": risk_level,
+        "required_gates": required_gates_out,
+        "memory_mode": memory_mode,
+        "memory_lane": memory_lane,
+        "external_need": external_need,
+        "claim_risk": claim_risk,
+        "human_confirmation_need": human_confirmation_need,
     }
 
     return {
@@ -353,6 +386,9 @@ def intake_router(task_text: str = "", cwd: str | None = None, policy: dict[str,
         "status": "pass",
         "cwd": cwd,
         "routing_receipt": routing_receipt,
+        "compact_receipt": compact_receipt,
+        "receipt_profile": receipt_profile,
+        "profile_reason": profile_reason,
         "target_surface": target_surface,
         "audience": audience,
         "project_lane": lane,

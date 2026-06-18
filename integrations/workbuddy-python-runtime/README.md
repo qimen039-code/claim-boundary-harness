@@ -16,6 +16,7 @@ Treat it as a starting point. Before relying on it as a hard control path, test 
 
 - Reuse the public `embedded_harness_policy.json` as the policy source.
 - Provide in-process Python functions for routing, memory isolation, claim checks, and runtime enforcement decisions.
+- Prefer `compact_receipt` for ordinary local execution and expand to the full `routing_receipt` only when `receipt_profile` is `extended_governance` or `debug_receipt`.
 - Avoid PowerShell subprocesses in the decision path.
 - Do not auto-register a WorkBuddy plugin or patch the installed application.
 

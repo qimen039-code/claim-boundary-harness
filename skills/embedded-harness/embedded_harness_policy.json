@@ -75,6 +75,7 @@
       "external_need",
       "claim_risk",
       "projectization_decision",
+      "receipt_profile",
       "required_gates"
     ],
     "target_surface_values": ["public_docs", "local_harness", "project_memory", "skill_matrix", "tool_call", "adapter", "git_action", "private_rule", "current_chat"],
@@ -109,6 +110,24 @@
     "projectization_threshold": 3,
     "low_cost_rule": "Use microkernel -> router contract -> one matching module -> one needed gate -> one needed index -> only matching payload.",
     "source_grounded_influences": ["policy_decision_point", "admission_precheck", "metadata_router", "triggered_reassessment", "failure_mode_preflight", "audience_boundary"]
+  },
+  "receipt_profiles": {
+    "default_profile": "compact_runtime",
+    "profile_rule": "Always compute the full routing decision internally, but expose the smallest receipt profile that fits the task. Expand only when governance, public/private, projectization, R4/R5, memory write, strong claim, or debug triggers require it.",
+    "compact_runtime": {
+      "purpose": "default low-cost runtime receipt for ordinary nontrivial tasks and single-user local agents",
+      "fields": ["task_type", "risk_level", "required_gates", "memory_mode", "memory_lane", "external_need", "claim_risk", "human_confirmation_need"],
+      "expand_when": ["public_or_private_audience", "semantic_ambiguity_present", "framework_or_adapter_or_project_memory_surface", "memory_write_or_update", "projectization_candidate", "debug_requested"]
+    },
+    "extended_governance": {
+      "purpose": "expanded receipt for framework rules, public repositories, adapters, project memory, projectization, and cross-boundary governance",
+      "fields": ["task_type", "target_surface", "audience", "project_lane", "risk_level", "semantic_ambiguity", "module_need", "memory_need", "memory_mode", "memory_lane", "record_intent", "external_need", "claim_risk", "projectization_decision", "required_gates"]
+    },
+    "debug_receipt": {
+      "purpose": "full diagnostic receipt for router development and misroute debugging",
+      "fields": ["full_routing_receipt", "triggered_risks", "matched_risk_triggers", "negated_risk_triggers", "classification_confidence", "profile_reason"]
+    },
+    "debug_triggers": ["debug receipt", "full receipt", "route debug", "routing debug", "\u8c03\u8bd5\u56de\u6267", "\u5b8c\u6574\u56de\u6267", "\u8def\u7531\u8c03\u8bd5"]
   },
   "memory_routing_contract": {
     "mandatory_for_nontrivial_tasks": true,

@@ -2,7 +2,7 @@
 
 Agent Memory Lane Harness is a meta-first whiteboard framework for routing coding-agent work through project-scoped memory lanes, lightweight guardrails, claim checks, and paired improvement records.
 
-Current version: `v0.9.2`
+Current version: `v0.10.0`
 
 Formerly: Agent Harness Skill Tree.
 
@@ -13,6 +13,7 @@ It is not tied to one agent runtime. It is a neutral starting point that can be 
 - **Codex field-use boundary:** this framework has been tried in one private Codex-based project workflow. That early use suggests the routing chain can persist across new conversations when the root instruction file, harness policy, project registry, and skill tree are installed, but it has not yet been broadly validated across many projects or many agent runtimes.
 - **Independent project lanes:** separate projects can run separate local chains. With clear global routing boundaries, each project keeps its own instructions, memory roots, and progress records, which reduces silent memory bleed and cross-project contamination.
 - **Mandatory advisory control plane:** nontrivial tasks must create a lightweight routing receipt, re-evaluate only on trigger events, and final-check claim/memory/search boundaries without wrapping every tool call.
+- **Receipt profiles:** the router computes the full decision internally but can expose a compact runtime receipt by default, expanding only for governance, public/private, projectization, memory-write, or debug cases.
 - **Router decision contract:** the router and dynamic decision layer use a compact receipt to decide target surface, audience, ambiguity, module need, memory need, external need, and claim risk before opening deeper context.
 - **Memory routing contract:** the router decides whether memory should be skipped, read, written, or updated; it also decides the lane before opening memory payloads.
 - **Projectization drift detection:** projectless conversations that accumulate repository, versioning, docs, tests, adapters, release, or architecture-decision signals can be flagged as emergent project candidates.
@@ -58,6 +59,7 @@ user request
 - **Root microkernel**: the small always-on rule set for language, evidence, risk, memory boundaries, and high-risk stops.
 - **Intake router**: deterministic R0-R5 task classification.
 - **Mandatory advisory control plane**: routing receipt, event-triggered dynamic review, and final boundary checks for skill/tool/plugin/search/memory/claim-gate decisions.
+- **Receipt profile selector**: `compact_runtime` for low-cost single-agent operation, `extended_governance` for public/framework/project-boundary work, and `debug_receipt` for router diagnosis.
 - **Router decision contract**: a stable low-cost receipt for target surface, audience, semantic ambiguity, module selection, memory route, external route, claim risk, and gates.
 - **Governance/routing update handling**: framework-rule, trigger-term, routing-rule, decision-matrix, and dynamic-evaluation edits are treated as R3 changes even when they are documentation-only.
 - **Selective runtime enforcer scripts**: hook, wrapper, and tool-proxy entry points that return nonzero only at configured hard-stop boundaries when called by the adopting runtime. They are truly mandatory only when they are the sole execution path for the relevant agent action.
@@ -221,7 +223,7 @@ This is not yet broad field validation. The public package has not been battle-t
 
 The PowerShell, Bash, and WorkBuddy Python adapters are also not complete compatibility claims. They were adapted from one local device environment. PowerShell and the WorkBuddy Python decision layer were smoke-tested locally; the Bash/mac-style scripts are reference adapters and still need target-shell verification on the adopter's machine. The WorkBuddy Python adapter was unit-tested as a standalone decision layer rather than proven as a hard-wired WorkBuddy execution-loop integration.
 
-For `v0.9.0`, the new memory-routing and projectization receipt fields were smoke-tested through the PowerShell intake router and the WorkBuddy Python adapter tests. Bash receipt parity was updated in the reference script, but Bash was not available on the current PATH during this update, so the Bash path still needs target-shell verification.
+For `v0.10.0`, receipt profiles were smoke-tested through the PowerShell intake router and the WorkBuddy Python adapter tests. Bash receipt parity was updated in the reference script, but Bash was not available on the current PATH during this update, so the Bash path still needs target-shell verification.
 
 It also supports independent project lanes. After global routing boundaries are configured, each project can keep its own instructions, memory roots, and incident records. That makes it possible to run separate local chains for separate projects without silent memory bleed, cross-project contamination, or unrelated progress records being mixed together.
 

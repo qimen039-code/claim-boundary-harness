@@ -32,6 +32,21 @@ class HarnessGateTests(unittest.TestCase):
         self.assertIn("commit", route["matched_risk_triggers"].get("R5", []))
         self.assertIn("push", route["matched_risk_triggers"].get("R5", []))
 
+    def test_router_uses_compact_profile_for_plain_local_r5(self) -> None:
+        route = intake_router("delete old files after explicit review", policy=self.policy)
+        self.assertEqual(route["risk_level"], "R5")
+        self.assertEqual(route["receipt_profile"], "compact_runtime")
+        self.assertTrue(route["compact_receipt"]["human_confirmation_need"])
+
+    def test_router_expands_profile_for_public_governance(self) -> None:
+        route = intake_router("update public README harness routing rules", policy=self.policy)
+        self.assertEqual(route["receipt_profile"], "extended_governance")
+        self.assertIn("governance_surface", route["profile_reason"])
+
+    def test_router_uses_debug_profile_when_requested(self) -> None:
+        route = intake_router("route debug full receipt for this task", policy=self.policy)
+        self.assertEqual(route["receipt_profile"], "debug_receipt")
+
     def test_router_honors_simple_negation(self) -> None:
         route = intake_router("do not delete anything, only inspect files", policy=self.policy)
         self.assertNotEqual(route["risk_level"], "R5")

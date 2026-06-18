@@ -21,6 +21,7 @@ record_intent
 external_need
 claim_risk
 projectization_decision
+receipt_profile
 required_gates
 ```
 
@@ -42,7 +43,20 @@ Field meanings:
 | `external_need` | Decide whether external lookup is unnecessary, official-source, GitHub/open-source, general cross-check, source-grounded learning, or local validation. |
 | `claim_risk` | Decide whether the final answer contains an operational note, a weak claim, or a strong factual claim needing schema evidence. |
 | `projectization_decision` | Decide whether projectless work is still not a project, belongs to a current project, or should be treated as an emergent project candidate. |
+| `receipt_profile` | Decide whether to expose a compact runtime receipt, expanded governance receipt, or debug receipt. |
 | `required_gates` | List the concrete gates to run or honor. |
+
+## Receipt Profiles
+
+The router should compute the full decision internally, then expose the smallest useful surface:
+
+| Profile | Use when | Expose |
+| --- | --- | --- |
+| `compact_runtime` | Default local runtime, single-user agents, ordinary R1-R5 checks where no public/private or governance ambiguity exists. | Risk, gates, memory mode/lane, external need, claim risk, human confirmation need. |
+| `extended_governance` | Public docs, local harness, adapters, project memory, semantic ambiguity, memory writes, projectization drift, or audience-boundary work. | Full governance receipt fields. |
+| `debug_receipt` | Router debugging, misroute analysis, or user asks for full receipt. | Full receipt plus matched/negated triggers, confidence, and profile reasons. |
+
+This keeps WorkBuddy-like local adapters cheap while preserving the full whiteboard schema for migration, audits, and public framework work.
 
 ## Low-Cost Rule
 
@@ -87,6 +101,8 @@ This contract adapts several established ideas as lightweight design influences:
 | --- | --- | --- |
 | Open Policy Agent | Separate the decision point from the execution/enforcement path. | This framework is not OPA and does not require Rego. |
 | Kubernetes admission control | Run checks before critical persistence or execution boundaries. | Only selected hard gates should intercept; ordinary tools stay cheap. |
+| OpenTelemetry sampling | Control emitted detail to balance usefulness and overhead. | Receipt profiles are not telemetry sampling; they only decide how much routing context to expose. |
+| LangChain middleware | Use lifecycle hooks or wrap-style interception for cross-cutting concerns. | The framework stays runtime-neutral and does not require LangChain. |
 | LlamaIndex and Haystack routers | Select a candidate tool, route, or retrieval path from metadata instead of opening everything. | Router output is a control receipt, not an autonomous success claim. |
 | OODA loop | Reassess when the situation changes. | Reassessment is trigger-based, not continuous deliberation. |
 | Cynefin-style sensemaking | Match response style to context uncertainty. | The public contract uses simple fields instead of complex domain taxonomy. |

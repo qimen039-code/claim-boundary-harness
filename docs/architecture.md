@@ -66,6 +66,16 @@ This contract keeps the decision layer stronger than a suggestion while avoiding
 
 The design borrows a few lightweight patterns: separate decision from execution, run prechecks before critical boundaries, route by metadata, reassess on trigger events, preflight likely failure modes, and keep audience/ownership explicit. These are design influences, not proof that this framework is validated in every runtime.
 
+## Receipt Profile Layer
+
+The full receipt schema remains the canonical governance model, but runtime adapters do not need to expose every field on every turn. The router computes the full decision and selects a profile:
+
+- `compact_runtime`: default low-cost output for local agent loops. It carries the fields needed to enforce R5, memory route, external search budget, claim gate, and confirmation.
+- `extended_governance`: public repository, local harness, adapter, project memory, semantic ambiguity, memory write, or projectization work.
+- `debug_receipt`: full route diagnostics and trigger evidence.
+
+This mirrors a common systems pattern: keep the policy decision point complete, but sample or expand emitted context only when the execution boundary needs it.
+
 See [router-decision-contract.md](router-decision-contract.md).
 
 ## Memory Routing Contract

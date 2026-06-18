@@ -36,7 +36,9 @@ Required decisions:
 - current risk level and escalation triggers;
 - whether project instructions, a project router, memory retrieval, existing skills/tools/plugins, external research, claim gates, or human confirmation are needed.
 
-The control plane should produce a lightweight routing receipt: task type, target surface, audience, project lane, risk level, semantic ambiguity, module need, memory need, memory mode, memory lane, record intent, external need, claim risk, projectization decision, and required gates.
+The control plane should produce a lightweight routing receipt. The router may compute the full governance decision internally while exposing a compact runtime receipt by default. Full fields are task type, target surface, audience, project lane, risk level, semantic ambiguity, module need, memory need, memory mode, memory lane, record intent, external need, claim risk, projectization decision, receipt profile, and required gates.
+
+Receipt profiles: `compact_runtime` for ordinary local execution and single-agent adapters; `extended_governance` for public docs, local harness, adapter, project memory, semantic ambiguity, memory write, or projectization boundary work; `debug_receipt` for router diagnosis and full receipt debugging.
 
 Runtime trigger events include new evidence, missing files, tool errors, scope changes, user corrections, cross-project terminology, currentness/version claims, GitHub/open-source mechanism intake, cost escalation, risk escalation, strong claims, R5 actions, and memory writes.
 

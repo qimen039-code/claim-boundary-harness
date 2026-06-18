@@ -418,6 +418,39 @@ if [ "$risk" = "R5" ] || [ "$classification_confidence" = "low" ]; then
 fi
 [ "${#module_need[@]}" -eq 0 ] && add_unique module_need "none"
 
+debug_hits=()
+collect_matching_triggers '.receipt_profiles.debug_triggers' debug_hits
+receipt_profile="compact_runtime"
+profile_reason=("default_compact_runtime")
+if [ "${#debug_hits[@]}" -gt 0 ]; then
+  receipt_profile="debug_receipt"
+  add_unique profile_reason "debug_requested"
+else
+  case "$target_surface" in
+    public_docs|local_harness|project_memory|skill_matrix|adapter|private_rule)
+      add_unique profile_reason "governance_surface"
+      ;;
+  esac
+  case "$audience" in
+    public_user|local_maintainer)
+      add_unique profile_reason "audience_boundary"
+      ;;
+  esac
+  [ "${#semantic_ambiguity[@]}" -gt 0 ] && add_unique profile_reason "semantic_ambiguity"
+  if [ "$memory_mode" = "write" ] || [ "$memory_mode" = "update" ] || [ "$record_intent" != "no_record" ]; then
+    add_unique profile_reason "memory_write_or_record"
+  fi
+  [ "$projectization_decision" = "emergent_project_candidate" ] && add_unique profile_reason "projectization_candidate"
+  if [ "${#profile_reason[@]}" -gt 1 ]; then
+    receipt_profile="extended_governance"
+  fi
+fi
+
+human_confirmation_need=false
+if [ "${#approval_required[@]}" -gt 0 ]; then
+  human_confirmation_need=true
+fi
+
 result="$(
   jq -n \
     --arg phase "intake_router" \
@@ -433,7 +466,9 @@ result="$(
     --arg record_intent "$record_intent" \
     --arg claim_risk "$claim_risk" \
     --arg projectization_decision "$projectization_decision" \
+    --arg receipt_profile "$receipt_profile" \
     --argjson projectization_signals "$(json_array "${projectization_signals[@]}")" \
+    --argjson profile_reason "$(json_array "${profile_reason[@]}")" \
     --argjson semantic_ambiguity "$(json_array "${semantic_ambiguity[@]}")" \
     --argjson module_need "$(json_array "${module_need[@]}")" \
     --argjson external_need "$(json_array "${external_need[@]}")" \
@@ -445,6 +480,7 @@ result="$(
     --argjson required_skills "$(json_array "${required_skills[@]}")" \
     --argjson needs_external_research "$needs_external_research" \
     --argjson approval_required "$(json_array "${approval_required[@]}")" \
+    --argjson human_confirmation_need "$human_confirmation_need" \
     --argjson fallback_model_judgment_recommended "$fallback_model_judgment_recommended" \
     --arg enforcement_boundary "$(jq -r '.gate_enforcement_boundary // ""' "$POLICY_PATH" | tr -d '\r')" \
     '{
@@ -467,9 +503,22 @@ result="$(
         external_need: $external_need,
         claim_risk: $claim_risk,
         projectization_decision: $projectization_decision,
+        receipt_profile: $receipt_profile,
         projectization_signals: $projectization_signals,
         required_gates: $required_gates
       },
+      compact_receipt: {
+        task_type: $risk_level,
+        risk_level: $risk_level,
+        required_gates: $required_gates,
+        memory_mode: $memory_mode,
+        memory_lane: $memory_lane,
+        external_need: $external_need,
+        claim_risk: $claim_risk,
+        human_confirmation_need: $human_confirmation_need
+      },
+      receipt_profile: $receipt_profile,
+      profile_reason: $profile_reason,
       target_surface: $target_surface,
       audience: $audience,
       project_lane: $project_lane,

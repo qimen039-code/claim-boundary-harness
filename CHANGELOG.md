@@ -4,6 +4,14 @@ All notable public changes should be recorded here.
 
 This project uses `vMAJOR.MINOR.PATCH` version labels while the framework is still early-stage.
 
+## v0.10.0 - 2026-06-18
+
+- Added receipt profiles so the router can compute the full governance decision internally while exposing a compact runtime receipt by default.
+- Added `compact_runtime`, `extended_governance`, and `debug_receipt` profile semantics to policy and adapters.
+- Updated PowerShell, Bash reference, and WorkBuddy Python intake routers to emit `receipt_profile`, `compact_receipt`, and `profile_reason`.
+- Added WorkBuddy Python tests for compact local R5 receipts, public governance expansion, and debug receipt routing.
+- Grounded the change in lightweight external patterns: policy-decision separation, admission-style hard stops, telemetry-style sampling, and lifecycle middleware hooks.
+
 ## v0.9.2 - 2026-06-18
 
 - Restored stricter R5 English trigger coverage for ordinary `delete`, `remove`, `commit`, `push`, and related high-risk wording.
