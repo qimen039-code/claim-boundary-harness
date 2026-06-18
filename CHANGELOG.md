@@ -4,6 +4,12 @@ All notable public changes should be recorded here.
 
 This project uses `vMAJOR.MINOR.PATCH` version labels while the framework is still early-stage.
 
+## v0.10.1 - 2026-06-18
+
+- Reworked the README opening around the concrete failure mode of weak evidence being overstated as validated.
+- Added a compact Mermaid architecture diagram near the top of the README so adopters can see the routing, memory, search, claim, and selective hard-gate flow quickly.
+- Prepared repository discoverability metadata through focused GitHub topics.
+
 ## v0.10.0 - 2026-06-18
 
 - Added receipt profiles so the router can compute the full governance decision internally while exposing a compact runtime receipt by default.

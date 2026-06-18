@@ -1,12 +1,31 @@
 # Agent Memory Lane Harness
 
-Agent Memory Lane Harness is a meta-first whiteboard framework for routing coding-agent work through project-scoped memory lanes, lightweight guardrails, claim checks, and paired improvement records.
+Stop your coding agent from calling weak evidence "validated." Agent Memory Lane Harness adds deterministic routing, memory isolation, and claim checks to coding-agent workflows.
 
-Current version: `v0.10.0`
+Current version: `v0.10.1`
 
 Formerly: Agent Harness Skill Tree.
 
 It is not tied to one agent runtime. It is a neutral starting point that can be mapped into any agent that can read workspace instructions, run local scripts, use command or skill folders, or call hooks before tools.
+
+## Architecture At A Glance
+
+```mermaid
+flowchart TD
+    U[User task] --> K[L0 microkernel]
+    K --> R[Intake router]
+    R --> P{Routing receipt}
+    P --> C[Compact runtime receipt]
+    P --> G[Extended governance receipt]
+    P --> D[Debug receipt]
+    C --> M[Meta-first memory gate]
+    G --> M
+    D --> M
+    M --> S[Search and learning gate]
+    S --> Q[Claim boundary gate]
+    Q --> H[Selective runtime hard gates]
+    H --> E[Execution and final answer]
+```
 
 ## Important Adoption Notes
 
