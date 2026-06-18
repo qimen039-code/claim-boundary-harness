@@ -102,6 +102,21 @@ def _trigger_matches(source: str, triggers: Any) -> dict[str, list[str]]:
     }
 
 
+def _first_matching_rule(source: str, rules: dict[str, Any], order: list[str]) -> str | None:
+    for name in order:
+        if _trigger_matches(source, rules.get(name, []))["positive"]:
+            return name
+    return None
+
+
+def _matching_triggers(source: str, triggers: Any) -> list[str]:
+    return _trigger_matches(source, triggers)["positive"]
+
+
+def _unique(items: list[str]) -> list[str]:
+    return sorted(set(items), key=items.index)
+
+
 def _path_text(path: str | os.PathLike[str]) -> str:
     return os.path.normcase(os.path.abspath(os.path.realpath(os.fspath(path)))).rstrip("\\/")
 
@@ -197,21 +212,169 @@ def intake_router(task_text: str = "", cwd: str | None = None, policy: dict[str,
     if external_matches["negated"]:
         negated_risk_triggers["external_research"] = external_matches["negated"]
 
+    contract = policy.get("router_decision_contract", {})
+    target_surface = _first_matching_rule(
+        task_text,
+        contract.get("target_surface_trigger_rules", {}),
+        ["git_action", "tool_call", "adapter", "public_docs", "private_rule", "local_harness", "skill_matrix", "project_memory"],
+    ) or "current_chat"
+    if target_surface == "current_chat" and "R3" in triggered_risks:
+        target_surface = "local_harness"
+
+    audience = _first_matching_rule(
+        task_text,
+        contract.get("audience_trigger_rules", {}),
+        ["public_user", "local_maintainer"],
+    )
+    if not audience:
+        audience = "project_operator" if lane != "PROJECTLESS" else "current_chat"
+
+    semantic_ambiguity = _matching_triggers(task_text, contract.get("semantic_ambiguity_triggers", []))
+    if "R3" in triggered_risks:
+        semantic_ambiguity.append("governance_or_change_surface")
+    semantic_ambiguity = _unique(semantic_ambiguity)
+
+    external_need: list[str] = []
+    for mode_name, mode in policy.get("search_and_learning_decision_matrix", {}).get("search_modes", {}).items():
+        if _matching_triggers(task_text, mode.get("triggers", [])):
+            external_need.append(str(mode_name))
+    if needs_external_research and not external_need:
+        external_need.append("official_authority_source_search")
+    if not external_need:
+        external_need.append("none")
+    external_need = _unique(external_need)
+
+    paired_memory_hits = _matching_triggers(task_text, contract.get("paired_memory_triggers", []))
+    memory_hits = _matching_triggers(task_text, contract.get("memory_need_triggers", []))
+    if paired_memory_hits:
+        memory_need = "paired_err_sol"
+    elif memory_hits:
+        memory_need = "index_only"
+    else:
+        memory_need = "none"
+
+    explicit_record_hits = _matching_triggers(task_text, contract.get("explicit_record_triggers", []))
+    common_error_hits = _matching_triggers(task_text, contract.get("common_error_triggers", []))
+    projectization_signals = _matching_triggers(task_text, contract.get("projectization_signals", []))
+    projectization_threshold = int(contract.get("projectization_threshold", 3))
+
+    if lane != "PROJECTLESS":
+        projectization_decision = "current_project"
+    elif len(projectization_signals) >= projectization_threshold:
+        projectization_decision = "emergent_project_candidate"
+    else:
+        projectization_decision = "not_project"
+
+    if common_error_hits:
+        memory_need = "common_error_corpus"
+    elif explicit_record_hits and memory_need == "none":
+        memory_need = "paired_err_sol"
+
+    if explicit_record_hits:
+        record_intent = "explicit_user_request"
+    elif common_error_hits:
+        record_intent = "inferred_reusable_error"
+    elif projectization_decision == "emergent_project_candidate":
+        record_intent = "projectization_review"
+    else:
+        record_intent = "no_record"
+
+    if common_error_hits:
+        memory_lane = "common_error_corpus"
+    elif explicit_record_hits:
+        memory_lane = "self_reflection_matrix"
+    elif lane != "PROJECTLESS":
+        memory_lane = "current_project"
+    elif projectization_decision == "emergent_project_candidate":
+        memory_lane = "emergent_project_candidate"
+    else:
+        memory_lane = "none"
+
+    if record_intent in {"explicit_user_request", "inferred_reusable_error"}:
+        memory_mode = "write"
+    elif memory_need != "none":
+        memory_mode = "read"
+    else:
+        memory_mode = "none"
+
+    if explicit_record_hits or common_error_hits:
+        required_skills.append("troubleshooting-skill-matrix")
+
+    strong_claim_hits = _matching_triggers(task_text, policy.get("blocked_claim_phrases_without_schema", []))
+    if strong_claim_hits:
+        claim_risk = "strong_claim_needs_schema"
+    elif "claim_gate" in required_gates:
+        claim_risk = "weak_claim"
+    else:
+        claim_risk = "none"
+
+    module_need: list[str] = []
+    if lane != "PROJECTLESS":
+        module_need.append("project_router")
+    if required_skills:
+        module_need.append("skill_matrix")
+    if semantic_ambiguity:
+        module_need.append("semantic_anchors")
+    if memory_need != "none":
+        module_need.append("memory_meta_index")
+    if external_need and external_need[0] != "none":
+        module_need.append("external_research_gate")
+    if claim_risk != "none":
+        module_need.append("claim_schema_verifier")
+    if risk_level == "R5" or classification_confidence == "low":
+        module_need.append("runtime_gate")
+    if not module_need:
+        module_need.append("none")
+    module_need = _unique(module_need)
+
+    required_gates_out = _unique(required_gates)
+    routing_receipt = {
+        "task_type": risk_level,
+        "target_surface": target_surface,
+        "audience": audience,
+        "project_lane": lane,
+        "risk_level": risk_level,
+        "semantic_ambiguity": semantic_ambiguity,
+        "module_need": module_need,
+        "memory_need": memory_need,
+        "memory_mode": memory_mode,
+        "memory_lane": memory_lane,
+        "record_intent": record_intent,
+        "external_need": external_need,
+        "claim_risk": claim_risk,
+        "projectization_decision": projectization_decision,
+        "projectization_signals": projectization_signals,
+        "required_gates": required_gates_out,
+    }
+
     return {
         "ts": _now(),
         "phase": "intake_router",
         "status": "pass",
         "cwd": cwd,
+        "routing_receipt": routing_receipt,
+        "target_surface": target_surface,
+        "audience": audience,
         "project_lane": lane,
         "risk_level": risk_level,
+        "semantic_ambiguity": semantic_ambiguity,
+        "module_need": module_need,
+        "memory_need": memory_need,
+        "memory_mode": memory_mode,
+        "memory_lane": memory_lane,
+        "record_intent": record_intent,
+        "external_need": external_need,
+        "claim_risk": claim_risk,
+        "projectization_decision": projectization_decision,
+        "projectization_signals": projectization_signals,
         "triggered_risks": sorted(set(triggered_risks), key=triggered_risks.index),
         "matched_risk_triggers": matched_risk_triggers,
         "negated_risk_triggers": negated_risk_triggers,
         "classification_confidence": classification_confidence,
-        "required_gates": sorted(set(required_gates), key=required_gates.index),
-        "required_skills": sorted(set(required_skills), key=required_skills.index),
+        "required_gates": required_gates_out,
+        "required_skills": _unique(required_skills),
         "needs_external_research": needs_external_research,
-        "approval_required": sorted(set(approval_required), key=approval_required.index),
+        "approval_required": _unique(approval_required),
         "fallback_model_judgment_used": False,
         "fallback_model_judgment_recommended": fallback_recommended,
         "enforcement_boundary": policy.get("gate_enforcement_boundary", ""),

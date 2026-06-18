@@ -40,6 +40,50 @@ routing receipt
 
 The control plane decides whether to use project instructions, a project router, memory retrieval, existing skills/tools/plugins, external research, claim checks, or human confirmation. It should not expand into every memory, every skill, or every tool call by default.
 
+## Router Decision Contract
+
+The router and dynamic decision layer use a compact contract before opening deeper modules:
+
+```text
+task_type
+target_surface
+audience
+project_lane
+risk_level
+semantic_ambiguity
+module_need
+memory_need
+memory_mode
+memory_lane
+record_intent
+external_need
+claim_risk
+projectization_decision
+required_gates
+```
+
+This contract keeps the decision layer stronger than a suggestion while avoiding full runtime wrapping. It tells the agent which surface is being touched, who the content is for, whether a term is ambiguous, which module to open, whether memory or external lookup is needed, and whether the final answer needs a claim schema.
+
+The design borrows a few lightweight patterns: separate decision from execution, run prechecks before critical boundaries, route by metadata, reassess on trigger events, preflight likely failure modes, and keep audience/ownership explicit. These are design influences, not proof that this framework is validated in every runtime.
+
+See [router-decision-contract.md](router-decision-contract.md).
+
+## Memory Routing Contract
+
+Memory use has its own routed decision:
+
+```text
+memory_need
+memory_mode
+memory_lane
+record_intent
+projectization_decision
+```
+
+This prevents the framework from treating every mistake as permanent memory or every memory mention as a full history read. Common small mistakes can be stored as lightweight CE records. Full ERR/SOL pairs are reserved for explicit self-reflection requests, high-impact incidents, or repeated failures.
+
+See [memory-routing-contract.md](memory-routing-contract.md) and [common-error-corpus.md](common-error-corpus.md).
+
 ## Selective Runtime Enforcement Layer
 
 The framework becomes hard runtime only for selected critical boundaries when an adopting agent routes execution through the runtime entry scripts:
@@ -141,7 +185,7 @@ The default categories are:
 Each category index should keep records small and searchable:
 
 ```text
-ID | Record Type | Status | Summary | Retrieval Terms | Supersedes | Superseded By
+ID | Type | Status | Summary | Retrieval Terms | Applies | Not Applies | Linked Modules | Linked Records | Supersedes | Superseded By
 ```
 
 Recommended status values:
@@ -154,6 +198,8 @@ Recommended status values:
 When a new capsule replaces an old one, update both sides: the old row should point to `SUPERSEDED_BY:<ID>`, and the new row should declare `Supersedes`. This keeps long-horizon memory auditable without forcing the agent to reread old records on every task.
 
 See [../examples/memory-library-demo/_META_INDEX.md](../examples/memory-library-demo/_META_INDEX.md) for a synthetic end-to-end example.
+
+For the full recommended index fields and retrieval budget, see [memory-meta-index-contract.md](memory-meta-index-contract.md).
 
 ## Routing Model
 

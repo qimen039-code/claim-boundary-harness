@@ -57,6 +57,68 @@
     "auto_detect_from_cwd": false,
     "rule": "GLOBAL memory is manual-only; do not infer it from cwd unless the user explicitly requests global memory work."
   },
+  "router_decision_contract": {
+    "mandatory_for_nontrivial_tasks": true,
+    "purpose": "keep routing and dynamic evaluation strong but low-cost before opening deeper modules",
+    "receipt_fields": [
+      "task_type",
+      "target_surface",
+      "audience",
+      "project_lane",
+      "risk_level",
+      "semantic_ambiguity",
+      "module_need",
+      "memory_need",
+      "memory_mode",
+      "memory_lane",
+      "record_intent",
+      "external_need",
+      "claim_risk",
+      "projectization_decision",
+      "required_gates"
+    ],
+    "target_surface_values": ["public_docs", "local_harness", "project_memory", "skill_matrix", "tool_call", "adapter", "git_action", "private_rule", "current_chat"],
+    "audience_values": ["public_user", "local_maintainer", "project_operator", "current_chat"],
+    "module_need_values": ["none", "project_router", "semantic_anchors", "skill_matrix", "memory_meta_index", "external_research_gate", "claim_schema_verifier", "runtime_gate"],
+    "memory_need_values": ["none", "meta_only", "index_only", "capsule_payload", "paired_err_sol", "common_error_corpus"],
+    "memory_mode_values": ["none", "read", "write", "update"],
+    "memory_lane_values": ["none", "current_project", "emergent_project_candidate", "common_error_corpus", "self_reflection_matrix", "global_inbox"],
+    "record_intent_values": ["no_record", "explicit_user_request", "inferred_reusable_error", "projectization_review"],
+    "external_need_values": ["none", "official_authority_source_search", "github_open_source_repository_search", "general_web_cross_check", "source_grounded_learning_intake", "local_validation_route"],
+    "claim_risk_values": ["none", "operational_note", "weak_claim", "strong_claim_needs_schema"],
+    "target_surface_trigger_rules": {
+      "git_action": ["git commit", "git push", "commit", "push", "\u63d0\u4ea4", "\u63a8\u9001"],
+      "tool_call": ["tool proxy", "tool call", "shell_command", "command", "\u5de5\u5177\u8c03\u7528", "\u547d\u4ee4"],
+      "adapter": ["WorkBuddy", "Claude Code", "adapter", "client update", "\u9002\u914d", "\u5ba2\u6237\u7aef"],
+      "public_docs": ["public", "README", "GitHub", "open source", "repo", "repository", "whiteboard", "\u516c\u5f00", "\u767d\u677f", "\u4ed3\u5e93"],
+      "private_rule": ["internal", "private", "local maintainer", "local-only", "\u672c\u673a", "\u672c\u5730", "\u5185\u90e8", "\u79c1\u6709"],
+      "project_memory": ["memory", "history", "_META_INDEX", "capsule", "ERR-", "SOL-", "\u8bb0\u5fc6", "\u5386\u53f2", "\u5143\u6458\u8981"],
+      "skill_matrix": ["skill", "semantic anchor", "skill matrix", "skill\u77e9\u9635", "\u8bed\u4e49\u951a\u70b9"],
+      "local_harness": ["harness", "AGENTS", "policy", "route", "routing", "dynamic evaluation", "decision layer", "governance layer", "\u8def\u7531", "\u52a8\u6001\u8bc4\u4f30", "\u51b3\u7b56\u5c42", "\u6cbb\u7406\u5c42"]
+    },
+    "audience_trigger_rules": {
+      "public_user": ["public", "README", "GitHub", "open source", "repo", "repository", "whiteboard", "\u516c\u5f00", "\u767d\u677f", "\u4ed3\u5e93"],
+      "local_maintainer": ["internal", "private", "local maintainer", "local-only", "\u672c\u673a", "\u672c\u5730", "\u5185\u90e8", "\u79c1\u6709"]
+    },
+    "semantic_ambiguity_triggers": ["update", "record", "publish", "call", "use", "memory", "skill", "route", "harness", "public", "internal", "whiteboard", "\u66f4\u65b0", "\u8bb0\u5f55", "\u53d1\u5e03", "\u8c03\u7528", "\u4f7f\u7528", "\u8bb0\u5fc6", "skill\u77e9\u9635", "\u8def\u7531", "\u516c\u5f00", "\u5185\u90e8", "\u767d\u677f"],
+    "memory_need_triggers": ["memory", "history", "_META_INDEX", "capsule", "remember", "previous", "ERR-", "SOL-", "meta index", "meta summary", "\u8bb0\u5fc6", "\u5386\u53f2", "\u4e4b\u524d", "\u5143\u6458\u8981"],
+    "paired_memory_triggers": ["ERR-", "SOL-", "error memory", "solution memory", "self-reflection", "\u9519\u8bef\u8bb0\u5f55", "\u89e3\u51b3\u8bb0\u5f55", "\u81ea\u53cd\u7701"],
+    "explicit_record_triggers": ["record this error", "record this mistake", "remember this issue", "write this to memory", "add this to memory", "self-reflection matrix", "\u8bb0\u5f55\u6b64\u6b21\u9519\u8bef", "\u8bb0\u5f55\u8fd9\u6b21\u9519\u8bef", "\u8bb0\u4e00\u4e0b\u8fd9\u4e2a\u95ee\u9898", "\u8bb0\u5f55\u8fd9\u4e2a\u95ee\u9898", "\u6309\u81ea\u53cd\u7701\u77e9\u9635\u8bb0\u5f55", "\u8bb0\u5fc6\u4e00\u4e0b"],
+    "common_error_triggers": ["common error", "common mistake", "field error", "schema error", "function call error", "tool call error", "semantic error", "patch context", "apply_patch context", "wildcard error", "quoting error", "\u5e38\u89c1\u9519\u8bef", "\u5b57\u6bb5\u9519\u8bef", "\u8c03\u7528\u9519\u8bef", "\u51fd\u6570\u8c03\u7528\u9519\u8bef", "\u5de5\u5177\u8c03\u7528\u9519\u8bef", "\u8bed\u4e49\u9519\u8bef", "\u8bed\u4e49\u5b9a\u4f4d\u9519\u8bef", "\u4e0a\u4e0b\u6587\u4e0d\u5339\u914d", "\u901a\u914d\u7b26\u9519\u8bef"],
+    "projectization_signals": ["version", "VERSION", "CHANGELOG", "README", "repository", "repo", "GitHub", "release", "tests", "adapter", "policy", "runtime", "public package", "docs", "template", "\u7248\u672c", "\u4ed3\u5e93", "\u53d1\u5e03", "\u6d4b\u8bd5", "\u9002\u914d\u5668", "\u767d\u677f", "\u9879\u76ee\u5316", "\u9879\u76ee\u6587\u4ef6"],
+    "projectization_threshold": 3,
+    "low_cost_rule": "Use microkernel -> router contract -> one matching module -> one needed gate -> one needed index -> only matching payload.",
+    "source_grounded_influences": ["policy_decision_point", "admission_precheck", "metadata_router", "triggered_reassessment", "failure_mode_preflight", "audience_boundary"]
+  },
+  "memory_routing_contract": {
+    "mandatory_for_nontrivial_tasks": true,
+    "purpose": "decide whether memory should be read, written, updated, or skipped before opening memory payloads",
+    "default_rule": "Ordinary chat and projectless small fixes do not write memory unless the user explicitly asks, an error is recurring/reusable, or projectization drift is detected.",
+    "explicit_record_rule": "If the user says to record this error/problem/mistake or asks for self-reflection matrix recording, route to the self-reflection matrix or common error corpus according to severity.",
+    "common_error_rule": "Small but recurring execution mistakes should enter common_error_corpus as lightweight CE records; only high-impact, repeated, or user-explicit incidents upgrade to paired ERR/SOL records.",
+    "projectization_rule": "If projectless work accumulates durable files, versioning, repository/docs, tests, adapters, releases, or repeated architecture decisions, mark emergent_project_candidate and ask or state the lane assumption before durable memory writes.",
+    "common_error_record_shape": ["ce_id", "class", "status", "surface", "symptom", "cause", "prevention", "upgrade_to_err_sol_when", "evidence", "last_reviewed"]
+  },
   "memory_retrieval_chain": {
     "mandatory": true,
     "steps": [
@@ -64,7 +126,17 @@
       "select one category index, point index, or outer_retrieval_surface",
       "open only the matching capsule, ERR point, SOL point, or status payload"
     ],
-    "missing_meta_rule": "If no meta summary exists, use the smallest available top-level index or manifest as a temporary meta layer, mark the missing meta layer as an adaptation gap, and avoid broad memory/history scans."
+    "missing_meta_rule": "If no meta summary exists, use the smallest available top-level index or manifest as a temporary meta layer, mark the missing meta layer as an adaptation gap, and avoid broad memory/history scans.",
+    "meta_index_contract": {
+      "recommended_fields": ["lane", "scope", "category", "record_type", "status", "retrieval_terms", "applies_when", "does_not_apply_when", "linked_modules", "linked_records", "last_reviewed"],
+      "category_row_shape": ["ID", "Type", "Status", "Summary", "Retrieval Terms", "Applies", "Not Applies", "Linked Modules", "Linked Records", "Supersedes", "Superseded By"],
+      "default_retrieval_budget": {
+        "max_meta_indexes": 1,
+        "max_category_indexes": 1,
+        "max_payload_records": 2,
+        "allow_full_history_scan": false
+      }
+    }
   },
   "dynamic_evaluation_governance": {
     "mandatory": true,
@@ -75,13 +147,24 @@
     ],
     "must_decide": [
       "task_type",
+      "target_surface",
+      "audience",
       "project_lane",
       "risk_level",
+      "semantic_ambiguity",
       "evidence_need",
+      "module_need",
       "skill_or_tool_need",
       "plugin_need",
+      "external_need",
       "external_research_need",
+      "memory_need",
+      "memory_mode",
+      "memory_lane",
+      "record_intent",
       "memory_retrieval_need",
+      "projectization_decision",
+      "claim_risk",
       "claim_gate_need",
       "human_confirmation_need"
     ],
@@ -92,7 +175,11 @@
       "scope_change",
       "user_correction",
       "cross_project_term",
+      "public_internal_audience_ambiguity",
+      "memory_write_or_record_request",
+      "projectization_drift_signal",
       "currentness_or_version_claim",
+      "github_or_open_source_mechanism",
       "cost_or_risk_escalation",
       "high_confidence_claim"
     ],
@@ -103,7 +190,7 @@
     "mandatory": true,
     "purpose": "make routing, dynamic evaluation, and constitution governance continuously effective without wrapping every tool call",
     "default_mode": "receipt_and_event_triggered_review",
-    "routing_receipt_fields": ["task_type", "project_lane", "risk_level", "required_gates", "external_search_need", "memory_need", "claim_gate_need", "human_confirmation_need"],
+    "routing_receipt_fields": ["task_type", "target_surface", "audience", "project_lane", "risk_level", "semantic_ambiguity", "module_need", "memory_need", "memory_mode", "memory_lane", "record_intent", "external_need", "claim_risk", "projectization_decision", "required_gates"],
     "event_triggered_review": ["new_evidence", "missing_file", "tool_error", "scope_change", "user_correction", "cross_project_term", "currentness_or_version_claim", "github_or_open_source_mechanism", "cost_or_risk_escalation", "before_high_confidence_claim", "before_R5_action", "before_long_term_memory_write"],
     "cost_rule": "Use L0 only for ordinary chat; use lightweight receipts for nontrivial work; run script gates only for ambiguous boundaries, R4/R5, strong claims, memory writes, or explicit hardening.",
     "failure_rule": "If the control plane was skipped, downgrade final claims and say which boundary was not checked."

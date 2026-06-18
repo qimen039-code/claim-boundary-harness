@@ -36,6 +36,26 @@ class HarnessGateTests(unittest.TestCase):
         route = intake_router("compare GitHub open source repositories and learn from them", policy=self.policy)
         self.assertTrue(route["needs_external_research"])
         self.assertIn("external_research", route["matched_risk_triggers"])
+        self.assertEqual(route["target_surface"], "public_docs")
+        self.assertIn("github_open_source_repository_search", route["external_need"])
+
+    def test_router_receipt_detects_memory_contract_need(self) -> None:
+        route = intake_router("update routing decision layer and memory meta index contract", policy=self.policy)
+        self.assertIn(route["risk_level"], {"R3", "R4"})
+        self.assertEqual(route["routing_receipt"]["target_surface"], "local_harness")
+        self.assertEqual(route["memory_need"], "index_only")
+        self.assertIn("memory_meta_index", route["module_need"])
+
+    def test_router_detects_explicit_error_recording(self) -> None:
+        route = intake_router("record this error in the self-reflection matrix", policy=self.policy)
+        self.assertEqual(route["memory_mode"], "write")
+        self.assertEqual(route["memory_lane"], "self_reflection_matrix")
+        self.assertEqual(route["record_intent"], "explicit_user_request")
+
+    def test_router_detects_projectization_candidate(self) -> None:
+        route = intake_router("README VERSION CHANGELOG tests adapter repository release", policy=self.policy)
+        self.assertEqual(route["projectization_decision"], "emergent_project_candidate")
+        self.assertEqual(route["record_intent"], "projectization_review")
 
     def test_memory_gate_blocks_cross_lane_path(self) -> None:
         result = memory_isolation_gate(

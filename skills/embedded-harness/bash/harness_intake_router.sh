@@ -105,6 +105,44 @@ triggers_from_filter() {
   jq -r "$filter | if . == null then empty elif type == \"array\" then .[] elif type == \"object\" then .[] | .[] else . end" "$POLICY_PATH" | tr -d '\r'
 }
 
+first_matching_rule() {
+  local filter="$1"
+  shift
+  local name trigger
+  for name in "$@"; do
+    while IFS= read -r trigger; do
+      [ -z "$trigger" ] && continue
+      if match_trigger "$TASK_TEXT" "$trigger"; then
+        printf '%s\n' "$name"
+        return 0
+      fi
+    done < <(triggers_from_filter "${filter}.${name}")
+  done
+  return 1
+}
+
+collect_matching_triggers() {
+  local filter="$1"
+  local -n target="$2"
+  local trigger
+  while IFS= read -r trigger; do
+    [ -z "$trigger" ] && continue
+    if match_trigger "$TASK_TEXT" "$trigger"; then
+      add_unique target "$trigger"
+    fi
+  done < <(triggers_from_filter "$filter")
+}
+
+array_contains() {
+  local seek="$1"
+  shift
+  local item
+  for item in "$@"; do
+    [ "$item" = "$seek" ] && return 0
+  done
+  return 1
+}
+
 canonical_path() {
   local path_text="$1"
   if command -v realpath >/dev/null 2>&1; then
@@ -252,13 +290,153 @@ if [ "${#external_negated[@]}" -gt 0 ]; then
   set_object_array "$negated_file" "external_research" "${external_negated[@]}"
 fi
 
+target_surface="$(first_matching_rule '.router_decision_contract.target_surface_trigger_rules' git_action tool_call adapter public_docs private_rule local_harness skill_matrix project_memory || true)"
+[ -z "$target_surface" ] && target_surface="current_chat"
+if [ "$target_surface" = "current_chat" ] && array_contains "R3" "${triggered_risks[@]}"; then
+  target_surface="local_harness"
+fi
+
+audience="$(first_matching_rule '.router_decision_contract.audience_trigger_rules' public_user local_maintainer || true)"
+if [ -z "$audience" ]; then
+  if [ "$project_lane" != "PROJECTLESS" ]; then
+    audience="project_operator"
+  else
+    audience="current_chat"
+  fi
+fi
+
+semantic_ambiguity=()
+collect_matching_triggers '.router_decision_contract.semantic_ambiguity_triggers' semantic_ambiguity
+if array_contains "R3" "${triggered_risks[@]}"; then
+  add_unique semantic_ambiguity "governance_or_change_surface"
+fi
+
+external_need=()
+mapfile -t search_mode_names < <(jq -r '.search_and_learning_decision_matrix.search_modes // {} | keys[]' "$POLICY_PATH" | tr -d '\r')
+for mode_name in "${search_mode_names[@]}"; do
+  mode_hits=()
+  while IFS= read -r trigger; do
+    [ -z "$trigger" ] && continue
+    if match_trigger "$TASK_TEXT" "$trigger"; then
+      add_unique mode_hits "$trigger"
+    fi
+  done < <(jq -r --arg mode "$mode_name" '.search_and_learning_decision_matrix.search_modes[$mode].triggers // [] | .[]' "$POLICY_PATH" | tr -d '\r')
+  if [ "${#mode_hits[@]}" -gt 0 ]; then
+    add_unique external_need "$mode_name"
+  fi
+done
+if [ "$needs_external_research" = true ] && [ "${#external_need[@]}" -eq 0 ]; then
+  add_unique external_need "official_authority_source_search"
+fi
+if [ "${#external_need[@]}" -eq 0 ]; then
+  add_unique external_need "none"
+fi
+
+memory_need="none"
+memory_hits=()
+paired_memory_hits=()
+collect_matching_triggers '.router_decision_contract.memory_need_triggers' memory_hits
+collect_matching_triggers '.router_decision_contract.paired_memory_triggers' paired_memory_hits
+if [ "${#paired_memory_hits[@]}" -gt 0 ]; then
+  memory_need="paired_err_sol"
+elif [ "${#memory_hits[@]}" -gt 0 ]; then
+  memory_need="index_only"
+fi
+
+explicit_record_hits=()
+common_error_hits=()
+projectization_signals=()
+collect_matching_triggers '.router_decision_contract.explicit_record_triggers' explicit_record_hits
+collect_matching_triggers '.router_decision_contract.common_error_triggers' common_error_hits
+collect_matching_triggers '.router_decision_contract.projectization_signals' projectization_signals
+projectization_threshold="$(jq -r '.router_decision_contract.projectization_threshold // 3' "$POLICY_PATH" | tr -d '\r')"
+
+projectization_decision="not_project"
+if [ "$project_lane" != "PROJECTLESS" ]; then
+  projectization_decision="current_project"
+elif [ "${#projectization_signals[@]}" -ge "$projectization_threshold" ]; then
+  projectization_decision="emergent_project_candidate"
+fi
+
+if [ "${#common_error_hits[@]}" -gt 0 ]; then
+  memory_need="common_error_corpus"
+elif [ "${#explicit_record_hits[@]}" -gt 0 ] && [ "$memory_need" = "none" ]; then
+  memory_need="paired_err_sol"
+fi
+
+record_intent="no_record"
+if [ "${#explicit_record_hits[@]}" -gt 0 ]; then
+  record_intent="explicit_user_request"
+elif [ "${#common_error_hits[@]}" -gt 0 ]; then
+  record_intent="inferred_reusable_error"
+elif [ "$projectization_decision" = "emergent_project_candidate" ]; then
+  record_intent="projectization_review"
+fi
+
+memory_lane="none"
+if [ "${#common_error_hits[@]}" -gt 0 ]; then
+  memory_lane="common_error_corpus"
+elif [ "${#explicit_record_hits[@]}" -gt 0 ]; then
+  memory_lane="self_reflection_matrix"
+elif [ "$project_lane" != "PROJECTLESS" ]; then
+  memory_lane="current_project"
+elif [ "$projectization_decision" = "emergent_project_candidate" ]; then
+  memory_lane="emergent_project_candidate"
+fi
+
+memory_mode="none"
+if [ "$record_intent" = "explicit_user_request" ] || [ "$record_intent" = "inferred_reusable_error" ]; then
+  memory_mode="write"
+elif [ "$memory_need" != "none" ]; then
+  memory_mode="read"
+fi
+
+if [ "${#explicit_record_hits[@]}" -gt 0 ] || [ "${#common_error_hits[@]}" -gt 0 ]; then
+  add_unique required_skills "troubleshooting-skill-matrix"
+fi
+
+claim_risk="none"
+strong_claim_hits=()
+collect_matching_triggers '.blocked_claim_phrases_without_schema' strong_claim_hits
+if [ "${#strong_claim_hits[@]}" -gt 0 ]; then
+  claim_risk="strong_claim_needs_schema"
+elif array_contains "claim_gate" "${required_gates[@]}"; then
+  claim_risk="weak_claim"
+fi
+
+module_need=()
+[ "$project_lane" != "PROJECTLESS" ] && add_unique module_need "project_router"
+[ "${#required_skills[@]}" -gt 0 ] && add_unique module_need "skill_matrix"
+[ "${#semantic_ambiguity[@]}" -gt 0 ] && add_unique module_need "semantic_anchors"
+[ "$memory_need" != "none" ] && add_unique module_need "memory_meta_index"
+if [ "${#external_need[@]}" -gt 0 ] && [ "${external_need[0]}" != "none" ]; then
+  add_unique module_need "external_research_gate"
+fi
+[ "$claim_risk" != "none" ] && add_unique module_need "claim_schema_verifier"
+if [ "$risk" = "R5" ] || [ "$classification_confidence" = "low" ]; then
+  add_unique module_need "runtime_gate"
+fi
+[ "${#module_need[@]}" -eq 0 ] && add_unique module_need "none"
+
 result="$(
   jq -n \
     --arg phase "intake_router" \
     --arg status "pass" \
     --arg cwd "$CWD" \
+    --arg target_surface "$target_surface" \
+    --arg audience "$audience" \
     --arg project_lane "$project_lane" \
     --arg risk_level "$risk" \
+    --arg memory_need "$memory_need" \
+    --arg memory_mode "$memory_mode" \
+    --arg memory_lane "$memory_lane" \
+    --arg record_intent "$record_intent" \
+    --arg claim_risk "$claim_risk" \
+    --arg projectization_decision "$projectization_decision" \
+    --argjson projectization_signals "$(json_array "${projectization_signals[@]}")" \
+    --argjson semantic_ambiguity "$(json_array "${semantic_ambiguity[@]}")" \
+    --argjson module_need "$(json_array "${module_need[@]}")" \
+    --argjson external_need "$(json_array "${external_need[@]}")" \
     --arg classification_confidence "$classification_confidence" \
     --argjson triggered_risks "$(json_array "${triggered_risks[@]}")" \
     --argjson matched_risk_triggers "$(cat "$matched_file")" \
@@ -274,8 +452,38 @@ result="$(
       phase: $phase,
       status: $status,
       cwd: $cwd,
+      routing_receipt: {
+        task_type: $risk_level,
+        target_surface: $target_surface,
+        audience: $audience,
+        project_lane: $project_lane,
+        risk_level: $risk_level,
+        semantic_ambiguity: $semantic_ambiguity,
+        module_need: $module_need,
+        memory_need: $memory_need,
+        memory_mode: $memory_mode,
+        memory_lane: $memory_lane,
+        record_intent: $record_intent,
+        external_need: $external_need,
+        claim_risk: $claim_risk,
+        projectization_decision: $projectization_decision,
+        projectization_signals: $projectization_signals,
+        required_gates: $required_gates
+      },
+      target_surface: $target_surface,
+      audience: $audience,
       project_lane: $project_lane,
       risk_level: $risk_level,
+      semantic_ambiguity: $semantic_ambiguity,
+      module_need: $module_need,
+      memory_need: $memory_need,
+      memory_mode: $memory_mode,
+      memory_lane: $memory_lane,
+      record_intent: $record_intent,
+      external_need: $external_need,
+      claim_risk: $claim_risk,
+      projectization_decision: $projectization_decision,
+      projectization_signals: $projectization_signals,
       triggered_risks: $triggered_risks,
       matched_risk_triggers: $matched_risk_triggers,
       negated_risk_triggers: $negated_risk_triggers,

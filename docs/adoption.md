@@ -39,6 +39,8 @@ _META_INDEX.md or equivalent meta summary
 
 If the agent cannot confirm that it read the meta layer first, treat the memory result as incomplete rather than authoritative.
 
+Use [memory-meta-index-contract.md](memory-meta-index-contract.md) as the recommended field shape. The important part is not the exact Markdown formatting; it is the ability to select by lane, scope, category, record type, status, retrieval terms, applicability, linked modules, linked records, and review freshness before opening a payload.
+
 ## Step 3: Register The Skill Folders
 
 If your agent supports skills or commands, register these folders:
@@ -64,11 +66,15 @@ Stronger setups can run:
 
 Also make the advisory control plane mandatory:
 
-1. Create a lightweight routing receipt for nontrivial work: task type, lane, risk, required gates, external search need, memory need, claim gate need, and confirmation need.
+1. Create a lightweight routing receipt for nontrivial work: task type, target surface, audience, lane, risk, semantic ambiguity, module need, memory need, memory mode, memory lane, record intent, external need, claim risk, projectization decision, and required gates.
 2. Re-evaluate only after trigger events: new evidence, missing files, tool errors, scope changes, user corrections, cross-project terminology, currentness/version claims, GitHub/open-source mechanism intake, risk/cost escalation, strong claims, R5 actions, or memory writes.
 3. Final-check claim scope, memory scope, version metadata, and unresolved verification debt.
 
 Do not make this expensive by default. The control plane should choose the cheapest sufficient route and should not wrap every tool call.
+
+Use [router-decision-contract.md](router-decision-contract.md) as the field contract for router and dynamic-decision adapters. The contract can be implicit for obvious low-risk work, but should be explicit for R3 or higher work, public-facing changes, memory writes, high-risk actions, and audited decisions.
+
+Use [memory-routing-contract.md](memory-routing-contract.md) when wiring memory writes. Start with common error corpus records for small reusable mistakes and upgrade to paired ERR/SOL records only when the issue is explicit, high-impact, or repeated.
 
 For selective runtime hard stops, route only critical boundaries through these entry points:
 

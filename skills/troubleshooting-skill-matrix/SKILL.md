@@ -52,6 +52,41 @@ Trigger events include new evidence, missing files, tool errors, scope changes, 
 
 Do not load every skill or memory record, and do not wrap every ordinary tool call, because this layer is active. If the layer is skipped or incomplete, the final result must say so.
 
+Router decision contract:
+
+```text
+task_type
+target_surface
+audience
+project_lane
+risk_level
+semantic_ambiguity
+module_need
+memory_need
+memory_mode
+memory_lane
+record_intent
+external_need
+claim_risk
+projectization_decision
+required_gates
+```
+
+Use this contract to decide whether to open this router, semantic anchors, ERR/SOL point indexes, project memory meta indexes, external research gates, claim gates, or runtime hard gates. It must stay low-cost: choose one matching module and one matching index first, then read payloads only when the index says they apply.
+
+Memory routing contract:
+
+- Explicit record requests route to the self-reflection matrix or common error corpus.
+- Small reusable mistakes route to common error corpus first.
+- Full paired ERR/SOL records are reserved for high-impact, repeated, or explicit incidents.
+- Projectless work with durable repository/docs/tests/adapter/versioning signals should be marked as an emergent project candidate before memory writes.
+
+Memory meta index contract:
+
+- Required lookup path: memory summary or `_META_INDEX` or router manifest -> one category or point index -> only matching capsule or ERR/SOL payload.
+- Recommended index fields: lane, scope, category, record type, status, retrieval terms, applies-when, does-not-apply-when, linked modules, linked records, and last-reviewed marker.
+- Default retrieval budget: one meta index, one category or point index, and at most two payload records unless the task explicitly asks for full audit, cleanup, migration, or broad historical review.
+
 ## Selective Runtime Enforcement Surfaces
 
 Use these entry points when an adopting runtime supports hooks, wrappers, or tool-call interception:

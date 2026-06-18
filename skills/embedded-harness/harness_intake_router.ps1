@@ -107,6 +107,70 @@ function Get-ProjectLane([string]$path) {
   return "PROJECTLESS"
 }
 
+function Test-TaskContainsAny($patterns) {
+  foreach ($pattern in (ConvertTo-Array $patterns)) {
+    $text = [string]$pattern
+    if ([string]::IsNullOrWhiteSpace($text)) {
+      continue
+    }
+    if ([regex]::IsMatch($TaskText, [regex]::Escape($text), [System.Text.RegularExpressions.RegexOptions]::IgnoreCase)) {
+      return $true
+    }
+  }
+  return $false
+}
+
+function Get-TaskMatchedTerms($patterns) {
+  $terms = @()
+  foreach ($pattern in (ConvertTo-Array $patterns)) {
+    $text = [string]$pattern
+    if ([string]::IsNullOrWhiteSpace($text)) {
+      continue
+    }
+    if ([regex]::IsMatch($TaskText, [regex]::Escape($text), [System.Text.RegularExpressions.RegexOptions]::IgnoreCase)) {
+      $terms += $text
+    }
+  }
+  return @($terms | Select-Object -Unique)
+}
+
+function Get-TargetSurface() {
+  $rules = $policy.router_decision_contract.target_surface_trigger_rules
+  if ($null -ne $rules) {
+    foreach ($name in @("git_action", "tool_call", "adapter", "public_docs", "private_rule", "local_harness", "skill_matrix", "project_memory")) {
+      $triggers = Get-ObjectPropertyValue $rules $name
+      if ((Get-MatchedTriggers $triggers).Count -gt 0) {
+        return $name
+      }
+    }
+  }
+  if (Test-TaskContainsAny @("git commit", "git push", "commit", "push")) { return "git_action" }
+  if (Test-TaskContainsAny @("tool proxy", "tool call", "shell_command", "command")) { return "tool_call" }
+  if (Test-TaskContainsAny @("WorkBuddy", "Claude Code", "adapter", "client update")) { return "adapter" }
+  if (Test-TaskContainsAny @("public", "README", "GitHub", "open source", "repo", "repository", "whiteboard")) { return "public_docs" }
+  if (Test-TaskContainsAny @("internal", "private", "local maintainer", "local-only")) { return "private_rule" }
+  if (Test-TaskContainsAny @("memory", "history", "_META_INDEX", "capsule", "ERR-", "SOL-")) { return "project_memory" }
+  if (Test-TaskContainsAny @("skill", "semantic anchor", "skill matrix")) { return "skill_matrix" }
+  if (Test-TaskContainsAny @("harness", "AGENTS", "policy", "route", "routing", "dynamic evaluation", "decision layer", "governance layer")) { return "local_harness" }
+  return "current_chat"
+}
+
+function Get-Audience([string]$lane) {
+  $rules = $policy.router_decision_contract.audience_trigger_rules
+  if ($null -ne $rules) {
+    foreach ($name in @("public_user", "local_maintainer")) {
+      $triggers = Get-ObjectPropertyValue $rules $name
+      if ((Get-MatchedTriggers $triggers).Count -gt 0) {
+        return $name
+      }
+    }
+  }
+  if (Test-TaskContainsAny @("public", "README", "GitHub", "open source", "repo", "repository", "whiteboard")) { return "public_user" }
+  if (Test-TaskContainsAny @("internal", "private", "local maintainer", "local-only")) { return "local_maintainer" }
+  if ($lane -ne "PROJECTLESS") { return "project_operator" }
+  return "current_chat"
+}
+
 $projectLane = Get-ProjectLane $Cwd
 $risk = "R0"
 $approval = @()
@@ -184,13 +248,182 @@ if ($externalResearchMatchSet.negated.Count -gt 0) {
   $negatedRiskTriggers["external_research"] = @($externalResearchMatchSet.negated)
 }
 
+$targetSurface = Get-TargetSurface
+if (($targetSurface -eq "current_chat") -and ($triggeredRisks -contains "R3")) {
+  $targetSurface = "local_harness"
+}
+$audience = Get-Audience $projectLane
+$semanticTriggers = $policy.router_decision_contract.semantic_ambiguity_triggers
+if ($null -eq $semanticTriggers) {
+  $semanticTriggers = @("update", "record", "publish", "call", "use", "memory", "skill", "route", "harness", "public", "internal", "whiteboard")
+}
+$semanticAmbiguity = Get-MatchedTriggers $semanticTriggers
+if ($triggeredRisks -contains "R3") {
+  $semanticAmbiguity += "governance_or_change_surface"
+}
+if ((Test-TaskContainsAny @("public", "whiteboard", "GitHub", "repo", "repository")) -and (Test-TaskContainsAny @("internal", "private", "local-only"))) {
+  $semanticAmbiguity += "public_internal_boundary"
+}
+$semanticAmbiguity = @($semanticAmbiguity | Select-Object -Unique)
+
+$externalNeed = @()
+$searchModes = $policy.search_and_learning_decision_matrix.search_modes
+if ($null -ne $searchModes) {
+  foreach ($mode in $searchModes.PSObject.Properties) {
+    $modeTriggers = Get-ObjectPropertyValue $mode.Value "triggers"
+    if ((Get-MatchedTriggers $modeTriggers).Count -gt 0) {
+      $externalNeed += $mode.Name
+    }
+  }
+}
+if (($needsExternalResearch) -and ($externalNeed.Count -eq 0)) {
+  $externalNeed += "official_authority_source_search"
+}
+if ($externalNeed.Count -eq 0) {
+  $externalNeed += "none"
+}
+$externalNeed = @($externalNeed | Select-Object -Unique)
+
+$memoryNeedTriggers = $policy.router_decision_contract.memory_need_triggers
+if ($null -eq $memoryNeedTriggers) {
+  $memoryNeedTriggers = @("memory", "history", "_META_INDEX", "capsule", "remember", "previous", "ERR-", "SOL-", "meta index", "meta summary")
+}
+$pairedMemoryTriggers = $policy.router_decision_contract.paired_memory_triggers
+if ($null -eq $pairedMemoryTriggers) {
+  $pairedMemoryTriggers = @("ERR-", "SOL-", "error memory", "solution memory", "self-reflection")
+}
+$explicitMemoryNeed = (Get-MatchedTriggers $memoryNeedTriggers).Count -gt 0
+if ((Get-MatchedTriggers $pairedMemoryTriggers).Count -gt 0) {
+  $memoryNeed = "paired_err_sol"
+} elseif ($explicitMemoryNeed) {
+  $memoryNeed = "index_only"
+} else {
+  $memoryNeed = "none"
+}
+
+$explicitRecordTriggers = $policy.router_decision_contract.explicit_record_triggers
+if ($null -eq $explicitRecordTriggers) {
+  $explicitRecordTriggers = @("record this error", "record this mistake", "remember this issue", "write this to memory", "add this to memory", "self-reflection matrix")
+}
+$commonErrorTriggers = $policy.router_decision_contract.common_error_triggers
+if ($null -eq $commonErrorTriggers) {
+  $commonErrorTriggers = @("common error", "common mistake", "field error", "schema error", "function call error", "tool call error", "semantic error", "patch context", "apply_patch context", "wildcard error", "quoting error")
+}
+$projectizationTriggers = $policy.router_decision_contract.projectization_signals
+if ($null -eq $projectizationTriggers) {
+  $projectizationTriggers = @("version", "VERSION", "CHANGELOG", "README", "repository", "repo", "GitHub", "release", "tests", "adapter", "policy", "runtime", "docs", "template")
+}
+$explicitRecordHits = Get-MatchedTriggers $explicitRecordTriggers
+$commonErrorHits = Get-MatchedTriggers $commonErrorTriggers
+$projectizationSignals = Get-MatchedTriggers $projectizationTriggers
+$projectizationThreshold = 3
+if ($null -ne $policy.router_decision_contract.projectization_threshold) {
+  $projectizationThreshold = [int]$policy.router_decision_contract.projectization_threshold
+}
+
+$projectizationDecision = "not_project"
+if ($projectLane -ne "PROJECTLESS") {
+  $projectizationDecision = "current_project"
+} elseif ($projectizationSignals.Count -ge $projectizationThreshold) {
+  $projectizationDecision = "emergent_project_candidate"
+}
+
+if ($commonErrorHits.Count -gt 0) {
+  $memoryNeed = "common_error_corpus"
+} elseif (($explicitRecordHits.Count -gt 0) -and ($memoryNeed -eq "none")) {
+  $memoryNeed = "paired_err_sol"
+}
+
+$recordIntent = "no_record"
+if ($explicitRecordHits.Count -gt 0) {
+  $recordIntent = "explicit_user_request"
+} elseif ($commonErrorHits.Count -gt 0) {
+  $recordIntent = "inferred_reusable_error"
+} elseif ($projectizationDecision -eq "emergent_project_candidate") {
+  $recordIntent = "projectization_review"
+}
+
+$memoryLane = "none"
+if ($commonErrorHits.Count -gt 0) {
+  $memoryLane = "common_error_corpus"
+} elseif ($explicitRecordHits.Count -gt 0) {
+  $memoryLane = "self_reflection_matrix"
+} elseif ($projectLane -ne "PROJECTLESS") {
+  $memoryLane = "current_project"
+} elseif ($projectizationDecision -eq "emergent_project_candidate") {
+  $memoryLane = "emergent_project_candidate"
+}
+
+$memoryMode = "none"
+if (($recordIntent -eq "explicit_user_request") -or ($recordIntent -eq "inferred_reusable_error")) {
+  $memoryMode = "write"
+} elseif ($memoryNeed -ne "none") {
+  $memoryMode = "read"
+}
+
+if (($explicitRecordHits.Count -gt 0) -or ($commonErrorHits.Count -gt 0)) {
+  $requiredSkills += "troubleshooting-skill-matrix"
+}
+
+$strongClaimTerms = Get-MatchedTriggers $policy.blocked_claim_phrases_without_schema
+if ($strongClaimTerms.Count -gt 0) {
+  $claimRisk = "strong_claim_needs_schema"
+} elseif (@($requiredGates | Where-Object { $_ -eq "claim_gate" }).Count -gt 0) {
+  $claimRisk = "weak_claim"
+} else {
+  $claimRisk = "none"
+}
+
+$moduleNeed = @()
+if ($projectLane -ne "PROJECTLESS") { $moduleNeed += "project_router" }
+if ($requiredSkills.Count -gt 0) { $moduleNeed += "skill_matrix" }
+if ($semanticAmbiguity.Count -gt 0) { $moduleNeed += "semantic_anchors" }
+if ($memoryNeed -ne "none") { $moduleNeed += "memory_meta_index" }
+if (($externalNeed.Count -gt 0) -and ($externalNeed[0] -ne "none")) { $moduleNeed += "external_research_gate" }
+if ($claimRisk -ne "none") { $moduleNeed += "claim_schema_verifier" }
+if (($risk -eq "R5") -or ($classificationConfidence -eq "low")) { $moduleNeed += "runtime_gate" }
+if ($moduleNeed.Count -eq 0) { $moduleNeed += "none" }
+$moduleNeed = @($moduleNeed | Select-Object -Unique)
+
+$routingReceipt = [ordered]@{
+  task_type = $risk
+  target_surface = $targetSurface
+  audience = $audience
+  project_lane = $projectLane
+  risk_level = $risk
+  semantic_ambiguity = @($semanticAmbiguity)
+  module_need = @($moduleNeed)
+  memory_need = $memoryNeed
+  memory_mode = $memoryMode
+  memory_lane = $memoryLane
+  record_intent = $recordIntent
+  external_need = @($externalNeed)
+  claim_risk = $claimRisk
+  projectization_decision = $projectizationDecision
+  projectization_signals = @($projectizationSignals)
+  required_gates = @($requiredGates | Select-Object -Unique)
+}
+
 $result = [ordered]@{
   ts = (Get-Date).ToString("o")
   phase = "intake_router"
   status = "pass"
   cwd = $Cwd
+  routing_receipt = $routingReceipt
+  target_surface = $targetSurface
+  audience = $audience
   project_lane = $projectLane
   risk_level = $risk
+  semantic_ambiguity = @($semanticAmbiguity)
+  module_need = @($moduleNeed)
+  memory_need = $memoryNeed
+  memory_mode = $memoryMode
+  memory_lane = $memoryLane
+  record_intent = $recordIntent
+  external_need = @($externalNeed)
+  claim_risk = $claimRisk
+  projectization_decision = $projectizationDecision
+  projectization_signals = @($projectizationSignals)
   triggered_risks = @($triggeredRisks | Select-Object -Unique)
   matched_risk_triggers = $matchedRiskTriggers
   negated_risk_triggers = $negatedRiskTriggers

@@ -24,13 +24,17 @@ routing receipt
 -> selective runtime hard gate only for critical risks
 ```
 
-Routing receipt fields: task type, active lane, risk level, required gates, evidence need, memory need, skill/tool/plugin need, external research need, claim-gate need, and human-confirmation need.
+Routing receipt fields: task type, target surface, audience, active lane, risk level, semantic ambiguity, module need, memory need, memory mode, memory lane, record intent, external need, claim risk, projectization decision, and required gates.
 
 Re-evaluation is required after trigger events: new evidence, missing files, tool errors, scope changes, user corrections, cross-project terminology, currentness/version claims, GitHub/open-source mechanism intake, risk/cost escalation, strong claims, R5 actions, or memory writes.
 
 Final boundary check must verify claim scope, memory scope, unresolved verification debt, and whether version metadata or paired ERR/SOL records need updates.
 
 Do not load all skills, all memory, all history, or wrap every tool call just because this layer is active. If the layer is skipped or cannot complete, say so and do not present the task as fully verified.
+
+Memory use is routed. Ordinary chat should not write memory by default. Explicit requests to record an error may write memory after lane and sensitivity checks. Small reusable mistakes should enter a common error corpus first; high-impact, repeated, or explicitly requested incidents should become paired ERR/SOL records.
+
+Projectless work can drift into a project. If repository, versioning, docs, tests, adapters, release, or repeated architecture-decision signals accumulate, mark the task as an emergent project candidate before writing project memory.
 
 Governance-layer updates, dynamic-evaluation rule changes, routing-rule changes, trigger-term updates, decision-matrix edits, and framework behavior changes are `R3` even when they are documentation-only.
 
@@ -117,13 +121,3 @@ Mark uncertainty directly. Do not convert prep artifacts, mocks, weak signals, t
 ## Execution Standard
 
 Read actual files and current state before editing. Before modifying files, state the files you will touch. Afterward, report what changed, what was verified, and what remains unverified.
-
-## Versioning Standard
-
-For public repository updates, keep version metadata in sync:
-
-- update `VERSION`;
-- update `CHANGELOG.md`;
-- update any README line that displays the current version.
-
-Use `vMAJOR.MINOR.PATCH`. Patch releases cover wording, docs, examples, and small trigger-rule updates. Minor releases cover new reusable templates, gates, adapters, or framework behavior. Major releases cover breaking layout or rule-contract changes.

@@ -4,6 +4,24 @@ All notable public changes should be recorded here.
 
 This project uses `vMAJOR.MINOR.PATCH` version labels while the framework is still early-stage.
 
+## v0.9.0 - 2026-06-18
+
+- Added a memory routing contract for `memory_mode`, `memory_lane`, `record_intent`, and `projectization_decision`.
+- Added projectization drift detection for projectless conversations that accumulate durable project signals.
+- Added a common error corpus template for lightweight CE records before escalation to paired ERR/SOL records.
+- Updated intake adapters to emit the new memory routing fields.
+
+## v0.8.0 - 2026-06-18
+
+- Added a router decision contract for target surface, audience, semantic ambiguity, module selection, memory route, external route, claim risk, and required gates.
+- Added a memory meta index contract with multi-axis index fields, default retrieval budgets, missing-meta behavior, and category row shape.
+- Grounded the router and decision-layer update in lightweight policy-decision, admission-control, router, sensemaking, failure-mode, and responsibility-boundary patterns without adding heavy runtime overhead.
+- Updated PowerShell, Bash, and WorkBuddy Python intake adapters for the new receipt fields; PowerShell and Python were smoke-tested locally, while Bash parity was edited but not executed in this update because Bash was not available on the current PATH.
+
+## v0.7.1 - 2026-06-18
+
+- Removed maintainer-only versioning instructions from public README and AGENTS content while keeping public version metadata visible.
+
 ## v0.7.0 - 2026-06-18
 
 - Published the WorkBuddy-oriented Python runtime adapter under `integrations/workbuddy-python-runtime`.

@@ -40,7 +40,7 @@ routing receipt
 -> selective runtime hard gate when a critical risk appears
 ```
 
-Receipt fields: task type, project lane, risk level, required gates, external search need, memory need, claim gate need, and human confirmation need.
+Receipt fields: task type, target surface, audience, project lane, risk level, semantic ambiguity, module need, memory need, memory mode, memory lane, record intent, external need, claim risk, projectization decision, and required gates.
 
 If this control plane cannot be completed, the final response must say so and must not present the result as fully verified.
 
@@ -63,6 +63,10 @@ meta summary / _META_INDEX / router manifest
 -> category index / point index / outer_retrieval_surface
 -> matching capsule / ERR-* / SOL-* payload
 ```
+
+Recommended meta index fields: lane, scope, category, record type, status, retrieval terms, applies-when, does-not-apply-when, linked modules, linked records, and last-reviewed marker. Default lookup should open at most one meta index, one category index, and two payload records unless the task explicitly asks for a full audit or migration.
+
+Memory recording is routed separately from memory reading. Use `common_error_corpus` for lightweight recurring execution samples and paired `ERR-*` / `SOL-*` records for explicit, repeated, or high-impact self-reflection incidents.
 
 Scripts:
 
