@@ -343,7 +343,7 @@ def intake_router(task_text: str = "", cwd: str | None = None, policy: dict[str,
     target_surface = _first_matching_rule(
         task_text,
         contract.get("target_surface_trigger_rules", {}),
-        ["git_action", "tool_call", "adapter", "public_docs", "private_rule", "local_harness", "skill_matrix", "project_memory"],
+        ["git_action", "tool_call", "adapter", "public_docs", "private_rule", "local_harness", "skill_matrix", "conversation_memory", "project_memory"],
     ) or "current_chat"
     if target_surface == "current_chat" and "R3" in triggered_risks:
         target_surface = "local_harness"
@@ -392,6 +392,16 @@ def intake_router(task_text: str = "", cwd: str | None = None, policy: dict[str,
     else:
         projectization_decision = "not_project"
 
+    conversation_explicit_hits = _matching_triggers(task_text, contract.get("conversation_memory_explicit_triggers", []))
+    conversation_signals = _matching_triggers(task_text, contract.get("conversation_memory_signals", []))
+    conversation_threshold = int(contract.get("conversation_memory_threshold", 2))
+    conversation_memory_decision = "none"
+    if lane == "PROJECTLESS" and projectization_decision == "not_project":
+        if conversation_explicit_hits:
+            conversation_memory_decision = "create_or_update_current_conversation"
+        elif len(conversation_signals) >= conversation_threshold:
+            conversation_memory_decision = "checkpoint_candidate"
+
     if common_error_hits:
         memory_need = "common_error_corpus"
     elif explicit_record_hits and memory_need == "none":
@@ -403,8 +413,15 @@ def intake_router(task_text: str = "", cwd: str | None = None, policy: dict[str,
         record_intent = "inferred_reusable_error"
     elif projectization_decision == "emergent_project_candidate":
         record_intent = "projectization_review"
+    elif conversation_memory_decision == "create_or_update_current_conversation":
+        record_intent = "explicit_conversation_memory_request"
+    elif conversation_memory_decision == "checkpoint_candidate":
+        record_intent = "conversation_checkpoint"
     else:
         record_intent = "no_record"
+
+    if conversation_memory_decision != "none" and memory_need == "none":
+        memory_need = "conversation_state"
 
     if common_error_hits:
         memory_lane = "common_error_corpus"
@@ -414,10 +431,17 @@ def intake_router(task_text: str = "", cwd: str | None = None, policy: dict[str,
         memory_lane = "current_project"
     elif projectization_decision == "emergent_project_candidate":
         memory_lane = "emergent_project_candidate"
+    elif conversation_memory_decision != "none":
+        memory_lane = "current_conversation"
     else:
         memory_lane = "none"
 
-    if record_intent in {"explicit_user_request", "inferred_reusable_error"}:
+    if record_intent in {
+        "explicit_user_request",
+        "inferred_reusable_error",
+        "explicit_conversation_memory_request",
+        "conversation_checkpoint",
+    }:
         memory_mode = "write"
     elif memory_need != "none":
         memory_mode = "read"
@@ -444,6 +468,8 @@ def intake_router(task_text: str = "", cwd: str | None = None, policy: dict[str,
         module_need.append("semantic_anchors")
     if memory_need != "none":
         module_need.append("memory_meta_index")
+    if conversation_memory_decision != "none":
+        module_need.append("conversation_memory_index")
     if external_need and external_need[0] != "none":
         module_need.append("external_research_gate")
     if claim_risk != "none":
@@ -471,6 +497,8 @@ def intake_router(task_text: str = "", cwd: str | None = None, policy: dict[str,
             profile_reason.append("memory_write_or_record")
         if projectization_decision == "emergent_project_candidate":
             profile_reason.append("projectization_candidate")
+        if conversation_memory_decision != "none":
+            profile_reason.append("conversation_memory_candidate")
         if len(profile_reason) > 1:
             receipt_profile = "extended_governance"
     profile_reason = _unique(profile_reason)
@@ -492,6 +520,8 @@ def intake_router(task_text: str = "", cwd: str | None = None, policy: dict[str,
         "external_need": external_need,
         "claim_risk": claim_risk,
         "projectization_decision": projectization_decision,
+        "conversation_memory_decision": conversation_memory_decision,
+        "conversation_signals": _unique(conversation_explicit_hits + conversation_signals),
         "receipt_profile": receipt_profile,
         "projectization_signals": projectization_signals,
         "required_gates": required_gates_out,
@@ -502,6 +532,7 @@ def intake_router(task_text: str = "", cwd: str | None = None, policy: dict[str,
         "required_gates": required_gates_out,
         "memory_mode": memory_mode,
         "memory_lane": memory_lane,
+        "conversation_memory_decision": conversation_memory_decision,
         "external_need": external_need,
         "claim_risk": claim_risk,
         "human_confirmation_need": human_confirmation_need,
@@ -529,7 +560,9 @@ def intake_router(task_text: str = "", cwd: str | None = None, policy: dict[str,
         "external_need": external_need,
         "claim_risk": claim_risk,
         "projectization_decision": projectization_decision,
+        "conversation_memory_decision": conversation_memory_decision,
         "projectization_signals": projectization_signals,
+        "conversation_signals": _unique(conversation_explicit_hits + conversation_signals),
         "triggered_risks": sorted(set(triggered_risks), key=triggered_risks.index),
         "matched_risk_triggers": matched_risk_triggers,
         "negated_risk_triggers": negated_risk_triggers,

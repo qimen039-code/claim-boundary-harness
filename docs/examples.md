@@ -153,3 +153,67 @@ Expected route:
 - final answer should still mention any unverified boundary if the inspection was incomplete.
 
 The control plane is mandatory for nontrivial work, but it should not turn every file read into a hard runtime gate.
+
+## Example 13: Conversation Memory Lane
+
+Input:
+
+```text
+checkpoint this conversation so we can continue this conversation later
+```
+
+Expected route:
+
+- `conversation_memory_decision`: `create_or_update_current_conversation`;
+- `memory_lane`: `current_conversation`;
+- `memory_mode`: `write`;
+- `record_intent`: `explicit_conversation_memory_request`;
+- retrieval must start from `conversation-memory/_META_INDEX.md`.
+
+This is not a project memory write and not a global memory write. Other conversations may read this lane only by explicit reference, and cross-conversation writes require explicit user instruction.
+
+## Example 14: Format Layering
+
+If a record will be edited by agents repeatedly, do not make a large Markdown table the source of truth.
+
+Use:
+
+```text
+README explanation -> Markdown
+router facts -> JSON
+decisions/open loops/errors/references -> JSONL
+large matrices -> CSV or generated Markdown
+queryable state -> SQLite or another local database
+```
+
+## Example 15: Cold Archive Operation
+
+Input:
+
+```text
+archive this finished conversation memory lane
+```
+
+Expected default operation:
+
+```text
+ARCHIVE_MOVE or ARCHIVE_COPY
+```
+
+The agent should move or copy the source lane directory/file, update archive indexes, and preserve source references. It should not regenerate the old memory as a new summary file and then delete the original. Summary capsules require explicit compression, migration, de-identification, public-release, or storage-reduction intent.
+
+## Example 16: Conversation-Only Persona
+
+Input:
+
+```text
+use a warmer companion style in this chat
+```
+
+Expected boundary:
+
+- persona state is current-conversation only;
+- default global propagation is off;
+- project propagation is off;
+- work decisions still use evidence, gates, risk rules, and verification;
+- persona cannot affect factual claims, tests, memory boundaries, or external research decisions.

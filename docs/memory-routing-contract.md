@@ -12,6 +12,7 @@ memory_mode
 memory_lane
 record_intent
 projectization_decision
+conversation_memory_decision
 ```
 
 Meanings:
@@ -20,9 +21,10 @@ Meanings:
 | --- | --- | --- |
 | `memory_need` | `none`, `meta_only`, `index_only`, `capsule_payload`, `paired_err_sol`, `common_error_corpus` | How deep memory lookup should go. |
 | `memory_mode` | `none`, `read`, `write`, `update` | Whether the task should skip, read, write, or update memory. |
-| `memory_lane` | `none`, `current_project`, `emergent_project_candidate`, `common_error_corpus`, `self_reflection_matrix`, `global_inbox` | Where the memory action belongs. |
-| `record_intent` | `no_record`, `explicit_user_request`, `inferred_reusable_error`, `projectization_review` | Why a record would be written. |
+| `memory_lane` | `none`, `current_project`, `current_conversation`, `referenced_conversation`, `emergent_project_candidate`, `common_error_corpus`, `self_reflection_matrix`, `global_inbox` | Where the memory action belongs. |
+| `record_intent` | `no_record`, `explicit_user_request`, `inferred_reusable_error`, `projectization_review`, `conversation_checkpoint`, `explicit_conversation_memory_request` | Why a record would be written. |
 | `projectization_decision` | `not_project`, `current_project`, `emergent_project_candidate` | Whether projectless work is becoming a durable project lane. |
+| `conversation_memory_decision` | `none`, `create_or_update_current_conversation`, `checkpoint_candidate`, `read_referenced_conversation`, `explicit_cross_conversation_update` | Whether projectless long-chat state needs an isolated conversation memory lane. |
 
 ## Recording Rules
 
@@ -31,6 +33,8 @@ Explicit user phrases such as "record this error", "remember this issue", or equ
 Small but reusable mistakes should go to a common error corpus first as compact error-and-solution records. Full paired `ERR-*` / `SOL-*` records are reserved for high-impact incidents, repeated failures, or explicit self-reflection requests.
 
 Ordinary chat and small corrected mistakes should not create memory records by default.
+
+Long-running projectless conversations may create a `current_conversation` lane when the user explicitly asks for a checkpoint or when durable conversation signals accumulate. This lane is isolated by conversation or thread id, can be read by other conversations only through explicit reference, and cannot write another conversation's memory unless the user explicitly asks.
 
 ## Projectization Drift
 
@@ -54,6 +58,8 @@ This marker does not automatically create a project. It tells the agent to ask, 
 | Read prior context | `read` | `current_project` or `global_inbox` | `no_record` |
 | User says to record an error | `write` | `self_reflection_matrix` or `common_error_corpus` | `explicit_user_request` |
 | Reusable small execution mistake | `write` | `common_error_corpus` | `inferred_reusable_error`; include applied solution and validation |
+| User asks to checkpoint this conversation | `write` | `current_conversation` | `explicit_conversation_memory_request` |
+| Projectless long conversation accumulates durable decisions or open loops | `write` or local-policy ask first | `current_conversation` | `conversation_checkpoint` |
 | Projectless work becomes durable | `none` or `read` | `emergent_project_candidate` | `projectization_review` |
 
 ## Boundary
@@ -63,5 +69,7 @@ Memory writing is still subject to:
 - project lane isolation;
 - public/private audience checks;
 - sensitive data redaction;
+- conversation/thread isolation;
+- explicit cross-conversation reference or update rules;
 - user confirmation for high-risk or cross-project writes;
 - meta-first retrieval before payload reads.

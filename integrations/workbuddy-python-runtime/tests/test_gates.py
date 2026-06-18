@@ -83,6 +83,32 @@ class HarnessGateTests(unittest.TestCase):
         self.assertEqual(route["projectization_decision"], "emergent_project_candidate")
         self.assertEqual(route["record_intent"], "projectization_review")
 
+    def test_router_detects_explicit_conversation_memory_request(self) -> None:
+        route = intake_router("checkpoint this conversation so we can continue this conversation later", policy=self.policy)
+        self.assertEqual(route["conversation_memory_decision"], "create_or_update_current_conversation")
+        self.assertEqual(route["memory_lane"], "current_conversation")
+        self.assertEqual(route["memory_mode"], "write")
+        self.assertEqual(route["record_intent"], "explicit_conversation_memory_request")
+        self.assertIn("conversation_memory_index", route["module_need"])
+
+    def test_router_detects_conversation_checkpoint_candidate(self) -> None:
+        route = intake_router("long conversation with open loops and context compression risk", policy=self.policy)
+        self.assertEqual(route["conversation_memory_decision"], "checkpoint_candidate")
+        self.assertEqual(route["memory_lane"], "current_conversation")
+        self.assertEqual(route["record_intent"], "conversation_checkpoint")
+
+    def test_router_does_not_create_conversation_memory_for_plain_chat(self) -> None:
+        route = intake_router("explain why markdown is common", policy=self.policy)
+        self.assertEqual(route["conversation_memory_decision"], "none")
+        self.assertEqual(route["memory_lane"], "none")
+        self.assertEqual(route["memory_mode"], "none")
+
+    def test_router_projectization_takes_precedence_over_conversation_memory(self) -> None:
+        route = intake_router("README VERSION CHANGELOG tests adapter repository release long conversation", policy=self.policy)
+        self.assertEqual(route["projectization_decision"], "emergent_project_candidate")
+        self.assertEqual(route["conversation_memory_decision"], "none")
+        self.assertEqual(route["memory_lane"], "emergent_project_candidate")
+
     def test_memory_gate_blocks_cross_lane_path(self) -> None:
         result = memory_isolation_gate(
             "EXAMPLE_PROJECT",

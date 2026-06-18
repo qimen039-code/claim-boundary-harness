@@ -21,6 +21,7 @@ record_intent
 external_need
 claim_risk
 projectization_decision
+conversation_memory_decision
 receipt_profile
 required_gates
 ```
@@ -30,19 +31,20 @@ Field meanings:
 | Field | Purpose |
 | --- | --- |
 | `task_type` | Classify ordinary chat, read-only inspection, documentation, code/config change, runtime/current-fact work, or high-risk action. |
-| `target_surface` | Name the surface being changed or consulted: public docs, local harness, project memory, skill matrix, tool call, adapter, git action, or private rule. |
+| `target_surface` | Name the surface being changed or consulted: public docs, local harness, project memory, conversation memory, skill matrix, tool call, adapter, git action, or private rule. |
 | `audience` | Separate public users, local maintainer, project-only operator, or current chat. |
 | `project_lane` | Keep memory and project instructions scoped to one lane unless cross-project work is explicit. |
 | `risk_level` | Use additive R0-R5 routing; keep the highest risk and union of gates. |
 | `semantic_ambiguity` | Mark terms that could mean multiple actions, such as update, record, publish, call, route, memory, or skill. |
-| `module_need` | Decide whether to use no module, project router, semantic anchors, skill matrix, memory meta index, external research gate, claim verifier, or runtime hard gate. |
-| `memory_need` | Decide whether memory is unnecessary, meta-only, index-only, capsule-level, or paired ERR/SOL retrieval. |
+| `module_need` | Decide whether to use no module, project router, semantic anchors, skill matrix, memory meta index, conversation memory index, external research gate, claim verifier, or runtime hard gate. |
+| `memory_need` | Decide whether memory is unnecessary, meta-only, index-only, capsule-level, paired ERR/SOL retrieval, common error corpus, or conversation state. |
 | `memory_mode` | Decide whether memory should be skipped, read, written, or updated. |
-| `memory_lane` | Decide whether the memory action belongs to a current project, emergent project candidate, common error corpus, self-reflection matrix, global inbox, or no lane. |
-| `record_intent` | Decide whether there is no record request, explicit user request, inferred reusable error, or projectization review. |
+| `memory_lane` | Decide whether the memory action belongs to a current project, current conversation, referenced conversation, emergent project candidate, common error corpus, self-reflection matrix, global inbox, or no lane. |
+| `record_intent` | Decide whether there is no record request, explicit user request, inferred reusable error, projectization review, conversation checkpoint, or explicit conversation memory request. |
 | `external_need` | Decide whether external lookup is unnecessary, official-source, GitHub/open-source, general cross-check, source-grounded learning, or local validation. |
 | `claim_risk` | Decide whether the final answer contains an operational note, a weak claim, or a strong factual claim needing schema evidence. |
 | `projectization_decision` | Decide whether projectless work is still not a project, belongs to a current project, or should be treated as an emergent project candidate. |
+| `conversation_memory_decision` | Decide whether projectless long-chat state should skip memory, create/update current conversation memory, become a checkpoint candidate, read a referenced conversation, or perform an explicit cross-conversation update. |
 | `receipt_profile` | Decide whether to expose a compact runtime receipt, expanded governance receipt, or debug receipt. |
 | `required_gates` | List the concrete gates to run or honor. |
 
@@ -53,10 +55,12 @@ The router should compute the full decision internally, then expose the smallest
 | Profile | Use when | Expose |
 | --- | --- | --- |
 | `compact_runtime` | Default local runtime, single-user agents, ordinary R1-R5 checks where no public/private or governance ambiguity exists. | Risk, gates, memory mode/lane, external need, claim risk, human confirmation need. |
-| `extended_governance` | Public docs, local harness, adapters, project memory, semantic ambiguity, memory writes, projectization drift, or audience-boundary work. | Full governance receipt fields. |
+| `extended_governance` | Public docs, local harness, adapters, project memory, conversation memory, semantic ambiguity, memory writes, projectization drift, or audience-boundary work. | Full governance receipt fields. |
 | `debug_receipt` | Router debugging, misroute analysis, or user asks for full receipt. | Full receipt plus matched/negated triggers, confidence, and profile reasons. |
 
 This keeps WorkBuddy-like local adapters cheap while preserving the full whiteboard schema for migration, audits, and public framework work.
+
+For field-budget and delta-receipt rules, see [cost-control-contract.md](cost-control-contract.md). The short rule is: emit a field by default only when it can change the next action.
 
 ## Low-Cost Rule
 
@@ -91,6 +95,7 @@ cost or risk escalation
 before a strong factual claim
 before R5 action
 before long-term memory write
+before conversation checkpoint or cross-conversation memory update
 ```
 
 ## Source-Grounded Influences

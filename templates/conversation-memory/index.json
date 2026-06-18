@@ -1,0 +1,17 @@
+{
+  "lane": "CONVERSATION_TEMPLATE",
+  "status": "TEMPLATE",
+  "scope": "one isolated long-running conversation or thread",
+  "retrieval_order": [
+    "_META_INDEX.md",
+    "conversation_state.md or matching jsonl family",
+    "matching records only"
+  ],
+  "record_families": {
+    "decisions": "decisions.jsonl",
+    "open_loops": "open_loops.jsonl",
+    "errors_and_solutions": "errors_and_solutions.jsonl",
+    "references": "references.jsonl"
+  },
+  "write_boundary": "current conversation only; cross-conversation writes require explicit user instruction"
+}

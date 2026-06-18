@@ -41,6 +41,14 @@ If the agent cannot confirm that it read the meta layer first, treat the memory 
 
 Use [memory-meta-index-contract.md](memory-meta-index-contract.md) as the recommended field shape. The important part is not the exact Markdown formatting; it is the ability to select by lane, scope, category, record type, status, retrieval terms, applicability, linked modules, linked records, and review freshness before opening a payload.
 
+For long-running conversations that are not yet project lanes, use [conversation-memory-lane.md](conversation-memory-lane.md) and `templates/conversation-memory/`. Conversation memory is isolated by thread/session, follows the same meta-first rule, and should not silently write into project or global memory.
+
+Use [format-layering.md](format-layering.md) when deciding whether a record belongs in Markdown, JSON, JSONL, CSV/TSV, or a queryable local store. Public explanations can stay in Markdown; machine-owned routing facts and append-only records should use structured formats.
+
+Use [cost-control-contract.md](cost-control-contract.md) to keep the active context small. Default execution should use compact receipts, action-relevant fields, delta receipts after re-evaluation, and at most one meta index plus one category index plus a small number of payloads.
+
+Use [archive-and-persona-boundaries.md](archive-and-persona-boundaries.md) before adding cold archive or persona behavior. Global archives are optional cold indexes, and persona state is conversation-only by default.
+
 ## Step 3: Register The Skill Folders
 
 If your agent supports skills or commands, register these folders:
@@ -66,7 +74,7 @@ Stronger setups can run:
 
 Also make the advisory control plane mandatory:
 
-1. Create a lightweight routing receipt for nontrivial work: task type, target surface, audience, lane, risk, semantic ambiguity, module need, memory need, memory mode, memory lane, record intent, external need, claim risk, projectization decision, receipt profile, and required gates.
+1. Create a lightweight routing receipt for nontrivial work: task type, target surface, audience, lane, risk, semantic ambiguity, module need, memory need, memory mode, memory lane, record intent, external need, claim risk, projectization decision, conversation memory decision, receipt profile, and required gates.
 2. Re-evaluate only after trigger events: new evidence, missing files, tool errors, scope changes, user corrections, cross-project terminology, currentness/version claims, GitHub/open-source mechanism intake, risk/cost escalation, strong claims, R5 actions, or memory writes.
 3. Final-check claim scope, memory scope, version metadata, and unresolved verification debt.
 
@@ -168,6 +176,12 @@ Each lane should have its own:
 - retrieval log.
 
 Shared rules should stay in the whiteboard core. Project-specific rules should stay inside the project lane. This keeps separate projects usable across new conversations without mixing unrelated memory, progress, or failure records.
+
+Conversation memory should stay separate from project lanes. A conversation memory lane may reference a project record, but it should not copy project payloads or write project memory unless the user explicitly asks for a project-lane update.
+
+Global archive should stay separate from active lanes. Archive by moving or copying source files/directories by default. Use compressed summary capsules only after explicit compression, migration, de-identification, public-release, or storage-reduction intent. Do not delete source files unless separately confirmed.
+
+Persona state should stay inside the current conversation. It may affect tone or pacing, but it must not affect facts, verification, risk, project boundaries, memory boundaries, search, claim gates, or tests.
 
 ## After Agent Client Updates
 

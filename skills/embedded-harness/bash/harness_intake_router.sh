@@ -290,7 +290,7 @@ if [ "${#external_negated[@]}" -gt 0 ]; then
   set_object_array "$negated_file" "external_research" "${external_negated[@]}"
 fi
 
-target_surface="$(first_matching_rule '.router_decision_contract.target_surface_trigger_rules' git_action tool_call adapter public_docs private_rule local_harness skill_matrix project_memory || true)"
+target_surface="$(first_matching_rule '.router_decision_contract.target_surface_trigger_rules' git_action tool_call adapter public_docs private_rule local_harness skill_matrix conversation_memory project_memory || true)"
 [ -z "$target_surface" ] && target_surface="current_chat"
 if [ "$target_surface" = "current_chat" ] && array_contains "R3" "${triggered_risks[@]}"; then
   target_surface="local_harness"
@@ -346,16 +346,30 @@ fi
 explicit_record_hits=()
 common_error_hits=()
 projectization_signals=()
+conversation_explicit_hits=()
+conversation_signals=()
 collect_matching_triggers '.router_decision_contract.explicit_record_triggers' explicit_record_hits
 collect_matching_triggers '.router_decision_contract.common_error_triggers' common_error_hits
 collect_matching_triggers '.router_decision_contract.projectization_signals' projectization_signals
+collect_matching_triggers '.router_decision_contract.conversation_memory_explicit_triggers' conversation_explicit_hits
+collect_matching_triggers '.router_decision_contract.conversation_memory_signals' conversation_signals
 projectization_threshold="$(jq -r '.router_decision_contract.projectization_threshold // 3' "$POLICY_PATH" | tr -d '\r')"
+conversation_threshold="$(jq -r '.router_decision_contract.conversation_memory_threshold // 2' "$POLICY_PATH" | tr -d '\r')"
 
 projectization_decision="not_project"
 if [ "$project_lane" != "PROJECTLESS" ]; then
   projectization_decision="current_project"
 elif [ "${#projectization_signals[@]}" -ge "$projectization_threshold" ]; then
   projectization_decision="emergent_project_candidate"
+fi
+
+conversation_memory_decision="none"
+if [ "$project_lane" = "PROJECTLESS" ] && [ "$projectization_decision" = "not_project" ]; then
+  if [ "${#conversation_explicit_hits[@]}" -gt 0 ]; then
+    conversation_memory_decision="create_or_update_current_conversation"
+  elif [ "${#conversation_signals[@]}" -ge "$conversation_threshold" ]; then
+    conversation_memory_decision="checkpoint_candidate"
+  fi
 fi
 
 if [ "${#common_error_hits[@]}" -gt 0 ]; then
@@ -371,6 +385,14 @@ elif [ "${#common_error_hits[@]}" -gt 0 ]; then
   record_intent="inferred_reusable_error"
 elif [ "$projectization_decision" = "emergent_project_candidate" ]; then
   record_intent="projectization_review"
+elif [ "$conversation_memory_decision" = "create_or_update_current_conversation" ]; then
+  record_intent="explicit_conversation_memory_request"
+elif [ "$conversation_memory_decision" = "checkpoint_candidate" ]; then
+  record_intent="conversation_checkpoint"
+fi
+
+if [ "$conversation_memory_decision" != "none" ] && [ "$memory_need" = "none" ]; then
+  memory_need="conversation_state"
 fi
 
 memory_lane="none"
@@ -382,10 +404,12 @@ elif [ "$project_lane" != "PROJECTLESS" ]; then
   memory_lane="current_project"
 elif [ "$projectization_decision" = "emergent_project_candidate" ]; then
   memory_lane="emergent_project_candidate"
+elif [ "$conversation_memory_decision" != "none" ]; then
+  memory_lane="current_conversation"
 fi
 
 memory_mode="none"
-if [ "$record_intent" = "explicit_user_request" ] || [ "$record_intent" = "inferred_reusable_error" ]; then
+if [ "$record_intent" = "explicit_user_request" ] || [ "$record_intent" = "inferred_reusable_error" ] || [ "$record_intent" = "explicit_conversation_memory_request" ] || [ "$record_intent" = "conversation_checkpoint" ]; then
   memory_mode="write"
 elif [ "$memory_need" != "none" ]; then
   memory_mode="read"
@@ -409,6 +433,7 @@ module_need=()
 [ "${#required_skills[@]}" -gt 0 ] && add_unique module_need "skill_matrix"
 [ "${#semantic_ambiguity[@]}" -gt 0 ] && add_unique module_need "semantic_anchors"
 [ "$memory_need" != "none" ] && add_unique module_need "memory_meta_index"
+[ "$conversation_memory_decision" != "none" ] && add_unique module_need "conversation_memory_index"
 if [ "${#external_need[@]}" -gt 0 ] && [ "${external_need[0]}" != "none" ]; then
   add_unique module_need "external_research_gate"
 fi
@@ -441,6 +466,7 @@ else
     add_unique profile_reason "memory_write_or_record"
   fi
   [ "$projectization_decision" = "emergent_project_candidate" ] && add_unique profile_reason "projectization_candidate"
+  [ "$conversation_memory_decision" != "none" ] && add_unique profile_reason "conversation_memory_candidate"
   if [ "${#profile_reason[@]}" -gt 1 ]; then
     receipt_profile="extended_governance"
   fi
@@ -466,8 +492,10 @@ result="$(
     --arg record_intent "$record_intent" \
     --arg claim_risk "$claim_risk" \
     --arg projectization_decision "$projectization_decision" \
+    --arg conversation_memory_decision "$conversation_memory_decision" \
     --arg receipt_profile "$receipt_profile" \
     --argjson projectization_signals "$(json_array "${projectization_signals[@]}")" \
+    --argjson conversation_signals "$(json_array "${conversation_explicit_hits[@]}" "${conversation_signals[@]}")" \
     --argjson profile_reason "$(json_array "${profile_reason[@]}")" \
     --argjson semantic_ambiguity "$(json_array "${semantic_ambiguity[@]}")" \
     --argjson module_need "$(json_array "${module_need[@]}")" \
@@ -503,8 +531,10 @@ result="$(
         external_need: $external_need,
         claim_risk: $claim_risk,
         projectization_decision: $projectization_decision,
+        conversation_memory_decision: $conversation_memory_decision,
         receipt_profile: $receipt_profile,
         projectization_signals: $projectization_signals,
+        conversation_signals: $conversation_signals,
         required_gates: $required_gates
       },
       compact_receipt: {
@@ -513,6 +543,7 @@ result="$(
         required_gates: $required_gates,
         memory_mode: $memory_mode,
         memory_lane: $memory_lane,
+        conversation_memory_decision: $conversation_memory_decision,
         external_need: $external_need,
         claim_risk: $claim_risk,
         human_confirmation_need: $human_confirmation_need
@@ -532,7 +563,9 @@ result="$(
       external_need: $external_need,
       claim_risk: $claim_risk,
       projectization_decision: $projectization_decision,
+      conversation_memory_decision: $conversation_memory_decision,
       projectization_signals: $projectization_signals,
+      conversation_signals: $conversation_signals,
       triggered_risks: $triggered_risks,
       matched_risk_triggers: $matched_risk_triggers,
       negated_risk_triggers: $negated_risk_triggers,

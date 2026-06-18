@@ -12,11 +12,11 @@ memory_summary / _META_INDEX / router manifest
 
 ## Meta Index Fields
 
-Every project or skill memory library should expose a compact meta surface with these fields or equivalents:
+Every project, conversation, or skill memory library should expose a compact meta surface with these fields or equivalents:
 
 | Field | Purpose |
 | --- | --- |
-| `lane` | The project or global lane that owns the memory. |
+| `lane` | The project, conversation, or global lane that owns the memory. |
 | `scope` | The boundary where this memory applies. |
 | `category` | Governance, memory hierarchy, external references, raw logs, semantic anchors, ERR points, SOL points, or another local category. |
 | `record_type` | Capsule, decision, error point, solution point, source ledger, progress state, rule, or template. |
@@ -63,4 +63,4 @@ When a new record changes current guidance:
 2. Mark replaced rows as `SUPERSEDED_BY:<ID>` or equivalent.
 3. Put the reverse link in the new row.
 4. Keep raw logs separate from current guidance.
-5. Keep project-specific memories inside the project lane, not in the shared whiteboard core.
+5. Keep project-specific memories inside the project lane, conversation-specific memories inside the conversation lane, and shared framework rules inside the whiteboard core.

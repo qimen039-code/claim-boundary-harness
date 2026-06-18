@@ -160,6 +160,29 @@ Expected highlights:
 - `status`: `blocked`;
 - `blocked_reasons` includes `human_confirmation_required_for_R5` or `tool_call_requires_human_confirmation`.
 
+## 4e. Conversation Memory Route
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\skills\embedded-harness\harness_intake_router.ps1 -TaskText "checkpoint this conversation so we can continue this conversation later" -Cwd "C:\path\to\other"
+```
+
+Expected highlights:
+
+- `conversation_memory_decision`: `create_or_update_current_conversation`;
+- `memory_lane`: `current_conversation`;
+- `memory_mode`: `write`;
+- `record_intent`: `explicit_conversation_memory_request`.
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\skills\embedded-harness\harness_intake_router.ps1 -TaskText "README VERSION CHANGELOG tests adapter repository release long conversation" -Cwd "C:\path\to\other"
+```
+
+Expected highlights:
+
+- `projectization_decision`: `emergent_project_candidate`;
+- `conversation_memory_decision`: `none`;
+- projectization review takes precedence over conversation checkpointing.
+
 ## 5. Claim Schema
 
 ```powershell

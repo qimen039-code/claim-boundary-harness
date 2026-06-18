@@ -2,7 +2,7 @@
 
 Stop your coding agent from calling weak evidence "validated." Agent Memory Lane Harness adds deterministic routing, memory isolation, and claim checks to coding-agent workflows.
 
-Current version: `v0.11.1`
+Current version: `v0.12.0`
 
 Formerly: Agent Harness Skill Tree.
 
@@ -35,7 +35,11 @@ flowchart TD
 - **Receipt profiles:** the router computes the full decision internally but can expose a compact runtime receipt by default, expanding only for governance, public/private, projectization, memory-write, or debug cases.
 - **Router decision contract:** the router and dynamic decision layer use a compact receipt to decide target surface, audience, ambiguity, module need, memory need, external need, and claim risk before opening deeper context.
 - **Memory routing contract:** the router decides whether memory should be skipped, read, written, or updated; it also decides the lane before opening memory payloads.
+- **Conversation memory lane:** long-running projectless conversations can get their own isolated memory lane when explicitly requested or when checkpoint signals accumulate. This prevents context-compression loss without mixing the conversation into project or global memory.
+- **Cost control contract:** complete governance stays available internally, but the default path emits the smallest action-relevant receipt and uses delta receipts after trigger events.
 - **Projectization drift detection:** projectless conversations that accumulate repository, versioning, docs, tests, adapters, release, or architecture-decision signals can be flagged as emergent project candidates.
+- **Format layering:** human-facing docs stay in Markdown, but machine-owned routing facts, append-only records, and large tables should move to JSON, JSONL, CSV/TSV, or SQLite-style stores so agents do not rely on fragile Markdown tables and long lines.
+- **Archive and persona boundaries:** optional global archive is a cold index, not active memory; archive defaults to move/copy, while persona state is conversation-only and cannot affect work decisions.
 - **Source-grounded search and learning:** current facts, GitHub/open-source review, unfamiliar mechanisms, and anti-closed-door-invention tasks are split into official-source search, repository inspection, general web cross-check, source-grounded intake, and local validation.
 - **Selective hook/wrapper/tool proxy runtime:** only critical boundaries such as R5, high-risk tools, low-confidence routes, long-term memory writes, and final strong claims need hard stops.
 - **Meta-first memory retrieval:** memory lookup is not a direct file dive. The required chain is meta summary or `_META_INDEX`, then category or point index, then only the matching capsule or paired record.
@@ -70,6 +74,7 @@ user request
 -> event-triggered re-evaluation
 -> only needed gates
 -> project instructions and memory boundary
+-> conversation memory lane when projectless long-chat signals require it
 -> execution
 -> final answer with evidence limits
 -> optional paired error and solution records
@@ -87,6 +92,8 @@ user request
 - **Search and learning decision matrix**: routes public facts, GitHub repository evidence, general web cross-checks, external mechanism intake, and local validation boundaries.
 - **Additive routing**: if a task matches more than one risk type, it keeps the highest risk label and returns the union of needed gates.
 - **Memory isolation gate**: prevents accidental cross-project memory use unless the user clearly asks for it.
+- **Conversation memory lane**: isolates durable state for long-running ordinary conversations that have no project lane yet.
+- **Cost control contract**: keeps default execution cheap through receipt profiles, action-relevant fields, delta receipts, and active-context ceilings.
 - **External research gate**: detects currentness signals such as latest, current, version, release, GitHub, and official sources.
 - **Claim schema verifier**: blocks strong claims unless the claim has enough source and evidence boundary metadata.
 - **Skill tree router**: routes semantic anchors, paired incident records, and project router manifests.
@@ -112,6 +119,10 @@ user request
 |   +-- memory-meta-index-contract.md
 |   +-- memory-routing-contract.md
 |   +-- common-error-corpus.md
+|   +-- conversation-memory-lane.md
+|   +-- format-layering.md
+|   +-- cost-control-contract.md
+|   +-- archive-and-persona-boundaries.md
 |   +-- non-goals.md
 |   +-- reproduction.md
 |   +-- router-decision-contract.md
@@ -134,6 +145,8 @@ user request
 |   +-- troubleshooting-skill-matrix/
 +-- templates/
     +-- common-error-corpus/
+    +-- conversation-memory/
+    +-- global-memory-archive/
     +-- project/
 ```
 
@@ -259,6 +272,10 @@ The package includes synthetic examples that show the intended record shapes wit
 - [docs/memory-routing-contract.md](docs/memory-routing-contract.md): memory mode, memory lane, record intent, and projectization drift contract.
 - [docs/memory-meta-index-contract.md](docs/memory-meta-index-contract.md): multi-axis meta index contract for memory libraries.
 - [docs/common-error-corpus.md](docs/common-error-corpus.md): lightweight common-error sample format.
+- [docs/conversation-memory-lane.md](docs/conversation-memory-lane.md): isolated memory lane for long-running projectless conversations.
+- [docs/format-layering.md](docs/format-layering.md): when to use Markdown, JSON, JSONL, CSV/TSV, SQLite, or generated Markdown.
+- [docs/cost-control-contract.md](docs/cost-control-contract.md): routing field budgets, delta receipts, active-context ceilings, and action-relevant field rules.
+- [docs/archive-and-persona-boundaries.md](docs/archive-and-persona-boundaries.md): optional cold archive, move/copy archive defaults, summary capsule exceptions, and conversation-only persona boundaries.
 - [docs/deployment-risk-patterns.md](docs/deployment-risk-patterns.md): common deployment failures and fixes for WorkBuddy-like hooks, CLI agents, IDE agents, custom orchestrators, hosted agents, and wrapper-only setups.
 - [docs/examples.md](docs/examples.md): expected gate behavior and how to interpret examples.
 
@@ -321,6 +338,7 @@ See [docs/reproduction.md](docs/reproduction.md) for commands and expected resul
 
 - Rename `EXAMPLE_PROJECT` to your project lane.
 - Replace placeholder memory roots.
+- Copy `templates/conversation-memory/` only for long-running projectless conversations that need a checkpoint lane.
 - Add one project instruction file under `templates/project/`.
 - Keep the error and solution memory files empty until a real solved incident exists.
 - Add only user-confirmed semantic anchors.

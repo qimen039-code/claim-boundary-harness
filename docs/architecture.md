@@ -94,6 +94,57 @@ This prevents the framework from treating every mistake as permanent memory or e
 
 See [memory-routing-contract.md](memory-routing-contract.md) and [common-error-corpus.md](common-error-corpus.md).
 
+## Conversation Memory Lane
+
+Projectless long conversations can use a separate conversation memory lane when the router detects explicit checkpoint instructions or durable long-chat signals:
+
+```text
+conversation-memory/_META_INDEX.md
+-> conversation_state.md or index.json
+-> decisions.jsonl / open_loops.jsonl / errors_and_solutions.jsonl / references.jsonl
+```
+
+This lane is isolated by conversation or thread id. It can be read by later conversations only through explicit reference, and cross-conversation writes require explicit user instruction. If the work becomes a real project, the router should mark `projectization_decision: emergent_project_candidate` instead of silently mixing conversation memory into project memory.
+
+See [conversation-memory-lane.md](conversation-memory-lane.md).
+
+## Format Layering
+
+The framework uses Markdown for human-facing docs and meta summaries, but machine-owned facts should use structured formats:
+
+```text
+Markdown -> public explanation, meta index, short capsules
+JSON -> router policy and machine-readable indexes
+JSONL -> append-only decisions, open loops, errors, solutions, references
+CSV/TSV -> large tabular matrices
+SQLite -> larger queryable local state
+```
+
+See [format-layering.md](format-layering.md).
+
+## Cost Control Contract
+
+The framework keeps a complete internal contract but emits only the smallest useful receipt:
+
+```text
+R0 -> no explicit receipt
+R1/R2 -> compact runtime receipt
+R3/R4 -> compact receipt plus triggered fields
+R5 / public / archive / persona / memory write / debug -> extended or debug receipt
+```
+
+After the initial receipt, event-triggered re-evaluation should emit a delta receipt with changed fields only. A field belongs in the default receipt only if it changes the next action.
+
+See [cost-control-contract.md](cost-control-contract.md).
+
+## Archive And Persona Boundaries
+
+Global archive is optional cold storage. It is checked after active project or conversation memory, not before. Archive defaults to moving or copying source files/directories so provenance stays intact.
+
+Persona state is conversation-only and default-off. It may shape tone inside an ordinary conversation, but it cannot influence factual claims, risk, verification, project boundaries, memory boundaries, external research, claim schema checks, or tests.
+
+See [archive-and-persona-boundaries.md](archive-and-persona-boundaries.md).
+
 ## Selective Runtime Enforcement Layer
 
 The framework becomes hard runtime only for selected critical boundaries when an adopting agent routes execution through the runtime entry scripts:

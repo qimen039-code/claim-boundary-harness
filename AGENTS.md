@@ -26,7 +26,11 @@ routing receipt
 
 Routing receipt fields: task type, target surface, audience, active lane, risk level, semantic ambiguity, module need, memory need, memory mode, memory lane, record intent, external need, claim risk, projectization decision, receipt profile, and required gates.
 
+For projectless long-running conversations, also decide `conversation_memory_decision`. Use a conversation memory lane only when the user explicitly asks for a checkpoint or durable long-chat signals accumulate. Conversation memory is isolated by conversation/thread id, is not project memory, and is not global memory.
+
 Use receipt profiles to keep runtime cost low: `compact_runtime` for ordinary local execution, `extended_governance` for public/framework/project-boundary work, and `debug_receipt` only for router diagnosis or explicit full-receipt requests.
+
+Use the action-relevant rule: if a field will not change the next action, do not emit it in the default receipt. Keep it in documentation, archive meta, debug receipt, or audit logs instead. After the first receipt, use delta receipts with changed fields only unless full debug is requested.
 
 Re-evaluation is required after trigger events: new evidence, missing files, tool errors, scope changes, user corrections, cross-project terminology, currentness/version claims, GitHub/open-source mechanism intake, risk/cost escalation, strong claims, R5 actions, or memory writes.
 
@@ -34,9 +38,24 @@ Final boundary check must verify claim scope, memory scope, unresolved verificat
 
 Do not load all skills, all memory, all history, or wrap every tool call just because this layer is active. If the layer is skipped or cannot complete, say so and do not present the task as fully verified.
 
+Active context ceiling by default:
+
+```text
+one receipt or delta
+-> one meta index
+-> one category index
+-> at most two matching payload records
+```
+
 Memory use is routed. Ordinary chat should not write memory by default. Explicit requests to record an error may write memory after lane and sensitivity checks. Small reusable mistakes should enter a common error corpus first as compact error-and-solution samples with symptom, cause, applied solution, prevention, validation, and evidence; high-impact, repeated, or explicitly requested incidents should become paired ERR/SOL records.
 
 Projectless work can drift into a project. If repository, versioning, docs, tests, adapters, release, or repeated architecture-decision signals accumulate, mark the task as an emergent project candidate before writing project memory.
+
+Projectless long conversations can also drift into a conversation memory lane before they become a project. Use `templates/conversation-memory/`: read `_META_INDEX.md` first, then `conversation_state.md` or one matching JSONL family, then only matching records. Other conversations may read this lane only by explicit reference. Cross-conversation writes require explicit user instruction.
+
+Optional global archives are cold indexes, not active memory. Use active project or conversation memory first. Archive by moving or copying source files/directories by default; do not regenerate old memory content as a normal archive step. Summary capsules require explicit compression, migration, de-identification, public-release, or storage-reduction intent. Source deletion is R5.
+
+Persona or companion state is conversation-only and default-off. It may affect tone inside the current conversation, but it must not affect facts, risk, verification, project boundaries, memory boundaries, external research, claim checks, or tests.
 
 Governance-layer updates, dynamic-evaluation rule changes, routing-rule changes, trigger-term updates, decision-matrix edits, and framework behavior changes are `R3` even when they are documentation-only.
 
@@ -105,6 +124,20 @@ memory_summary / _META_INDEX / router manifest
 ```
 
 If an adopting project has no `_META_INDEX.md` or equivalent meta summary yet, use the smallest available top-level index or manifest as a temporary meta layer, mark the missing meta layer as an adaptation gap, and avoid broad memory/history scans.
+
+## Format Layering
+
+Use Markdown for human-facing instructions, explanations, and meta summaries. Use structured formats for machine-owned facts:
+
+```text
+JSON/TOML/YAML -> policy, routing rules, config
+JSONL -> append-only decisions, open loops, errors, solutions, references
+CSV/TSV -> large table data
+SQLite or another local database -> larger queryable state
+generated Markdown -> public presentation tables
+```
+
+Avoid hand-maintained Markdown tables or very long Markdown lines as the source of truth for records that agents will patch repeatedly.
 
 ## Embedded Harness Entry
 

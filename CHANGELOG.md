@@ -4,6 +4,17 @@ All notable public changes should be recorded here.
 
 This project uses `vMAJOR.MINOR.PATCH` version labels while the framework is still early-stage.
 
+## v0.12.0 - 2026-06-18
+
+- Added Conversation Memory Lane for long-running projectless conversations, with isolated per-conversation memory, explicit cross-conversation write rules, and mandatory meta-first retrieval.
+- Added a blank conversation-memory template with `_META_INDEX.md`, human state summary, machine index, and JSONL record families for decisions, open loops, errors/solutions, and references.
+- Added a format-layering strategy that separates human-facing Markdown from machine-owned JSON/JSONL/CSV/SQLite-style records to reduce fragile Markdown table and long-line patching.
+- Added a cost-control contract with routing field budgets, action-relevant field rules, delta receipts, and active-context ceilings.
+- Added archive and persona boundaries: optional global archive stays cold and defaults to move/copy operations, while persona state is conversation-only and cannot affect factual or work decisions.
+- Added blank global-memory-archive and conversation-only persona templates.
+- Updated router policy and PowerShell, Bash, and Python intake adapters to emit `conversation_memory_decision`, `current_conversation` lane routing, and conversation checkpoint signals.
+- Added WorkBuddy Python adapter regression tests for explicit conversation memory, checkpoint candidates, ordinary chat skip behavior, and projectization precedence.
+
 ## v0.11.1 - 2026-06-18
 
 - Added a deployment risk-pattern guide that generalizes the WorkBuddy hook issue into reusable failure modes and fixes for instruction-file agents, CLI hook agents, IDE agents, custom orchestrators, hosted agents, and wrapper-only setups.
