@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import json
+import os
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -201,6 +204,113 @@ class HarnessGateTests(unittest.TestCase):
             self.assertEqual(log_path.name, "workbuddy_harness_events.jsonl")
             self.assertEqual(decision["log_flush"]["written"], 1)
             self.assertTrue(log_path.exists())
+
+    def _run_hook(
+        self,
+        payload: dict[str, object],
+        *args: str,
+        log_dir: str,
+    ) -> subprocess.CompletedProcess[str]:
+        env = os.environ.copy()
+        env["PYTHONPATH"] = str(ROOT) + os.pathsep + env.get("PYTHONPATH", "")
+        return subprocess.run(
+            [
+                sys.executable,
+                "-m",
+                "workbuddy_harness.hook_runner",
+                "--log-dir",
+                log_dir,
+                *args,
+            ],
+            input=json.dumps(payload),
+            text=True,
+            capture_output=True,
+            env=env,
+            check=False,
+        )
+
+    def test_workbuddy_user_prompt_hook_stores_route_context(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            result = self._run_hook(
+                {
+                    "hook_event_name": "UserPromptSubmit",
+                    "session_id": "session-a",
+                    "cwd": tmp,
+                    "prompt": "inspect files and summarize the repository",
+                },
+                "--stage",
+                "user_prompt",
+                log_dir=tmp,
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+            output = json.loads(result.stdout)
+            hook_output = output["hookSpecificOutput"]
+            self.assertEqual(hook_output["hookEventName"], "UserPromptSubmit")
+            self.assertIn("Agent Memory Lane Harness route", hook_output["additionalContext"])
+            state_path = Path(tmp) / "workbuddy_hook_state.json"
+            self.assertTrue(state_path.exists())
+
+    def test_workbuddy_pre_tool_hook_blocks_hard_tool(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            self._run_hook(
+                {
+                    "hook_event_name": "UserPromptSubmit",
+                    "session_id": "session-b",
+                    "cwd": tmp,
+                    "prompt": "delete stale build files after review",
+                },
+                "--stage",
+                "user_prompt",
+                log_dir=tmp,
+            )
+            result = self._run_hook(
+                {
+                    "hook_event_name": "PreToolUse",
+                    "session_id": "session-b",
+                    "cwd": tmp,
+                    "tool_name": "Bash",
+                    "tool_input": {"command": "rm -rf build"},
+                },
+                "--stage",
+                "pre_tool",
+                "--constitution-reviewed",
+                log_dir=tmp,
+            )
+            self.assertEqual(result.returncode, 2, result.stderr)
+            output = json.loads(result.stdout)
+            hook_output = output["hookSpecificOutput"]
+            self.assertEqual(hook_output["permissionDecision"], "deny")
+            self.assertIn("tool_call_requires_human_confirmation", hook_output["permissionDecisionReason"])
+
+    def test_workbuddy_pre_tool_hook_allows_low_risk_tool(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            self._run_hook(
+                {
+                    "hook_event_name": "UserPromptSubmit",
+                    "session_id": "session-c",
+                    "cwd": tmp,
+                    "prompt": "inspect files and summarize findings",
+                },
+                "--stage",
+                "user_prompt",
+                log_dir=tmp,
+            )
+            result = self._run_hook(
+                {
+                    "hook_event_name": "PreToolUse",
+                    "session_id": "session-c",
+                    "cwd": tmp,
+                    "tool_name": "Bash",
+                    "tool_input": {"command": "ls"},
+                },
+                "--stage",
+                "pre_tool",
+                "--constitution-reviewed",
+                log_dir=tmp,
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+            output = json.loads(result.stdout)
+            self.assertTrue(output["continue"])
 
 
 if __name__ == "__main__":

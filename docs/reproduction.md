@@ -200,6 +200,14 @@ Expected highlight:
 
 This validates the standalone Python decision layer only. It does not prove that WorkBuddy has wired the adapter into its internal action execution loop, and it does not prove compatibility across WorkBuddy versions.
 
+The test suite also covers the reference WorkBuddy hook runner:
+
+- `UserPromptSubmit` stores the original prompt and returns compact route context;
+- `PreToolUse` blocks a high-risk shell command with hook denial and exit code `2`;
+- `PreToolUse` allows a low-risk read-style command.
+
+These are local adapter tests, not proof that a specific WorkBuddy installation has enabled hooks.
+
 ## Notes
 
 These tests prove only that the whiteboard scripts and reference adapter functions run and return expected routing decisions. They do not prove that an adopting agent will honor the gates. Hook, wrapper, tool-proxy, or in-process loop integration is required for stronger enforcement.

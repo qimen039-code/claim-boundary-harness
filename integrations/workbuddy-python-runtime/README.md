@@ -16,6 +16,7 @@ Treat it as a starting point. Before relying on it as a hard control path, test 
 
 - Reuse the public `embedded_harness_policy.json` as the policy source.
 - Provide in-process Python functions for routing, memory isolation, claim checks, and runtime enforcement decisions.
+- Provide a command-hook runner for WorkBuddy/CodeBuddy-style hook JSON on stdin.
 - Prefer `compact_receipt` for ordinary local execution and expand to the full `routing_receipt` only when `receipt_profile` is `extended_governance` or `debug_receipt`.
 - Avoid PowerShell subprocesses in the decision path.
 - Do not auto-register a WorkBuddy plugin or patch the installed application.
@@ -25,6 +26,26 @@ Treat it as a starting point. Before relying on it as a hard control path, test 
 This package implements the decision layer but does not claim that it is automatically wired into WorkBuddy's internal "execute action" loop.
 
 To make enforcement hard inside WorkBuddy, the host must call `runtime_enforcer(...)` immediately before action execution and treat `status == "blocked"` as a stop. If WorkBuddy still has a direct path that bypasses this function, enforcement is advisory for that path.
+
+For WorkBuddy/CodeBuddy hook deployments, use the provided hook runner:
+
+```bash
+AGENT_MEMORY_LANE_WORKBUDDY_ADAPTER_ROOT="$CODEBUDDY_PROJECT_DIR/integrations/workbuddy-python-runtime" \
+bash "$CODEBUDDY_PROJECT_DIR/integrations/workbuddy-python-runtime/scripts/workbuddy-hook.sh" \
+  --stage pre_tool \
+  --constitution-path "$CODEBUDDY_PROJECT_DIR/AGENTS.md" \
+  --log-dir "$CODEBUDDY_PROJECT_DIR/.harness-logs"
+```
+
+The runner reads hook JSON from stdin. On `UserPromptSubmit`, it stores the original prompt and returns compact route context. On `PreToolUse`, it calls `runtime_enforcer(...)`. If the decision is blocked, it prints a WorkBuddy hook denial payload with `permissionDecision: deny` and exits with code `2`.
+
+If your WorkBuddy build runs command hooks through a Bash-compatible shell, call `scripts/workbuddy-hook.sh` with `bash` as shown above. If your build runs native commands another way, call the Python module directly:
+
+```bash
+python -m workbuddy_harness.hook_runner --stage pre_tool --constitution-path "$CODEBUDDY_PROJECT_DIR/AGENTS.md"
+```
+
+Set `PYTHON_BIN=python` or `PYTHON_BIN=python3` when the shell cannot find the intended interpreter. Use `--fail-open` only during first-time hook setup; hard enforcement should fail closed.
 
 ## Expected Host Hook
 
@@ -74,3 +95,15 @@ From the repository root:
 ```bash
 python -m unittest discover -s integrations/workbuddy-python-runtime/tests
 ```
+
+To manually smoke-test the hook runner from the adapter root:
+
+```bash
+printf '{"hook_event_name":"UserPromptSubmit","session_id":"demo","cwd":".","prompt":"inspect files"}' \
+  | python -m workbuddy_harness.hook_runner --stage user_prompt --constitution-reviewed --log-dir ./.harness-logs
+
+printf '{"hook_event_name":"PreToolUse","session_id":"demo","cwd":".","tool_name":"Bash","tool_input":{"command":"rm -rf build"}}' \
+  | python -m workbuddy_harness.hook_runner --stage pre_tool --constitution-reviewed --log-dir ./.harness-logs
+```
+
+The second command should exit with code `2` and return `permissionDecision: deny`.

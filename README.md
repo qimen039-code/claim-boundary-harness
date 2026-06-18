@@ -2,7 +2,7 @@
 
 Stop your coding agent from calling weak evidence "validated." Agent Memory Lane Harness adds deterministic routing, memory isolation, and claim checks to coding-agent workflows.
 
-Current version: `v0.10.2`
+Current version: `v0.11.0`
 
 Formerly: Agent Harness Skill Tree.
 
@@ -43,6 +43,7 @@ flowchart TD
 - **No continuous skill generation by default:** the framework does not keep creating new skills automatically. Too many self-generated skills can pollute project boundaries, weaken routing discipline, and make it unclear which rule owns a task. Reusable knowledge should instead be added to a clearly registered skill knowledge library, reference pack, or tool content pack, then routed explicitly.
 - **Sanitized whiteboard examples:** This public repository was sanitized before publication. Private records, local project details, machine paths, and real incident history from the original working setup are not included. The included examples are synthetic records used only to help agents and adopters understand how to adapt the framework: routing, layered memory indexes, project memory capsules, paired error/solution records, claim boundaries, and client-update drift handling.
 - **Reference adapters are early:** the main scripts are PowerShell, and the four core gates also have Bash counterparts under `skills/embedded-harness/bash`. Bash scripts require `jq`. The repository also includes an experimental WorkBuddy-oriented Python runtime adapter under `integrations/workbuddy-python-runtime`. These adapters have not been fully tested across devices, operating systems, client versions, or real production loops; they are reference starting points.
+- **WorkBuddy hard enforcement requires hooks:** the WorkBuddy adapter is advisory until the adopter wires it into WorkBuddy/CodeBuddy hooks. For tool execution, use `PreToolUse` so the hook runner can return `permissionDecision: deny` and exit code `2` before the tool runs. Do not patch the installed WorkBuddy app; configure the supported hook surface in the adopting workspace.
 - **Agent client updates require re-adaptation:** Codex, Claude Code, and other agent clients may change paths, launchers, hook behavior, skill loading, or bundled runtimes after updates. Re-run adapter checks and smoke tests after client updates so stale paths do not silently disable the harness.
 
 ## What Problem It Solves
@@ -81,7 +82,7 @@ user request
 - **Receipt profile selector**: `compact_runtime` for low-cost single-agent operation, `extended_governance` for public/framework/project-boundary work, and `debug_receipt` for router diagnosis.
 - **Router decision contract**: a stable low-cost receipt for target surface, audience, semantic ambiguity, module selection, memory route, external route, claim risk, and gates.
 - **Governance/routing update handling**: framework-rule, trigger-term, routing-rule, decision-matrix, and dynamic-evaluation edits are treated as R3 changes even when they are documentation-only.
-- **Selective runtime enforcer scripts**: hook, wrapper, and tool-proxy entry points that return nonzero only at configured hard-stop boundaries when called by the adopting runtime. They are truly mandatory only when they are the sole execution path for the relevant agent action.
+- **Selective runtime enforcer scripts**: hook, wrapper, and tool-proxy entry points that return nonzero only at configured hard-stop boundaries when called by the adopting runtime. They are truly mandatory only when they are the sole execution path for the relevant agent action. The WorkBuddy Python adapter includes a hook runner for `UserPromptSubmit` and `PreToolUse`.
 - **Search and learning decision matrix**: routes public facts, GitHub repository evidence, general web cross-checks, external mechanism intake, and local validation boundaries.
 - **Additive routing**: if a task matches more than one risk type, it keeps the highest risk label and returns the union of needed gates.
 - **Memory isolation gate**: prevents accidental cross-project memory use unless the user clearly asks for it.
@@ -240,7 +241,7 @@ This framework has been tried in one private Codex-based project workflow. Once 
 
 This is not yet broad field validation. The public package has not been battle-tested across many projects, many operators, or many agent runtimes.
 
-The PowerShell, Bash, and WorkBuddy Python adapters are also not complete compatibility claims. They were adapted from one local device environment. PowerShell and the WorkBuddy Python decision layer were smoke-tested locally; the Bash/mac-style scripts are reference adapters and still need target-shell verification on the adopter's machine. The WorkBuddy Python adapter was unit-tested as a standalone decision layer rather than proven as a hard-wired WorkBuddy execution-loop integration.
+The PowerShell, Bash, and WorkBuddy Python adapters are also not complete compatibility claims. They were adapted from one local device environment. PowerShell and the WorkBuddy Python decision layer were smoke-tested locally; the Bash/mac-style scripts are reference adapters and still need target-shell verification on the adopter's machine. The WorkBuddy Python adapter now includes a hook runner tested through local unit tests, but real hard enforcement still depends on the adopter's WorkBuddy version honoring `PreToolUse` hook denial and exit code `2`.
 
 For `v0.10.0`, receipt profiles were smoke-tested through the PowerShell intake router and the WorkBuddy Python adapter tests. Bash receipt parity was updated in the reference script, but Bash was not available on the current PATH during this update, so the Bash path still needs target-shell verification.
 

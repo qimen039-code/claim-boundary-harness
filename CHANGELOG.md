@@ -4,6 +4,13 @@ All notable public changes should be recorded here.
 
 This project uses `vMAJOR.MINOR.PATCH` version labels while the framework is still early-stage.
 
+## v0.11.0 - 2026-06-18
+
+- Added a WorkBuddy hook runner that reads WorkBuddy/CodeBuddy hook JSON from stdin, stores the original prompt at `UserPromptSubmit`, and calls the runtime enforcer at `PreToolUse`.
+- Added a Bash-compatible WorkBuddy hook wrapper so command-hook environments can call the Python adapter without patching the installed WorkBuddy application.
+- Documented the WorkBuddy enforcement boundary: a hook-wired `PreToolUse` path can hard-block with `permissionDecision: deny` and exit code `2`, while any host path that bypasses the hook remains advisory.
+- Added WorkBuddy hook deployment guidance, setup checks, and regression tests for prompt-state capture, high-risk tool denial, and low-risk tool pass-through.
+
 ## v0.10.2 - 2026-06-18
 
 - Fixed WorkBuddy Python adapter logging so `log_dir` writes to `workbuddy_harness_events.jsonl` inside the directory instead of treating the directory itself as a file.
