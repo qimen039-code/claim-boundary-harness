@@ -4,6 +4,27 @@ All notable public changes should be recorded here.
 
 This project uses `vMAJOR.MINOR.PATCH` version labels while the framework is still early-stage.
 
+## v0.7.0 - 2026-06-18
+
+- Published the WorkBuddy-oriented Python runtime adapter under `integrations/workbuddy-python-runtime`.
+- Clarified that PowerShell, Bash, and WorkBuddy Python adapters are early reference adapters, not complete cross-device, cross-version, or production-loop validation claims.
+- Added local unit-test coverage for the WorkBuddy Python decision layer while keeping hard WorkBuddy loop integration as an adopter responsibility.
+
+## v0.6.1 - 2026-06-18
+
+- Tightened the Codex field-use wording to describe early private use in one Codex-based project workflow, not broad multi-project or multi-agent validation.
+- Clarified that the advisory control plane is caller-honored by default and becomes blocking only on execution paths that actually invoke the hook, wrapper, or tool-proxy gates.
+
+## v0.6.0 - 2026-06-17
+
+- Fixed memory isolation path-prefix handling so a sibling path such as `project-evil` does not pass as `project`.
+- Added reparse-point aware path resolution checks for the PowerShell memory isolation gate.
+- Split trigger rules into `en` and `zh` groups while keeping deterministic matching across both groups.
+- Added English trigger word-boundary checks and simple negation handling so phrases such as `do not delete` do not directly count as high-risk action requests.
+- Added Bash counterparts for the four core gates under `skills/embedded-harness/bash`; Bash scripts require `jq`.
+- Added lightweight PowerShell and Bash policy validators.
+- Added Codex and Claude Code integration examples, exit-code/status documentation, and explicit non-goals.
+
 ## v0.5.0 - 2026-06-17
 
 - Added the mandatory advisory control plane between the root microkernel and selective runtime hard gates.

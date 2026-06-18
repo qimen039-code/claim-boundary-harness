@@ -26,6 +26,8 @@ The microkernel should stay short. Put project details elsewhere.
 
 The intake router classifies work into R0-R5 and returns required gates.
 
+The repository also includes adapter examples outside the core skill folder, such as `integrations/workbuddy-python-runtime`. These adapters should be treated as host-specific references. They can reuse the same `embedded_harness_policy.json`, but they do not change the core framework contract unless the adopting runtime actually calls them at the right execution boundary.
+
 The mandatory advisory control plane sits around the router:
 
 ```text
@@ -70,6 +72,10 @@ Hard-stop conditions:
 - Final strong claim without claim schema evidence boundary.
 
 Ordinary tool calls should stay on the advisory control plane. This is not a sandbox. If an agent bypasses the hook, wrapper, or tool proxy, the scripts cannot stop it.
+
+The wrapper is truly mandatory only when it is the agent's sole command execution path for the protected action. If a user, client feature, or separate tool path can bypass the wrapper, the framework remains advisory for that path.
+
+Most gates are advisory by design: they return structured decisions that the caller must actively honor. Only paths configured to run through `harness_task_wrapper.ps1`, `harness_tool_proxy.ps1`, or an equivalent hook before execution become real interception points.
 
 ## Search And Learning Decision Matrix
 
@@ -165,3 +171,9 @@ Routing is additive. A task can match R3 and R4 at the same time. The router kee
 ## Boundary
 
 The harness is advisory unless connected to a wrapper or hook system. It produces structured decisions, but the caller must honor them.
+
+Even after hook or wrapper integration, enforcement is limited to paths that actually invoke the scripts. Use local smoke checks after agent client updates because launch paths, hook behavior, and bundled runtimes can change.
+
+Do not treat this layer as a hard sandbox. If an agent still has a direct execution route that bypasses the wrapper or tool proxy, the hard stop degrades back to advisory for that route.
+
+The published adapters are not complete compatibility certifications. PowerShell, Bash, and WorkBuddy Python paths must be smoke-tested in the target device, shell, client version, and hook or loop surface before any hard-enforcement claim is made.

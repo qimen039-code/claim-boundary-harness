@@ -76,7 +76,7 @@ Outside material can supply completion ideas, boundary control, engineering cons
 | Scope | Path or trigger | Router skill / file | Status | Notes |
 | --- | --- | --- | --- | --- |
 | Shared troubleshooting | agent errors, tool failures, skill matrix updates, reusable incidents | `skills/troubleshooting-skill-matrix/SKILL.md` | active | Routes to semantic anchors and paired ERR/SOL ledgers. |
-| Embedded harness | nontrivial task intake, memory isolation, external research trigger, claim schema | `skills/embedded-harness/README.md` | active | Low-cost deterministic entry route. |
+| Embedded harness | nontrivial task intake, memory isolation, external research trigger, claim schema, policy validation | `skills/embedded-harness/README.md` | active | Low-cost deterministic entry route with PowerShell and Bash reference gates. |
 | Example project | `<PROJECT_ROOT>`, `EXAMPLE_PROJECT` | `<PROJECT_ROOT>/AGENTS.md` or a future project router skill | template | Replace with real project details after adoption. |
 
 ## Project Router Manifest Contract

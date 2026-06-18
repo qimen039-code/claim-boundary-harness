@@ -2,7 +2,7 @@
 
 Agent Memory Lane Harness is a meta-first whiteboard framework for routing coding-agent work through project-scoped memory lanes, lightweight guardrails, claim checks, and paired improvement records.
 
-Current version: `v0.5.0`
+Current version: `v0.7.0`
 
 Formerly: Agent Harness Skill Tree.
 
@@ -10,7 +10,7 @@ It is not tied to one agent runtime. It is a neutral starting point that can be 
 
 ## Important Adoption Notes
 
-- **Codex field use:** this framework has been used smoothly in a Codex-based workflow. After the root instruction file, harness policy, project registry, and skill tree are installed, new conversations can keep following the same routing chain instead of rediscovering the workflow from scratch.
+- **Codex field-use boundary:** this framework has been tried in one private Codex-based project workflow. That early use suggests the routing chain can persist across new conversations when the root instruction file, harness policy, project registry, and skill tree are installed, but it has not yet been broadly validated across many projects or many agent runtimes.
 - **Independent project lanes:** separate projects can run separate local chains. With clear global routing boundaries, each project keeps its own instructions, memory roots, and progress records, which reduces silent memory bleed and cross-project contamination.
 - **Mandatory advisory control plane:** nontrivial tasks must create a lightweight routing receipt, re-evaluate only on trigger events, and final-check claim/memory/search boundaries without wrapping every tool call.
 - **Source-grounded search and learning:** current facts, GitHub/open-source review, unfamiliar mechanisms, and anti-closed-door-invention tasks are split into official-source search, repository inspection, general web cross-check, source-grounded intake, and local validation.
@@ -18,7 +18,7 @@ It is not tied to one agent runtime. It is a neutral starting point that can be 
 - **Meta-first memory retrieval:** memory lookup is not a direct file dive. The required chain is meta summary or `_META_INDEX`, then category or point index, then only the matching capsule or paired record.
 - **No continuous skill generation by default:** the framework does not keep creating new skills automatically. Too many self-generated skills can pollute project boundaries, weaken routing discipline, and make it unclear which rule owns a task. Reusable knowledge should instead be added to a clearly registered skill knowledge library, reference pack, or tool content pack, then routed explicitly.
 - **Sanitized whiteboard examples:** This public repository was sanitized before publication. Private records, local project details, machine paths, and real incident history from the original working setup are not included. The included examples are synthetic records used only to help agents and adopters understand how to adapt the framework: routing, layered memory indexes, project memory capsules, paired error/solution records, claim boundaries, and client-update drift handling.
-- **PowerShell-only reference scripts:** the included scripts are PowerShell because the original working environment was Windows. Other operating systems have not been adapted or tested here. The design is portable, but Bash, Python, Node, or native hook adapters should be written and validated by users on their own target systems.
+- **Reference adapters are early:** the main scripts are PowerShell, and the four core gates also have Bash counterparts under `skills/embedded-harness/bash`. Bash scripts require `jq`. The repository also includes an experimental WorkBuddy-oriented Python runtime adapter under `integrations/workbuddy-python-runtime`. These adapters have not been fully tested across devices, operating systems, client versions, or real production loops; they are reference starting points.
 - **Agent client updates require re-adaptation:** Codex, Claude Code, and other agent clients may change paths, launchers, hook behavior, skill loading, or bundled runtimes after updates. Re-run adapter checks and smoke tests after client updates so stale paths do not silently disable the harness.
 
 ## What Problem It Solves
@@ -55,7 +55,7 @@ user request
 - **Intake router**: deterministic R0-R5 task classification.
 - **Mandatory advisory control plane**: routing receipt, event-triggered dynamic review, and final boundary checks for skill/tool/plugin/search/memory/claim-gate decisions.
 - **Governance/routing update handling**: framework-rule, trigger-term, routing-rule, decision-matrix, and dynamic-evaluation edits are treated as R3 changes even when they are documentation-only.
-- **Selective runtime enforcer scripts**: hook, wrapper, and tool-proxy entry points that return nonzero only at configured hard-stop boundaries when called by the adopting runtime.
+- **Selective runtime enforcer scripts**: hook, wrapper, and tool-proxy entry points that return nonzero only at configured hard-stop boundaries when called by the adopting runtime. They are truly mandatory only when they are the sole execution path for the relevant agent action.
 - **Search and learning decision matrix**: routes public facts, GitHub repository evidence, general web cross-checks, external mechanism intake, and local validation boundaries.
 - **Additive routing**: if a task matches more than one risk type, it keeps the highest risk label and returns the union of needed gates.
 - **Memory isolation gate**: prevents accidental cross-project memory use unless the user clearly asks for it.
@@ -70,30 +70,36 @@ user request
 
 ```text
 .
-├── AGENTS.md
-├── CHANGELOG.md
-├── PROJECT_SKILL_MATRIX_REGISTRY.md
-├── VERSION
-├── docs/
-│   ├── adoption.md
-│   ├── architecture.md
-│   ├── examples.md
-│   └── reproduction.md
-├── examples/
-│   ├── sample-routing.md
-│   ├── memory-capsule-examples.md
-│   └── memory-library-demo/
-├── skills/
-│   ├── agent-error-memory/
-│   ├── bug-solution-memory/
-│   ├── embedded-harness/
-│   │   ├── harness_runtime_enforcer.ps1
-│   │   ├── harness_task_wrapper.ps1
-│   │   └── harness_tool_proxy.ps1
-│   ├── shared-semantic-anchors/
-│   └── troubleshooting-skill-matrix/
-└── templates/
-    └── project/
++-- AGENTS.md
++-- CHANGELOG.md
++-- PROJECT_SKILL_MATRIX_REGISTRY.md
++-- VERSION
++-- docs/
+|   +-- adoption.md
+|   +-- architecture.md
+|   +-- examples.md
+|   +-- integrations/
+|   +-- non-goals.md
+|   +-- reproduction.md
++-- integrations/
+|   +-- workbuddy-python-runtime/
++-- examples/
+|   +-- sample-routing.md
+|   +-- memory-capsule-examples.md
+|   +-- memory-library-demo/
++-- skills/
+|   +-- agent-error-memory/
+|   +-- bug-solution-memory/
+|   +-- embedded-harness/
+|   |   +-- bash/
+|   |   +-- validate_policy.ps1
+|   |   +-- harness_runtime_enforcer.ps1
+|   |   +-- harness_task_wrapper.ps1
+|   |   +-- harness_tool_proxy.ps1
+|   +-- shared-semantic-anchors/
+|   +-- troubleshooting-skill-matrix/
++-- templates/
+    +-- project/
 ```
 
 ## Where It Can Be Used
@@ -109,6 +115,13 @@ This framework can be adapted to agents that support one or more of these surfac
 - wrapper scripts around the agent process.
 
 If an agent only reads instruction files, this framework acts as a soft workflow contract. If an agent also supports hooks or wrappers, the gate scripts can become stronger runtime checks.
+
+Integration examples are intentionally small and conservative:
+
+- [docs/integrations/codex.md](docs/integrations/codex.md)
+- [docs/integrations/claude-code.md](docs/integrations/claude-code.md)
+- [docs/integrations/workbuddy.md](docs/integrations/workbuddy.md)
+- [integrations/workbuddy-python-runtime/README.md](integrations/workbuddy-python-runtime/README.md)
 
 ## Why Skills Are Bounded
 
@@ -180,7 +193,11 @@ This rule is important because direct deep reads recreate the same context-bloat
 
 ## Field Use Note
 
-This framework has been used smoothly in a Codex-based workflow. Once the root instruction file, harness policy, project registry, and skill tree are in place, new conversations can continue to follow the same routing chain instead of rediscovering the workflow from scratch.
+This framework has been tried in one private Codex-based project workflow. Once the root instruction file, harness policy, project registry, and skill tree are in place, that early use suggests new conversations can continue to follow the same routing chain instead of rediscovering the workflow from scratch.
+
+This is not yet broad field validation. The public package has not been battle-tested across many projects, many operators, or many agent runtimes.
+
+The PowerShell, Bash, and WorkBuddy Python adapters are also not complete compatibility claims. They were adapted and smoke-tested from one local device environment. The Bash scripts were exercised through Git Bash on Windows rather than a real macOS/Linux machine, and the WorkBuddy Python adapter was unit-tested as a standalone decision layer rather than proven as a hard-wired WorkBuddy execution-loop integration.
 
 It also supports independent project lanes. After global routing boundaries are configured, each project can keep its own instructions, memory roots, and incident records. That makes it possible to run separate local chains for separate projects without silent memory bleed, cross-project contamination, or unrelated progress records being mixed together.
 
@@ -206,6 +223,19 @@ The package includes synthetic examples that show the intended record shapes wit
 powershell -ExecutionPolicy Bypass -File .\skills\embedded-harness\harness_intake_router.ps1 -TaskText "fix the script and run benchmark" -Cwd "C:\path\to\project"
 ```
 
+Validate the policy after editing it:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\skills\embedded-harness\validate_policy.ps1
+```
+
+On Bash environments with `jq`:
+
+```bash
+bash ./skills/embedded-harness/bash/validate_policy.sh
+bash ./skills/embedded-harness/bash/harness_intake_router.sh --task-text "fix the script and run benchmark" --cwd "/path/to/project"
+```
+
 After any agent client update, re-check the adapter surface before relying on the chain:
 
 ```text
@@ -223,8 +253,14 @@ The whiteboard package was smoke-tested locally with:
 - intake routing for a mixed fix plus benchmark task;
 - fallback classification for vague project work;
 - memory isolation for an example project memory folder;
+- blocked memory isolation for a sibling prefix path;
+- trigger word-boundary and negation checks;
 - external research trigger checks;
+- external research negation checks;
 - claim schema verification;
+- policy validation;
+- Bash smoke checks when `jq` is available;
+- WorkBuddy Python adapter unit tests as a standalone decision layer;
 - package content scan for local project terms and sensitive field names.
 
 See [docs/reproduction.md](docs/reproduction.md) for commands and expected results.
@@ -237,6 +273,7 @@ See [docs/reproduction.md](docs/reproduction.md) for commands and expected resul
 - Keep the error and solution memory files empty until a real solved incident exists.
 - Add only user-confirmed semantic anchors.
 - Add wrapper or hook integration only after the basic scripts run in your environment.
+- Review [docs/non-goals.md](docs/non-goals.md) before adding packaging, dashboards, broad comparison tables, or community-maintenance boilerplate.
 
 ## Versioning
 
@@ -258,9 +295,13 @@ This is a foundation package, not a complete safety system.
 
 - The scripts are not a hard sandbox.
 - A blocked result only works when the calling agent or wrapper honors it.
+- A wrapper is truly mandatory only if it is the only command or tool execution path for the agent action it protects. If users or tools can bypass it, the framework remains advisory for that path.
+- Most gates are intentionally advisory: they return structured decisions for the caller to honor. They become real interception only on execution paths where `harness_task_wrapper.ps1`, `harness_tool_proxy.ps1`, or an equivalent hook is the only way the agent can run the protected action.
 - The trigger lists are intentionally small and should be tuned.
 - The memory format is a template, not a database.
 - Different agents need different adapter files and launch methods.
+- The WorkBuddy Python adapter is experimental and is not a complete WorkBuddy compatibility guarantee.
+- Bash/macOS/Linux support is a reference path until it is tested on the target machine and shell.
 - There are likely missing cases, rough edges, and workflows we have not considered.
 
 ## Feedback Welcome

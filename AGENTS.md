@@ -53,6 +53,8 @@ powershell -ExecutionPolicy Bypass -File <HARNESS_ROOT>\harness_tool_proxy.ps1 -
 powershell -ExecutionPolicy Bypass -File <HARNESS_ROOT>\harness_task_wrapper.ps1 -TaskText "<user task>" -CommandPath "<command>" -CommandArgs @("<arg>")
 ```
 
+Bash equivalents for the four core gates live under `<HARNESS_ROOT>/bash` and require `jq`.
+
 Hard-stop conditions:
 
 - R5 without explicit human confirmation.

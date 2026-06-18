@@ -18,6 +18,26 @@ function ConvertTo-Array($value) {
   return @($value)
 }
 
+function ConvertTo-TriggerList($value) {
+  $items = @()
+  if ($null -eq $value) {
+    return @()
+  }
+  if ($value -is [System.Array]) {
+    foreach ($entry in $value) {
+      $items += ConvertTo-TriggerList $entry
+    }
+    return @($items)
+  }
+  if (($value -isnot [string]) -and $value.PSObject.Properties.Count -gt 0) {
+    foreach ($prop in $value.PSObject.Properties) {
+      $items += ConvertTo-TriggerList $prop.Value
+    }
+    return @($items)
+  }
+  return @([string]$value)
+}
+
 function Get-ObjectPropertyValue($object, [string]$name) {
   if ($null -eq $object) {
     return $null
@@ -29,18 +49,50 @@ function Get-ObjectPropertyValue($object, [string]$name) {
   return $prop.Value
 }
 
-function Get-MatchedTriggers($triggers) {
+function Test-EnglishTrigger([string]$text) {
+  return (($text -match '^[\x20-\x7E]+$') -and ($text -match '[A-Za-z0-9]'))
+}
+
+function New-TriggerRegex([string]$text) {
+  $escaped = [regex]::Escape($text)
+  if (Test-EnglishTrigger $text) {
+    return "(?i)(?<![A-Za-z0-9_])$escaped(?![A-Za-z0-9_])"
+  }
+  return $escaped
+}
+
+function Test-NegatedMatch([string]$source, [int]$index) {
+  $start = [Math]::Max(0, $index - 48)
+  $prefix = $source.Substring($start, $index - $start)
+  return ($prefix -match "(?i)(\bdo\s+not\b|\bdon't\b|\bnever\b|\bnot\b|\bno\b)[\s\w'-]{0,36}$")
+}
+
+function Get-TriggerMatchSet($triggers) {
   $matched = @()
-  foreach ($trigger in (ConvertTo-Array $triggers)) {
+  $negated = @()
+  foreach ($trigger in (ConvertTo-TriggerList $triggers)) {
     $text = [string]$trigger
     if ([string]::IsNullOrWhiteSpace($text)) {
       continue
     }
-    if ($TaskText -match [regex]::Escape($text)) {
-      $matched += $text
+    $regex = New-TriggerRegex $text
+    $hits = [regex]::Matches($TaskText, $regex)
+    foreach ($hit in $hits) {
+      if (Test-NegatedMatch -source $TaskText -index $hit.Index) {
+        $negated += $text
+      } else {
+        $matched += $text
+      }
     }
   }
-  return @($matched | Select-Object -Unique)
+  return [pscustomobject]@{
+    positive = @($matched | Select-Object -Unique)
+    negated = @($negated | Select-Object -Unique)
+  }
+}
+
+function Get-MatchedTriggers($triggers) {
+  return @((Get-TriggerMatchSet $triggers).positive)
 }
 
 function Get-ProjectLane([string]$path) {
@@ -62,12 +114,21 @@ $requiredGates = @("microkernel")
 $requiredSkills = @()
 $triggeredRisks = @()
 $matchedRiskTriggers = [ordered]@{}
+$negatedRiskTriggers = [ordered]@{}
 $fallbackModelJudgmentRecommended = $false
 $classificationConfidence = "high"
+$riskRules = $policy.risk_trigger_rules
+if ($null -eq $riskRules) {
+  $riskRules = $policy.risk_keyword_rules
+}
 
 foreach ($riskName in (ConvertTo-Array $policy.risk_order_high_to_low)) {
-  $triggers = Get-ObjectPropertyValue $policy.risk_trigger_rules ([string]$riskName)
-  $matched = Get-MatchedTriggers $triggers
+  $triggers = Get-ObjectPropertyValue $riskRules ([string]$riskName)
+  $matchSet = Get-TriggerMatchSet $triggers
+  $matched = @($matchSet.positive)
+  if ($matchSet.negated.Count -gt 0) {
+    $negatedRiskTriggers[[string]$riskName] = @($matchSet.negated)
+  }
   if ($matched.Count -gt 0) {
     $triggeredRisks += [string]$riskName
     $matchedRiskTriggers[[string]$riskName] = @($matched)
@@ -114,12 +175,13 @@ if ($projectLane -ne "PROJECTLESS") {
   $requiredSkills += "$projectLane project AGENTS/router"
 }
 
-$needsExternalResearch = $false
-foreach ($trigger in $policy.external_research_triggers) {
-  if ($TaskText -match [regex]::Escape($trigger)) {
-    $needsExternalResearch = $true
-    break
-  }
+$externalResearchMatchSet = Get-TriggerMatchSet $policy.external_research_triggers
+$needsExternalResearch = @($externalResearchMatchSet.positive).Count -gt 0
+if ($needsExternalResearch) {
+  $matchedRiskTriggers["external_research"] = @($externalResearchMatchSet.positive)
+}
+if ($externalResearchMatchSet.negated.Count -gt 0) {
+  $negatedRiskTriggers["external_research"] = @($externalResearchMatchSet.negated)
 }
 
 $result = [ordered]@{
@@ -131,6 +193,7 @@ $result = [ordered]@{
   risk_level = $risk
   triggered_risks = @($triggeredRisks | Select-Object -Unique)
   matched_risk_triggers = $matchedRiskTriggers
+  negated_risk_triggers = $negatedRiskTriggers
   classification_confidence = $classificationConfidence
   required_gates = @($requiredGates | Select-Object -Unique)
   required_skills = @($requiredSkills | Select-Object -Unique)

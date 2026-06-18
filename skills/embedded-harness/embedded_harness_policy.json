@@ -12,11 +12,27 @@
   },
   "risk_order_high_to_low": ["R5", "R4", "R3", "R2", "R1"],
   "risk_trigger_rules": {
-    "R5": ["delete", "remove", "Remove-Item", "git commit", "install", "login", "permission", "firewall", "proxy", "private value", "sensitive value", "long-term memory", "write memory", "payment"],
-    "R4": ["experiment", "benchmark", "performance", "GPU", "runtime", "network", "search the web", "latest", "current", "GitHub", "open source", "official", "price", "policy", "law", "release"],
-    "R3": ["modify", "update", "implement", "fix", "code", "config", "AGENTS", "harness", "script", "dynamic evaluation", "decision layer", "governance layer", "governance update", "routing rule", "route rule", "trigger rule", "risk rule", "decision matrix", "framework rule", "framework behavior", "rule update", "rule change", "apply_patch", "patch", "edit"],
-    "R2": ["report", "handoff", "ledger", "archive", "document", "write file", "create file", "generate file"],
-    "R1": ["inspect", "check", "read", "local search", "read-only", "locate", "rg", "Get-Content", "memory", "retrieve", "meta", "index", "capsule", "_META_INDEX"]
+    "R0": { "en": [], "zh": [] },
+    "R5": {
+      "en": ["delete", "remove", "Remove-Item", "git commit", "install", "login", "permission", "firewall", "proxy", "private value", "sensitive value", "long-term memory", "write memory", "payment"],
+      "zh": ["\u5220\u9664", "\u79fb\u9664", "\u63d0\u4ea4", "\u5b89\u88c5", "\u767b\u5f55", "\u6743\u9650", "\u9632\u706b\u5899", "\u4ee3\u7406", "\u654f\u611f", "\u957f\u671f\u8bb0\u5fc6", "\u5199\u5165\u8bb0\u5fc6", "\u4ed8\u6b3e"]
+    },
+    "R4": {
+      "en": ["experiment", "benchmark", "performance", "GPU", "runtime", "network", "search the web", "latest", "current", "GitHub", "open source", "official", "price", "policy", "law", "release"],
+      "zh": ["\u5b9e\u9a8c", "\u6027\u80fd", "\u8fd0\u884c\u65f6", "\u8054\u7f51", "\u68c0\u7d22", "\u6700\u65b0", "\u76ee\u524d", "\u73b0\u5728", "\u5f00\u6e90", "\u5b98\u65b9", "\u4ef7\u683c", "\u653f\u7b56", "\u6cd5\u5f8b"]
+    },
+    "R3": {
+      "en": ["modify", "update", "implement", "fix", "code", "config", "AGENTS", "harness", "script", "dynamic evaluation", "decision layer", "governance layer", "governance update", "routing rule", "route rule", "trigger rule", "risk rule", "decision matrix", "framework rule", "framework behavior", "rule update", "rule change", "apply_patch", "patch", "edit"],
+      "zh": ["\u4fee\u6539", "\u66f4\u65b0", "\u5b9e\u73b0", "\u4fee\u590d", "\u4ee3\u7801", "\u914d\u7f6e", "\u811a\u672c", "\u6cbb\u7406\u5c42", "\u52a8\u6001\u8bc4\u4f30", "\u51b3\u7b56\u5c42", "\u8def\u7531\u89c4\u5219", "\u89c4\u5219\u66f4\u65b0", "\u89c4\u5219\u6f0f\u5224", "\u89e6\u53d1\u8bcd", "\u51b3\u7b56\u77e9\u9635", "\u9884\u8bc4\u4f30", "\u590d\u8bc4"]
+    },
+    "R2": {
+      "en": ["report", "handoff", "ledger", "archive", "document", "write file", "create file", "generate file"],
+      "zh": ["\u62a5\u544a", "\u4ea4\u63a5", "\u5f52\u6863", "\u6587\u6863", "\u5199\u5165", "\u521b\u5efa\u6587\u4ef6", "\u751f\u6210\u6587\u4ef6"]
+    },
+    "R1": {
+      "en": ["inspect", "check", "read", "local search", "read-only", "locate", "rg", "Get-Content", "memory", "retrieve", "meta", "index", "capsule", "_META_INDEX"],
+      "zh": ["\u68c0\u67e5", "\u67e5\u770b", "\u8bfb\u53d6", "\u641c\u7d22\u672c\u5730", "\u53ea\u8bfb", "\u5b9a\u4f4d", "\u8bb0\u5fc6", "\u5143\u6458\u8981"]
+    }
   },
   "risk_gate_rules": {
     "R1": ["read_only_context_gate"],

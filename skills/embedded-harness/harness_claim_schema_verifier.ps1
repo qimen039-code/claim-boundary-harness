@@ -28,7 +28,7 @@ if ($ClaimJson) {
 }
 
 foreach ($claim in $claims) {
-  foreach ($field in @("claim_type","source_type")) {
+  foreach ($field in @("claim_type","source_type","evidence_boundary")) {
     if (-not ($claim.PSObject.Properties.Name -contains $field) -or [string]::IsNullOrWhiteSpace([string]$claim.$field)) {
       $issues += "missing_$field"
     }
@@ -64,4 +64,3 @@ if ($OutputPath) {
 }
 $json
 if ($status -eq "blocked") { exit 2 }
-

@@ -1,6 +1,18 @@
 # Local Reproduction
 
-Run these commands from the repository root on Windows PowerShell.
+Run these commands from the repository root.
+
+These checks are smoke tests for the reference package, not a full compatibility matrix. The current public package was adapted and checked from one local device environment. Re-run the relevant commands on the exact Windows, macOS/Linux, WorkBuddy, Codex, Claude Code, or other agent runtime you plan to use.
+
+## 0. Policy Validator
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\skills\embedded-harness\validate_policy.ps1
+```
+
+Expected highlight:
+
+- `status`: `pass`.
 
 ## 1. Intake Router
 
@@ -36,6 +48,36 @@ Expected highlight:
 
 - `status`: `pass`.
 
+## 3a. Memory Prefix Block
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\skills\embedded-harness\harness_memory_isolation_gate.ps1 -ProjectLane EXAMPLE_PROJECT -RequestedPath "C:\path\to\project-evil\.agent-memory\note.md"
+```
+
+Expected highlights:
+
+- process exits with code `2`;
+- `status`: `blocked`.
+
+## 3b. Trigger Boundary And Negation
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\skills\embedded-harness\harness_intake_router.ps1 -TaskText "read installation guide" -Cwd "C:\path\to\other"
+```
+
+Expected highlight:
+
+- `matched_risk_triggers` does not include `install`.
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\skills\embedded-harness\harness_intake_router.ps1 -TaskText "do not delete anything" -Cwd "C:\path\to\other"
+```
+
+Expected highlights:
+
+- `risk_level` is not `R5`;
+- `negated_risk_triggers` includes `delete`.
+
 ## 4. External Research Trigger
 
 ```powershell
@@ -46,6 +88,18 @@ Expected highlight:
 
 - `needs_external_research`: `true`.
 - `recommended_search_modes` includes `github_open_source_repository_search` and `official_authority_source_search`.
+
+## 4-1. External Research Negation
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\skills\embedded-harness\harness_external_research_gate.ps1 -TaskText "do not search GitHub"
+```
+
+Expected highlights:
+
+- `needs_external_research`: `false`;
+- `negated_triggers` includes `GitHub`;
+- `recommended_search_modes`: empty.
 
 ## 4a. Source-Grounded Learning Route
 
@@ -116,6 +170,36 @@ Expected highlight:
 
 - `status`: `pass`.
 
+## 6. Bash Smoke Checks
+
+Run these only when Bash and `jq` are available.
+
+```bash
+bash ./skills/embedded-harness/bash/validate_policy.sh
+bash ./skills/embedded-harness/bash/harness_intake_router.sh --task-text "do not delete anything" --cwd "/path/to/other"
+bash ./skills/embedded-harness/bash/harness_external_research_gate.sh --task-text "do not search GitHub"
+```
+
+Expected highlights:
+
+- policy validator returns `status: pass`;
+- intake router records the negated `delete` trigger without direct `R5`;
+- external research gate returns `needs_external_research: false`.
+
+## 7. WorkBuddy Python Runtime Adapter
+
+Run this if Python is available:
+
+```bash
+python -m unittest discover -s integrations/workbuddy-python-runtime/tests
+```
+
+Expected highlight:
+
+- all tests pass.
+
+This validates the standalone Python decision layer only. It does not prove that WorkBuddy has wired the adapter into its internal action execution loop, and it does not prove compatibility across WorkBuddy versions.
+
 ## Notes
 
-These tests prove only that the whiteboard scripts run and return expected routing decisions. They do not prove that an adopting agent will honor the gates. Hook or wrapper integration is required for stronger enforcement.
+These tests prove only that the whiteboard scripts and reference adapter functions run and return expected routing decisions. They do not prove that an adopting agent will honor the gates. Hook, wrapper, tool-proxy, or in-process loop integration is required for stronger enforcement.

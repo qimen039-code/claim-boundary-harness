@@ -81,6 +81,24 @@ final-answer gate -> skills/embedded-harness/harness_runtime_enforcer.ps1 -Stage
 
 Do not replace your normal agent launcher until the scripts pass local smoke checks. Start with high-risk blocking, final-claim checks, and memory-write checks. Keep ordinary tool calls on the advisory control plane unless you have a reason to harden them. Keep a fallback path so a bad adapter can be disabled without losing workspace access.
 
+Exit code contract:
+
+- `0`: gate passed, or returned a non-blocking status.
+- `2`: gate returned `blocked`; stop unless a human explicitly confirms the current action.
+- other: runtime error, missing dependency, malformed input, or adapter failure.
+
+Status contract:
+
+- `pass`: no blocking issue found.
+- `blocked`: required boundary, evidence, or confirmation is missing.
+- `cross_reference_allowed`: memory path is outside the active lane but was explicitly allowed as a cross-reference.
+
+For Bash environments, use the scripts under `skills/embedded-harness/bash`. They require `jq` and share the same `embedded_harness_policy.json`.
+
+For hosts that own an in-process Python agent loop, `integrations/workbuddy-python-runtime` is a small reference adapter. It reuses the same policy file and exposes Python functions for routing, memory isolation, claim checks, and runtime enforcement decisions. It is not automatically wired into WorkBuddy or any other client. Hard enforcement requires the host to call the function before action execution and to stop on `status: blocked`.
+
+Adapter validation is local by default. Do not claim PowerShell, Bash/macOS/Linux, or WorkBuddy Python compatibility until you have run the relevant smoke checks on the target device and client version.
+
 ## Step 4a: Configure Search And Learning Routes
 
 Tune `search_and_learning_decision_matrix` and `external_research_triggers` in `skills/embedded-harness/embedded_harness_policy.json`.
@@ -153,3 +171,7 @@ Recommended update check:
 6. Run one mixed-risk route, one memory check, one source-check trigger, and one claim check.
 
 If an agent supports wrapper scripts, keep a small client-health script near the adapter layer. That script should detect path drift and report issues first. Automatic repair should be opt-in because client config files are part of the user's local environment.
+
+## Non-Goals
+
+Before expanding the framework, review [non-goals.md](non-goals.md). Package-manager distribution, broad dashboards, promotion work, large comparison tables, and full test matrices are intentionally excluded from the whiteboard core.
