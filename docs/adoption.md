@@ -109,6 +109,8 @@ For hosts that own an in-process Python agent loop, `integrations/workbuddy-pyth
 
 Adapter validation is local by default. Do not claim PowerShell, Bash/macOS/Linux, or WorkBuddy Python compatibility until you have run the relevant smoke checks on the target device and client version.
 
+Before calling a deployment "hard enforced", check the broader deployment failure modes in [deployment-risk-patterns.md](deployment-risk-patterns.md). The most important rule is simple: a gate blocks only the execution path that actually invokes it and honors its blocked result.
+
 ## Step 4a: Configure Search And Learning Routes
 
 Tune `search_and_learning_decision_matrix` and `external_research_triggers` in `skills/embedded-harness/embedded_harness_policy.json`.

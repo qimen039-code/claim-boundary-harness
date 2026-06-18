@@ -4,6 +4,13 @@ All notable public changes should be recorded here.
 
 This project uses `vMAJOR.MINOR.PATCH` version labels while the framework is still early-stage.
 
+## v0.11.1 - 2026-06-18
+
+- Added a deployment risk-pattern guide that generalizes the WorkBuddy hook issue into reusable failure modes and fixes for instruction-file agents, CLI hook agents, IDE agents, custom orchestrators, hosted agents, and wrapper-only setups.
+- Added an agent-facing troubleshooting runbook that tells adopters what to inspect, where to inspect it, what result to expect, and how to localize failures across instruction loading, direct gate execution, hook shell setup, hook payloads, host block semantics, bypass paths, memory/search/final-claim surfaces, and client drift.
+- Added a mainstream agent deployment checklist and minimal acceptance tests for instruction loading, pre-tool hard blocking, bypass surfaces, memory isolation, current-fact routing, final-claim checks, and client-update drift.
+- Clarified in the public README and adoption guide that hard enforcement is path-specific: a gate blocks only the execution path that invokes it and honors the blocked result.
+
 ## v0.11.0 - 2026-06-18
 
 - Added a WorkBuddy hook runner that reads WorkBuddy/CodeBuddy hook JSON from stdin, stores the original prompt at `UserPromptSubmit`, and calls the runtime enforcer at `PreToolUse`.
