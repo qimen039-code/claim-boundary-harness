@@ -2,7 +2,7 @@
 
 Stop your coding agent from calling weak evidence "validated." Agent Memory Lane Harness adds deterministic routing, memory isolation, and claim checks to coding-agent workflows.
 
-Current version: `v0.12.0`
+Current version: `v0.13.0`
 
 Formerly: Agent Harness Skill Tree.
 
@@ -41,10 +41,12 @@ flowchart TD
 - **Format layering:** human-facing docs stay in Markdown, but machine-owned routing facts, append-only records, and large tables should move to JSON, JSONL, CSV/TSV, or SQLite-style stores so agents do not rely on fragile Markdown tables and long lines.
 - **Archive and persona boundaries:** optional global archive is a cold index, not active memory; archive defaults to move/copy, while persona state is conversation-only and cannot affect work decisions.
 - **Source-grounded search and learning:** current facts, GitHub/open-source review, unfamiliar mechanisms, and anti-closed-door-invention tasks are split into official-source search, repository inspection, general web cross-check, source-grounded intake, and local validation.
+- **SkillOpt-style training layer:** recurring skill improvements can be staged as candidate edits, gated with regression probes, recorded as rejected edits when unsafe, or promoted through slow updates without replacing the bounded multi-skill matrix.
 - **Selective hook/wrapper/tool proxy runtime:** only critical boundaries such as R5, high-risk tools, low-confidence routes, long-term memory writes, and final strong claims need hard stops.
 - **Meta-first memory retrieval:** memory lookup is not a direct file dive. The required chain is meta summary or `_META_INDEX`, then category or point index, then only the matching capsule or paired record.
 - **Multi-axis memory meta index:** memory libraries should expose lane, scope, category, record type, status, retrieval terms, applicability, linked modules, linked records, and staleness markers so agents can select one payload instead of scanning history.
 - **No continuous skill generation by default:** the framework does not keep creating new skills automatically. Too many self-generated skills can pollute project boundaries, weaken routing discipline, and make it unclear which rule owns a task. Reusable knowledge should instead be added to a clearly registered skill knowledge library, reference pack, or tool content pack, then routed explicitly.
+- **External optimizer boundary:** SkillOpt-style mechanisms are treated as adapted rules unless executable adoption is explicitly approved. Public benchmark claims remain source-prior until locally validated.
 - **Sanitized whiteboard examples:** This public repository was sanitized before publication. Private records, local project details, machine paths, and real incident history from the original working setup are not included. The included examples are synthetic records used only to help agents and adopters understand how to adapt the framework: routing, layered memory indexes, project memory capsules, paired error/solution records, claim boundaries, and client-update drift handling.
 - **Reference adapters are early:** the main scripts are PowerShell, and the four core gates also have Bash counterparts under `skills/embedded-harness/bash`. Bash scripts require `jq`. The repository also includes an experimental WorkBuddy-oriented Python runtime adapter under `integrations/workbuddy-python-runtime`. These adapters have not been fully tested across devices, operating systems, client versions, or real production loops; they are reference starting points.
 - **WorkBuddy hard enforcement requires hooks:** the WorkBuddy adapter is advisory until the adopter wires it into WorkBuddy/CodeBuddy hooks. For tool execution, use `PreToolUse` so the hook runner can return `permissionDecision: deny` and exit code `2` before the tool runs. Do not patch the installed WorkBuddy app; configure the supported hook surface in the adopting workspace.
@@ -97,6 +99,7 @@ user request
 - **External research gate**: detects currentness signals such as latest, current, version, release, GitHub, and official sources.
 - **Claim schema verifier**: blocks strong claims unless the claim has enough source and evidence boundary metadata.
 - **Skill tree router**: routes semantic anchors, paired incident records, and project router manifests.
+- **SkillOpt-style training layer**: turns recurring improvement ideas into candidate-edit packets, validation-gate reports, rejected-edit records, and slow-update proposals while leaving runtime routing authority with the existing matrix.
 - **Paired improvement records**: one error record plus one solution record for each solved recurring incident.
 - **Layered project memory library**: a meta index points to category indexes, and category indexes point to individual capsules.
 - **Memory meta index contract**: a multi-axis index shape for project memory libraries and skill point sets.
@@ -142,6 +145,7 @@ user request
 |   |   +-- harness_task_wrapper.ps1
 |   |   +-- harness_tool_proxy.ps1
 |   +-- shared-semantic-anchors/
+|   +-- skillopt-training-layer/
 |   +-- troubleshooting-skill-matrix/
 +-- templates/
     +-- common-error-corpus/

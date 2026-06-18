@@ -4,6 +4,12 @@ All notable public changes should be recorded here.
 
 This project uses `vMAJOR.MINOR.PATCH` version labels while the framework is still early-stage.
 
+## v0.13.0 - 2026-06-18
+
+- Added a public SkillOpt-style training layer that stages skill improvements as candidate edits, validation-gate reports, rejected-edit records, and slow-update proposals without replacing the bounded multi-skill matrix.
+- Added SkillOpt source attribution and MIT license boundary notes while keeping the integration as `adapted_rule` rather than vendored code or executable adoption.
+- Registered the training layer in the public skill matrix registry and routed SkillOpt-style mechanism absorption through the troubleshooting matrix.
+
 ## v0.12.0 - 2026-06-18
 
 - Added Conversation Memory Lane for long-running projectless conversations, with isolated per-conversation memory, explicit cross-conversation write rules, and mandatory meta-first retrieval.
