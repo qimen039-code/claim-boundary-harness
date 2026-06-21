@@ -2,7 +2,7 @@
 
 Stop coding agents from calling weak evidence "validated." Claim Boundary Harness adds meta-first routing, project-scoped memory lanes, R0-R5 risk receipts, and deployment adapters for claim verification.
 
-Current version: `v0.14.7`
+Current version: `v0.14.8`
 
 Formerly: Agent Memory Lane Harness, originally Agent Harness Skill Tree.
 

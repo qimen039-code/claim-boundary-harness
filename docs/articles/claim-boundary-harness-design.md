@@ -1,34 +1,29 @@
-# Claim Boundary Harness: A Meta-First Governance Layer For Coding Agents
+# Claim Boundary Harness: Claim Boundaries Before Agent Confidence
 
-Coding agents are getting better at editing files, running tests, and calling tools. The more practical problem is not that they fail openly. It is that they can turn weak evidence into confident claims: a partial run becomes "validated", a mocked check becomes "tested", a stale memory becomes current context, or a host hook is described as hard enforcement even though the runtime can bypass it.
+Coding agents do not usually fail in a clean, obvious way. The uncomfortable failure is quieter: a partial run becomes "validated", a mock becomes "tested", a stale memory is treated as current context, or a hook is described as hard enforcement even though the host still has another execution path.
 
-Claim Boundary Harness is a small reference framework for that boundary. It is not a new agent runtime. It is a meta-first governance layer that can be adapted into agents that read workspace instructions, run local scripts, call hooks, or use wrapper/tool-proxy paths.
+Claim Boundary Harness started from that observation. It is not another agent runtime. It is a small governance layer that sits before memory lookup, tool execution, and final reporting. The goal is to make an agent decide what kind of claim it is about to make before it makes it.
 
-The framework focuses on four linked problems:
+The project is intentionally plain. It uses instruction files, compact routing receipts, policy JSON, PowerShell/Bash reference gates, and a WorkBuddy-oriented Python adapter. The interesting part is not the stack. It is the boundary placement.
 
-- claim verification: stop weak evidence from being reported as strong validation;
-- project-scoped memory lanes: avoid cross-project memory bleed and context-compression loss;
-- receipt-based risk routing: decide which gates are needed before opening large context;
-- deployment realism: separate advisory guidance from actual hook, wrapper, tool-proxy, or sandbox enforcement.
+## The Narrow Problem
 
-## The Failure Mode
+Most agent harnesses talk about planning, tools, memory, sandboxes, and evals. Those are all useful. In practice, a local coding agent also needs a smaller discipline:
 
-Many coding-agent failures are not caused by a missing tool. They are caused by a missing boundary before tool use or final reporting.
+```text
+What do I know?
+How do I know it?
+Which project or conversation owns this context?
+Is this enough evidence for the claim I am about to make?
+```
 
-Common examples:
+Without that discipline, an agent can do many individually reasonable things and still produce a bad outcome. It can load the wrong memory lane. It can skip current-source lookup for versioned facts. It can treat an advisory hook as if it were a sandbox. It can turn one smoke check into a broad validation claim.
 
-- The agent edits code before deciding whether the task is a simple fix, an experiment, a public-docs change, or a high-risk action.
-- The agent reads the wrong memory lane because there is no project or conversation boundary.
-- The agent says a result is "validated" after one smoke check, a mock-only run, or a failed partial execution.
-- The agent claims a hook is hard enforcement even though the host runtime can still execute through a bypass path.
-- The agent searches the web too late, or not at all, when the task depends on current versions, GitHub repositories, public APIs, prices, policies, or release notes.
-- The agent keeps turning every useful lesson into a new skill, eventually making routing less predictable.
+Claim Boundary Harness makes those decisions explicit, but tries not to make ordinary tasks expensive.
 
-Claim Boundary Harness treats those as routing and evidence-boundary problems, not only prompt-writing problems.
+## The Control Path
 
-## Design Principle: Meta First, Payload Later
-
-The framework uses a cheap outer decision layer before opening expensive or risky context.
+The default path is meta-first:
 
 ```text
 user request
@@ -36,27 +31,27 @@ user request
 -> intake router
 -> routing receipt
 -> one matching gate or index
--> only the needed payload
+-> one matching payload
 -> final claim boundary review
 ```
 
-The goal is not to make every task heavy. Ordinary chat should stay cheap. The router decides whether the task needs project instructions, memory, external research, claim checking, a skill matrix, or a runtime hard gate.
+The router is supposed to be cheap enough to run before nontrivial work. It should not open every memory file, every skill, or every project document. It should decide which surface is relevant, then stop expanding.
 
-This is why memory retrieval is meta-first:
+That is why memory lookup starts from a meta layer:
 
 ```text
 memory summary or _META_INDEX
 -> category index or outer retrieval surface
--> one matching capsule or paired record
+-> selected capsule or paired record
 ```
 
-The agent should not scan all memory files just because memory exists. It should find the smallest relevant capsule and stop.
+This is slower than guessing, but much cheaper than broad history scans. It also gives the agent a place to notice when it is about to cross a project or conversation boundary.
 
 ## Routing Receipts
 
-The core decision object is a routing receipt. It can stay internal for low-risk work, but it gives adapters a concrete contract.
+The routing receipt is the contract between the advisory control plane and any runtime adapter that wants to enforce it.
 
-Representative fields include:
+Important fields include:
 
 ```text
 task_type
@@ -79,18 +74,18 @@ receipt_profile
 required_gates
 ```
 
-These fields are intentionally operational. They answer questions like:
+The names are a little dry on purpose. They are meant to answer operational questions:
 
-- Is this public documentation, local harness maintenance, a project-memory update, a tool call, or a git action?
-- Is the audience a public user, a local maintainer, a project operator, or only the current chat?
-- Does this task require memory at all?
-- If memory is needed, which lane owns it?
-- Does this claim need evidence before it is reported?
-- Does a hook need to stop execution, or is a compact advisory receipt enough?
+- Is this a public-docs edit, a local adapter change, a memory update, or a git action?
+- Does this task need project memory, conversation memory, external research, a claim schema, or no extra module?
+- Is the final answer allowed to say "validated", or only "smoke checked"?
+- Is the runtime expected to block, or is an advisory note enough?
 
-## R0-R5 Risk Routing
+The receipt can stay internal for ordinary work. It should become visible only when the decision changes cost, risk, permission, memory, search, or claim wording.
 
-The risk model is additive. If a task matches several categories, the highest risk and the union of gates should survive.
+## R0-R5 Is Additive, Not A Label Game
+
+The risk model is deliberately simple:
 
 ```text
 R0 ordinary chat
@@ -101,42 +96,43 @@ R4 experiments, runtime claims, current facts, external mechanisms, or performan
 R5 delete, submit, publish, install, login, payment, permission, network/proxy, sensitive transfer, or long-term memory writes
 ```
 
-R0-R5 does not need to be shown to the user every time. The classification can stay silent by default. It should become visible only when it changes the execution path, cost, risk, permission requirement, memory behavior, search requirement, or final claim wording.
+The important detail is additive routing. "Fix code and run an experiment" should keep both the code-change gate and the experiment/claim gate. "Update docs and push to GitHub" should not be treated as harmless just because the file is Markdown.
+
+This is also why R0-R5 is silent by default. Users do not need a risk label for every small task. They need the agent to stop when a boundary matters.
 
 ## Claim Boundaries
 
-The framework separates artifact existence from truth claims.
+The framework separates evidence levels that agents often collapse:
 
-For example:
+```text
+artifact exists
+command ran
+smoke check passed
+local regression passed
+repeated run passed
+current external source checked
+production/runtime path verified
+```
 
-- A file exists: artifact claim.
-- A script ran once: execution claim.
-- A smoke check passed: narrow validation claim.
-- A benchmark is stable: stronger claim that needs repeated evidence.
-- A public mechanism was read online: source-prior, not local validation.
+A smoke check is useful. It is just not the same as broad validation. A public benchmark is useful. It is still source-prior until the adopting environment reproduces or gates it locally.
 
-The final answer should not promote weak evidence into a stronger class. A local smoke check is useful, but it is not the same as broad production validation. A public benchmark in another repository can inform design, but it does not prove the adapter works in a new host runtime.
+The final claim gate exists to keep those distinctions intact. It does not make the project more sophisticated; it prevents the answer from sounding more certain than the evidence.
 
 ## Memory Lanes
 
-The framework uses separate memory lanes to avoid silent contamination.
+The memory design follows the same boundary rule.
 
-Common lanes:
+Project memory belongs to a project. Conversation memory belongs to a conversation. A global archive is cold storage, not active context. Common operational mistakes can go into a common error corpus. Higher-impact or repeated failures can become paired error/solution records.
 
-- project memory: owned by one project;
-- conversation memory: isolated for a long-running projectless thread;
-- referenced conversation memory: read through explicit links;
-- common error corpus: repeated operational mistakes and their fixes;
-- self-reflection matrix: higher-impact paired error and solution records;
-- global archive: optional cold index, not active memory by default.
+New conversations that continue old ones should use link-only continuation by default. They create their own lane and point back to the older one. They do not rewrite the older lane unless the user explicitly asks for a merge.
 
-New conversations should continue old conversations through link-only edges by default. They should not mutate old conversation memory unless the user explicitly asks for a merge or update. Explicit merges should create a new merged memory with provenance rather than silently rewriting the old lane.
+This is not mainly about storage format. It is about preventing a useful memory system from becoming a source of contamination.
 
-## Why Not Wrap Every Tool Call?
+## Advisory Control Plane Versus Hard Runtime
 
-Hard runtime enforcement is only hard where the host runtime invokes it and honors the blocked result.
+This was one of the sharper deployment lessons.
 
-For example:
+A harness can return `blocked`, but that is not the same as physical enforcement. Hard enforcement exists only on execution paths where the host runtime calls the gate and honors the result.
 
 ```python
 decision = harness.runtime_enforcer(...)
@@ -144,83 +140,77 @@ if decision["status"] == "blocked":
     raise SandboxBlocked(decision["blocked_reasons"])
 ```
 
-If the host runtime never calls the enforcer, or if another tool path bypasses the hook, that path remains advisory.
+If another path bypasses that function, the harness is advisory for that path. The right answer is not to pretend otherwise. The right answer is to document the bypass surface and add a smoke check that proves a blocked decision actually stops the covered tool path.
 
-Claim Boundary Harness therefore recommends a split:
+The framework therefore keeps hard gates selective:
 
-- use the control plane for every nontrivial task;
-- keep ordinary tasks cheap with compact receipts;
-- use hard gates only for critical boundaries such as R5 actions, high-risk tools, long-term memory writes, unresolved conversation links, or strong final claims;
-- document bypass surfaces instead of pretending they do not exist.
+- R5 actions without human confirmation;
+- high-risk tool calls;
+- long-term memory writes;
+- unresolved conversation links;
+- strong final claims without matching evidence;
+- low-confidence routing where the boundary has not been reviewed.
+
+Ordinary tool calls should not pay for full runtime interception unless the host needs that tradeoff.
 
 ## Why The SkillOpt-Style Layer Is Default-Off
 
-The project includes a SkillOpt-style training layer, but it is not an always-on self-improvement loop.
+The repository includes a SkillOpt-style training layer because repeated mistakes should become candidate improvements. It is not an always-on self-rewriter.
 
-It should be used only for:
+Use it for recurring skill/router improvements, candidate rule edits, rejected-edit review, textual learning-rate limits, slow updates, or external skill-optimization mechanism intake.
 
-- recurring skill or router improvements;
-- candidate rule edits;
-- rejected-edit review;
-- textual learning-rate limits;
-- slow updates;
-- external skill-optimization mechanism intake.
+Do not use it for ordinary chat, one-off fixes, direct memory writes, external fact checks, runtime enforcement, or claim gating. Those already have narrower gates.
 
-It should not be used for ordinary chat, one-off fixes, direct memory writes, external fact checks, runtime enforcement, or claim gating. Those belong to the router, memory gate, research gate, runtime gate, or claim gate.
+This matters because "self-improving" systems can become noisy quickly. Too many generated skills can make ownership unclear and routing less reliable. The training layer is subordinate to the skill matrix: it proposes candidate edits, regression probes, gate reports, or rejected-edit records. It does not mutate primary rules without an accepted gate result and required approval.
 
-This boundary matters because uncontrolled skill generation can pollute project boundaries and make routing less predictable. The optimizer is subordinate to the existing skill matrix. It drafts candidate edits and gate reports; it does not directly mutate primary routers or claim local validation without evidence.
+## Deployment Notes
 
-## Deployment Pitfalls
+The repository includes deployment playbooks because most harness failures are integration failures.
 
-The current public repository includes deployment playbooks because the implementation details matter.
+Some examples:
 
-Examples of real failure classes the framework tries to make visible:
+- the instruction file exists but the agent never loads it;
+- the pre-tool hook returns `blocked`, but the host still runs the command;
+- the pre-tool hook receives a tool payload but not the original user task;
+- the command-risk scanner blocks documentation text because it sees `rm -rf` inside a file edit;
+- a final answer says "validated" even though no claim schema was checked;
+- a Windows PowerShell reader decodes policy JSON with the wrong encoding;
+- a client update changes the launcher path, hook schema, or bundled runtime.
 
-- an instruction file exists but the agent never loads it;
-- a pre-tool hook returns `blocked`, but the host still executes the command;
-- a prompt-stage hook does not preserve the original user task, so later tool checks lose context;
-- a file-edit tool is blocked because the file content mentions a dangerous command in documentation;
-- a current GitHub or release claim is made without external search;
-- a conversation continuation reads the wrong memory;
-- a final answer says "validated" without a matching evidence schema;
-- a hook fails on non-ASCII or malformed surrogate payloads;
-- Windows PowerShell reads JSON with the wrong encoding;
-- a client update changes paths, launchers, hook behavior, or bundled runtimes.
+These are not edge cases. They are the kinds of failures that decide whether a governance layer is actually connected.
 
-The key rule is simple: do not call a deployment "hard enforced" until the covered execution path has a smoke test proving that a blocked decision actually stops execution.
+## Reproduction Scope
 
-## Local Reproduction Snapshot
+The public package currently carries lightweight checks, not a full production test matrix.
 
-The public repository includes lightweight checks rather than a full production test matrix.
-
-At the time this article was added, the maintained smoke checks included:
+Recent local checks for the reference package included:
 
 - WorkBuddy-oriented Python adapter tests: `41 tests OK`;
 - embedded harness policy validation: `status: pass`;
-- JSON/JSONL parse check across repository examples;
-- `git diff --check` for formatting regressions;
-- public-sensitive-string scan for accidental local/private leakage.
+- JSON/JSONL parse checks for repository examples;
+- `git diff --check`;
+- public-sensitive-string scanning to reduce accidental leakage.
 
-These checks are narrow. They show that the reference package is internally consistent on the checked environment. They do not prove universal compatibility with every agent client, operating system, hook schema, or production workflow.
+Those checks support a narrow claim: the checked reference package is internally consistent on the tested setup. They do not prove that every host agent, operating system, hook schema, or production workflow is supported.
 
-## What This Framework Is Not
+## What To Reuse
 
-Claim Boundary Harness is not:
+If you are adapting the framework, the reusable parts are:
 
-- a replacement agent runtime;
-- a universal sandbox;
-- a guarantee that an agent cannot bypass instructions;
-- a production-certified memory system;
-- a claim that Codex, Claude Code, WorkBuddy, Hermes, or any other host is fully supported without local adaptation;
-- an always-on optimizer that rewrites its own skills.
+- the meta-first lookup rule;
+- the routing receipt shape;
+- the additive R0-R5 risk model;
+- the claim boundary vocabulary;
+- project and conversation memory isolation;
+- link-only continuation;
+- selective hard gates;
+- deployment smoke checks that prove the host honors `blocked`.
 
-It is a reference framework for building a small, auditable governance path around coding agents.
+The exact scripts are reference implementations. Replace them if your runtime has a better native hook, middleware, policy engine, or sandbox surface.
 
 ## Suggested Listing Description
 
-For curated lists, a compact description is:
-
-> Claim Boundary Harness - A meta-first governance harness for coding agents that focuses on claim verification, project-scoped memory lanes, R0-R5 risk receipts, and adapter deployment playbooks. Reference framework with local Codex and WorkBuddy-oriented smoke checks; not a production-validated universal runtime.
+> Claim Boundary Harness - A meta-first governance harness for coding agents focused on claim verification, project-scoped memory lanes, R0-R5 risk receipts, and adapter deployment playbooks. Reference framework with local Codex and WorkBuddy-oriented smoke checks; not a production-validated universal runtime.
 
 ## Repository
 

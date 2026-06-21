@@ -4,10 +4,14 @@ All notable public changes should be recorded here.
 
 This project uses `vMAJOR.MINOR.PATCH` version labels while the framework is still early-stage.
 
+## v0.14.8 - 2026-06-21
+
+- Revised the public design note with clearer engineering tradeoffs, boundary language, and reproduction limits.
+
 ## v0.14.7 - 2026-06-21
 
 - Added a public design note for Claim Boundary Harness, covering claim boundaries, meta-first routing, project-scoped memory lanes, receipt-based risk routing, runtime enforcement limits, SkillOpt-style default-off boundaries, deployment pitfalls, and reproduction scope.
-- Linked the article from the README documentation index so external curated-list submissions can point to a technical explanation rather than only the project homepage.
+- Linked the article from the README documentation index so readers can open a technical explanation rather than only the project homepage.
 
 ## v0.14.6 - 2026-06-21
 
@@ -147,7 +151,7 @@ This project uses `vMAJOR.MINOR.PATCH` version labels while the framework is sti
 
 ## v0.7.1 - 2026-06-18
 
-- Removed maintainer-only versioning instructions from public README and AGENTS content while keeping public version metadata visible.
+- Cleaned non-user-facing process details from public README and AGENTS content while keeping public version metadata visible.
 
 ## v0.7.0 - 2026-06-18
 
