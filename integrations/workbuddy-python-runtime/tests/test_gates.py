@@ -194,6 +194,21 @@ class HarnessGateTests(unittest.TestCase):
         )
         self.assertEqual(decision["status"], "pass")
 
+    def test_runtime_ignores_non_command_tool_content_for_hard_tool_patterns(self) -> None:
+        decision = runtime_enforcer(
+            stage="pre_tool",
+            task_text="inspect repository docs",
+            tool_name="Write",
+            tool_input={
+                "file_path": "notes.md",
+                "content": "Document the words delete, permission, and rm -rf as examples only.",
+            },
+            constitution_reviewed=True,
+            policy=self.policy,
+        )
+        self.assertEqual(decision["status"], "pass")
+        self.assertEqual(decision["tool_hard_hits"], [])
+
     def test_runtime_blocks_final_strong_claim_text(self) -> None:
         decision = runtime_enforcer(
             stage="final",
@@ -284,6 +299,30 @@ class HarnessGateTests(unittest.TestCase):
             state_path = Path(tmp) / "workbuddy_hook_state.json"
             self.assertTrue(state_path.exists())
 
+    def test_workbuddy_user_prompt_hook_extracts_recording_transcript(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            result = self._run_hook(
+                {
+                    "hook_event_name": "UserPromptSubmit",
+                    "session_id": "session-recording",
+                    "cwd": tmp,
+                    "recording": {
+                        "mime_type": "audio/webm",
+                        "transcript": "delete stale files after review",
+                    },
+                },
+                "--stage",
+                "user_prompt",
+                log_dir=tmp,
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+            output = json.loads(result.stdout)
+            context = output["hookSpecificOutput"]["additionalContext"]
+            self.assertIn("risk=R5", context)
+            state_path = Path(tmp) / "workbuddy_hook_state.json"
+            state_text = state_path.read_text(encoding="utf-8")
+            self.assertIn("delete stale files after review", state_text)
+
     def test_workbuddy_user_prompt_hook_sanitizes_lone_surrogate_payload(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             result = self._run_hook(
@@ -337,6 +376,39 @@ class HarnessGateTests(unittest.TestCase):
             self.assertEqual(hook_output["permissionDecision"], "deny")
             self.assertIn("tool_call_requires_human_confirmation", hook_output["permissionDecisionReason"])
 
+    def test_workbuddy_pre_tool_hook_does_not_block_write_content_examples(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            self._run_hook(
+                {
+                    "hook_event_name": "UserPromptSubmit",
+                    "session_id": "session-write",
+                    "cwd": tmp,
+                    "prompt": "inspect files and summarize findings",
+                },
+                "--stage",
+                "user_prompt",
+                log_dir=tmp,
+            )
+            result = self._run_hook(
+                {
+                    "hook_event_name": "PreToolUse",
+                    "session_id": "session-write",
+                    "cwd": tmp,
+                    "tool_name": "Write",
+                    "tool_input": {
+                        "file_path": "notes.md",
+                        "content": "Mention permission, delete, and rm -rf as documentation examples.",
+                    },
+                },
+                "--stage",
+                "pre_tool",
+                "--constitution-reviewed",
+                log_dir=tmp,
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+            output = json.loads(result.stdout)
+            self.assertTrue(output["continue"])
+
     def test_workbuddy_pre_tool_hook_allows_low_risk_tool(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             self._run_hook(
@@ -360,6 +432,55 @@ class HarnessGateTests(unittest.TestCase):
                 },
                 "--stage",
                 "pre_tool",
+                "--constitution-reviewed",
+                log_dir=tmp,
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+            output = json.loads(result.stdout)
+            self.assertTrue(output["continue"])
+
+    def test_workbuddy_stop_hook_blocks_final_strong_claim(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            self._run_hook(
+                {
+                    "hook_event_name": "UserPromptSubmit",
+                    "session_id": "session-final",
+                    "cwd": tmp,
+                    "prompt": "summarize the test result",
+                },
+                "--stage",
+                "user_prompt",
+                log_dir=tmp,
+            )
+            result = self._run_hook(
+                {
+                    "hook_event_name": "Stop",
+                    "session_id": "session-final",
+                    "cwd": tmp,
+                    "final_text": "This deployment is validated and verified successfully.",
+                },
+                "--stage",
+                "final",
+                "--constitution-reviewed",
+                log_dir=tmp,
+            )
+            self.assertEqual(result.returncode, 2, result.stderr)
+            output = json.loads(result.stdout)
+            self.assertFalse(output["continue"])
+            self.assertEqual(output["hookSpecificOutput"]["hookEventName"], "Stop")
+            self.assertIn("claim_schema_verifier_blocked", output["systemMessage"])
+
+    def test_workbuddy_stop_hook_allows_plain_final_text(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            result = self._run_hook(
+                {
+                    "hook_event_name": "Stop",
+                    "session_id": "session-final-pass",
+                    "cwd": tmp,
+                    "final_text": "I inspected the files and found no matching errors.",
+                },
+                "--stage",
+                "final",
                 "--constitution-reviewed",
                 log_dir=tmp,
             )

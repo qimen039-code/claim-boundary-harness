@@ -39,7 +39,17 @@ bash "$CODEBUDDY_PROJECT_DIR/integrations/workbuddy-python-runtime/scripts/workb
 
 The runner reads hook JSON from stdin. On `UserPromptSubmit`, it stores the original prompt and returns compact route context. On `PreToolUse`, it calls `runtime_enforcer(...)`. If the decision is blocked, it prints a WorkBuddy hook denial payload with `permissionDecision: deny` and exits with code `2`.
 
-Wire both stages when you want active routing. `UserPromptSubmit` gives the agent the compact route, memory/search/claim decision, and original-task state before planning. `PreToolUse` enforces the protected tool path before execution.
+Wire prompt, command-tool, and final-answer stages when you want the strongest hook-only deployment:
+
+```text
+UserPromptSubmit -> active route injection and original-task state
+PreToolUse(Bash|PowerShell) -> command-tool hard gate before execution
+Stop -> final strong-claim gate before display
+```
+
+`UserPromptSubmit` gives the agent the compact route, memory/search/claim decision, and original-task state before planning. `PreToolUse` enforces the protected command-tool path before execution. `Stop` can block or downgrade final answers that contain strong validation claims without claim-schema evidence.
+
+Prefer a command-tool matcher such as `Bash|PowerShell` for the first hard `PreToolUse` deployment. A broad `*` matcher can route Write/Edit file content through the command-risk gate and create false positives when a document merely mentions high-risk words. Gate file tools with a separate schema-aware file policy if you need hard file-write enforcement.
 
 If your WorkBuddy build runs command hooks through a Bash-compatible shell, call `scripts/workbuddy-hook.sh` with `bash` as shown above. If your build runs native commands another way, call the Python module directly:
 
@@ -49,7 +59,9 @@ python -m workbuddy_harness.hook_runner --stage pre_tool --constitution-path "$C
 
 On Windows, if `bash` is not available on PATH, use `scripts/workbuddy-hook.cmd` through `cmd.exe /c` and set `PYTHON_BIN` when plain `python` is not the intended interpreter.
 
-Set `PYTHON_BIN=python`, `PYTHON_BIN=python3`, or an absolute Python executable path when the shell cannot find the intended interpreter. Use `--fail-open` only during first-time hook setup; hard enforcement should fail closed.
+Set `PYTHON_BIN=python`, `PYTHON_BIN=python3`, or an absolute Python executable path when the shell cannot find the intended interpreter. The included Bash and `cmd.exe` wrappers set `PYTHONUTF8=1` and `PYTHONIOENCODING=utf-8` by default so Chinese prompts and other non-ASCII hook payloads do not fail in mixed Windows shell environments. Use `--fail-open` only during first-time hook setup; hard enforcement should fail closed.
+
+Some WorkBuddy builds may not expose a visible hook UI. If that happens, inspect the documented project or user settings JSON for that exact version and edit it only with operator approval. Hook settings, event names, matcher syntax, and denial behavior are client-version sensitive.
 
 ## Expected Host Hook
 
@@ -94,6 +106,10 @@ Optional JSONL event logging can write to a specific file with `log_path` or to 
 
 Hook payloads are sanitized before routing and logging. If the host passes stdin JSON containing lone UTF-16 surrogate escapes such as `\udcac` or `\udc80`, the runner replaces them with `<invalid-surrogate>` so malformed payload text does not disable active routing or pre-tool enforcement.
 
+Recording or voice input is supported only as host-provided text. The hook runner can extract bounded text from fields such as `transcript`, `transcription`, `caption`, `content`, `message`, or `text`, including inside a recording or attachment object. It ignores raw media blobs, bytes, base64 strings, and binary fields. If the host only provides a recording file path or audio bytes, add transcription in the host first; this adapter does not open or decode arbitrary recording files.
+
+For final-answer gating, send the Stop/final hook payload with one of `final_text`, `response`, `answer`, `message`, `content`, `output`, or `text`. The runner passes that body into `runtime_enforcer(stage="final")`.
+
 ## Verify
 
 From the repository root:
@@ -110,6 +126,10 @@ printf '{"hook_event_name":"UserPromptSubmit","session_id":"demo","cwd":".","pro
 
 printf '{"hook_event_name":"PreToolUse","session_id":"demo","cwd":".","tool_name":"Bash","tool_input":{"command":"rm -rf build"}}' \
   | python -m workbuddy_harness.hook_runner --stage pre_tool --constitution-reviewed --log-dir ./.harness-logs
+
+printf '{"hook_event_name":"Stop","session_id":"demo","cwd":".","final_text":"This result is validated and verified successfully."}' \
+  | python -m workbuddy_harness.hook_runner --stage final --constitution-reviewed --log-dir ./.harness-logs
 ```
 
 The second command should exit with code `2` and return `permissionDecision: deny`.
+The third command should also exit with code `2` unless you provide a valid claim schema through a custom final-check path.

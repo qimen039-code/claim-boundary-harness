@@ -1,7 +1,7 @@
 {
   "schema_version": "0.1",
   "manifest_type": "agent_memory_lane_compatibility_manifest",
-  "harness_version": "v0.14.0",
+  "harness_version": "v0.14.1",
   "adapter": {
     "name": "example-adapter",
     "version": "unverified",
@@ -27,13 +27,16 @@
     "pre_tool": {
       "event_name": "unverified",
       "supported": "unverified",
+      "matcher_scope": "unverified",
+      "recommended_initial_matcher": "command_tools_only",
       "denial_payload_schema": "unverified",
       "blocked_exit_code": 2,
       "host_honors_denial": "unverified"
     },
     "final_claim": {
       "event_name": "unverified",
-      "supported": "unverified"
+      "supported": "unverified",
+      "final_text_fields": []
     }
   },
   "wrappers": {
@@ -55,14 +58,36 @@
     }
   },
   "payload_safety": {
+    "python_utf8_enabled": "unverified",
+    "python_io_encoding": "unverified",
     "surrogate_payload_replay": "unverified",
     "ascii_safe_hook_output": "unverified",
     "log_write_sanitizes_payload": "unverified"
+  },
+  "media_payloads": {
+    "recording_input_supported_by_runtime": "unverified",
+    "host_transcribes_before_hook": "unverified",
+    "transcript_text_fields": [
+      "transcript",
+      "transcription",
+      "caption",
+      "content",
+      "message",
+      "text"
+    ],
+    "raw_media_ignored_by_adapter": true
+  },
+  "claim_payloads": {
+    "nested_json_shell_safe": "unverified",
+    "recommended_handoff": "claim_file_or_json_file_path"
   },
   "minimum_acceptance": {
     "active_routing_before_planning": "unverified",
     "allowed_action_passes": "unverified",
     "blocked_action_stops_before_execution": "unverified",
+    "non_command_file_content_does_not_trigger_command_gate": "unverified",
+    "final_strong_claim_blocks_or_downgrades": "unverified",
+    "recording_transcript_routes_before_planning": "unverified",
     "surrogate_payload_safe": "unverified",
     "decision_log_written": "unverified",
     "version_drift_check": "unverified"

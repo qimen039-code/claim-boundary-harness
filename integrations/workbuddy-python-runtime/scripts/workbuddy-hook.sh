@@ -17,5 +17,7 @@ if [[ -z "${PYTHON_BIN:-}" ]]; then
   fi
 fi
 
+export PYTHONUTF8="${PYTHONUTF8:-1}"
+export PYTHONIOENCODING="${PYTHONIOENCODING:-utf-8}"
 export PYTHONPATH="$AGENT_MEMORY_LANE_WORKBUDDY_ADAPTER_ROOT${PYTHONPATH:+:$PYTHONPATH}"
 exec "$PYTHON_BIN" -m workbuddy_harness.hook_runner "$@"

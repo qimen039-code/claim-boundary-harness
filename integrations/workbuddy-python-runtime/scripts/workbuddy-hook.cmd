@@ -9,6 +9,14 @@ if "%PYTHON_BIN%"=="" (
   set "PYTHON_BIN=python"
 )
 
+if "%PYTHONUTF8%"=="" (
+  set "PYTHONUTF8=1"
+)
+
+if "%PYTHONIOENCODING%"=="" (
+  set "PYTHONIOENCODING=utf-8"
+)
+
 if "%PYTHONPATH%"=="" (
   set "PYTHONPATH=%AGENT_MEMORY_LANE_WORKBUDDY_ADAPTER_ROOT%"
 ) else (

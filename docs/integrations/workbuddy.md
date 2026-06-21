@@ -23,19 +23,23 @@ If the host still has any execution path that bypasses this function or hook, en
 
 ## Recommended WorkBuddy Hook Deployment
 
-The most practical public deployment is:
+The most practical public deployment is a three-layer hook chain:
 
 ```text
 UserPromptSubmit hook
 -> workbuddy_harness.hook_runner stores the original prompt and route context
-PreToolUse hook
+PreToolUse hook for command tools
 -> workbuddy_harness.hook_runner calls runtime_enforcer
 -> blocked decision returns permissionDecision: deny and exits with code 2
+Stop hook
+-> workbuddy_harness.hook_runner checks final strong claims before display
 ```
 
 That gives the harness a real pre-tool interception point without editing WorkBuddy internals.
 
 `UserPromptSubmit` is required for active routing. If only `PreToolUse` is wired, the runtime can still block high-risk tools, but the agent may not receive the compact route, memory/search decision, or original-task state before planning.
+
+Prefer a command-tool matcher such as `Bash|PowerShell` for the first hard `PreToolUse` deployment. A broad `*` matcher can pass file-edit payloads through the hard command gate; documentation or patch content may contain words such as `delete`, `permission`, or `rm -rf` without being an attempted command. If you want to gate file tools too, add a separate file-tool policy that understands that tool's schema instead of reusing command-pattern matching on raw file content.
 
 ### 1. Place The Adapter In The Workspace
 
@@ -74,7 +78,7 @@ Example project-level hook shape:
     ],
     "PreToolUse": [
       {
-        "matcher": "*",
+        "matcher": "Bash|PowerShell",
         "hooks": [
           {
             "type": "command",
@@ -83,13 +87,12 @@ Example project-level hook shape:
         ]
       }
     ],
-    "PostToolUse": [
+    "Stop": [
       {
-        "matcher": "*",
         "hooks": [
           {
             "type": "command",
-            "command": "AGENT_MEMORY_LANE_WORKBUDDY_ADAPTER_ROOT=\"$CODEBUDDY_PROJECT_DIR/integrations/workbuddy-python-runtime\" bash \"$CODEBUDDY_PROJECT_DIR/integrations/workbuddy-python-runtime/scripts/workbuddy-hook.sh\" --stage post_tool --log-dir \"$CODEBUDDY_PROJECT_DIR/.harness-logs\""
+            "command": "AGENT_MEMORY_LANE_WORKBUDDY_ADAPTER_ROOT=\"$CODEBUDDY_PROJECT_DIR/integrations/workbuddy-python-runtime\" bash \"$CODEBUDDY_PROJECT_DIR/integrations/workbuddy-python-runtime/scripts/workbuddy-hook.sh\" --stage final --constitution-path \"$CODEBUDDY_PROJECT_DIR/AGENTS.md\" --log-dir \"$CODEBUDDY_PROJECT_DIR/.harness-logs\""
           }
         ]
       }
@@ -115,7 +118,9 @@ Windows `cmd.exe` wrapper shape:
 
 Set `PYTHON_BIN` to the intended Python executable when plain `python` is not the runtime you want.
 
-Use WorkBuddy's own hook review UI or hook inspection command after editing settings. Hook settings are version-specific, so confirm the exact path and review behavior for your installed WorkBuddy build.
+Use WorkBuddy's own hook review UI or hook inspection command after editing settings. Some builds may not expose a visible `/hooks` UI; in that case, inspect the documented project or user settings JSON surface for your version and edit it only after the user/operator has approved that configuration change. Hook settings are version-specific, so confirm the exact path and review behavior for your installed WorkBuddy build.
+
+The Bash and `cmd.exe` wrappers set `PYTHONUTF8=1` and `PYTHONIOENCODING=utf-8` by default. Keep those settings when routing Chinese prompts or other non-ASCII text through Windows Git Bash or mixed Windows shells.
 
 ### 3. Verify The Hard Block
 
@@ -167,6 +172,32 @@ If event logging is enabled, pass `log_path` for a concrete JSONL file or `log_d
 
 The hook runner also stores `workbuddy_hook_state.json` in the log directory so `PreToolUse` can use the original `UserPromptSubmit` text instead of routing from a compact field such as `R5`.
 
+For nested claim payloads, prefer a file-based claim handoff such as `--ClaimFile` in the PowerShell reference scripts or a JSON file path in custom adapters. Passing deeply nested JSON directly through multiple shells is fragile because each shell has different quote and escape rules.
+
+## Recording And Transcript Payloads
+
+The adapter does not decode raw audio or read private recording files by itself. Recording support means the hook runner can route text that the host already extracted from a recording payload.
+
+If your WorkBuddy build sends recording or audio attachments, make sure the prompt-stage hook payload exposes one of these text fields:
+
+```text
+transcript
+transcription
+caption
+content
+message
+text
+```
+
+The hook runner recursively extracts bounded text from those fields and ignores raw media blobs, bytes, base64 strings, and binary data. Acceptance test:
+
+```text
+Send a voice/recording prompt whose transcript asks for a known R5 action.
+Expected: UserPromptSubmit additionalContext reports risk=R5, and PreToolUse later uses the stored transcript as the original task.
+```
+
+If the host only passes a file path or binary audio blob, add a host-side transcription step first. Do not make the harness adapter responsible for opening arbitrary recording files unless your runtime has a separate privacy and permission policy for that.
+
 ## Hook Payload Encoding
 
 Some host builds can pass stdin JSON that contains lone UTF-16 surrogate escapes such as `\udcac` or `\udc80`. These are invalid Unicode scalar values after JSON decoding and can break Python output or JSONL logging if they are written with `ensure_ascii=False`.
@@ -185,6 +216,12 @@ check these surfaces in order:
 3. The hook output is ASCII-escaped or otherwise surrogate-safe.
 4. The log writer sanitizes nested payload values before `json.dumps(... ensure_ascii=False)`.
 5. The WorkBuddy client was restarted or reloaded after hook/settings changes.
+
+## Stop Hook And Final Claims
+
+Wire a `Stop` or final-answer hook when the host exposes the final response before display. The hook runner calls `runtime_enforcer(stage="final", final_text=...)`; strong phrases such as broad validation or verification claims must have a claim schema or the final hook returns a blocked result.
+
+If your WorkBuddy build does not let hooks inspect or block final text, keep final-claim enforcement as a self-downgrade rule in the root instruction file and mark that final surface as advisory in the compatibility manifest.
 
 ## Smoke Test
 

@@ -13,8 +13,10 @@ Use the compatibility manifest to answer:
 - which agent/runtime version was checked;
 - which instruction entry is loaded;
 - which hook events exist;
+- which hook matchers are intentionally narrow versus broad;
 - which wrapper paths and language runtimes are available;
 - which denial schema and exit code are expected;
+- which encoding and transcript payload fields were checked;
 - which smoke tests were last run;
 - which surfaces are known bypasses.
 
@@ -57,6 +59,8 @@ If a field is not checked, mark it `unverified`. Do not infer compatibility from
 | `hook_schema` | Event names, payload fields, denial payload, and blocked exit code. |
 | `wrappers` | Python, PowerShell, Bash, cmd, or other wrapper entry points and their verification status. |
 | `payload_safety` | Encoding, sanitation, and logging assumptions. |
+| `media_payloads` | Whether voice or recording input reaches the hook as transcript text instead of raw media only. |
+| `claim_payloads` | How nested claim JSON is passed without shell-quoting loss. |
 | `acceptance_tests` | Last result for active routing, denial, payload safety, log writing, and version drift. |
 | `bypass_surfaces` | Tool paths or background actions that are not covered by the adapter. |
 | `drift_policy` | What to do after client updates or adapter changes. |
@@ -72,6 +76,11 @@ Refresh the manifest when any of these change:
 - Python, PowerShell, Bash, Node, or shell path;
 - instruction entry filename;
 - denial payload or exit code behavior;
+- hook matcher scope such as `*` versus command tools only;
+- final-answer or Stop hook availability;
+- encoding defaults such as `PYTHONUTF8` and `PYTHONIOENCODING`;
+- transcript payload field names for voice or recording input;
+- nested JSON or claim-file handoff format;
 - memory root or project-lane root;
 - operating system or shell.
 
@@ -86,8 +95,11 @@ Use this response order:
 3. Run the exact hook or wrapper command.
 4. Run one active routing test.
 5. Run one blocked-action test in a disposable workspace.
-6. Mark bypass or unknown surfaces explicitly.
-7. Only then claim the adapter is compatible with that runtime version.
+6. Run one false-positive guard test for non-command file content if file tools are hooked.
+7. Run one final-claim test if the runtime exposes a final-answer hook.
+8. Run one transcript routing test if the runtime supports voice or recording input.
+9. Mark bypass or unknown surfaces explicitly.
+10. Only then claim the adapter is compatible with that runtime version.
 
 Automatic repair should be opt-in. Compatibility checks may read local config and version metadata, but they should not rewrite client settings unless the user confirms that repair action.
 

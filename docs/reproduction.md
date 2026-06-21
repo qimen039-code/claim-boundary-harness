@@ -235,8 +235,11 @@ This validates the standalone Python decision layer only. It does not prove that
 The test suite also covers the reference WorkBuddy hook runner:
 
 - `UserPromptSubmit` stores the original prompt and returns compact route context;
+- host-provided recording transcripts are extracted as prompt text while raw media remains ignored;
 - `PreToolUse` blocks a high-risk shell command with hook denial and exit code `2`;
 - `PreToolUse` allows a low-risk read-style command.
+- non-command Write/Edit content that merely mentions high-risk words does not trigger command hard blocking;
+- `Stop` / final-stage hooks block strong final validation claims when no claim schema is provided.
 
 These are local adapter tests, not proof that a specific WorkBuddy installation has enabled hooks.
 

@@ -124,7 +124,7 @@ Status contract:
 
 For Bash environments, use the scripts under `skills/embedded-harness/bash`. They require `jq` and share the same `embedded_harness_policy.json`.
 
-For hosts that own an in-process Python agent loop, `integrations/workbuddy-python-runtime` is a small reference adapter. It reuses the same policy file and exposes Python functions for routing, memory isolation, claim checks, and runtime enforcement decisions. It is not automatically wired into WorkBuddy or any other client. Hard enforcement requires the host to call the function before action execution and to stop on `status: blocked`.
+For hosts that own an in-process Python agent loop, `integrations/workbuddy-python-runtime` is a small reference adapter. It reuses the same policy file and exposes Python functions for routing, memory isolation, claim checks, and runtime enforcement decisions. It is not automatically wired into WorkBuddy or any other client. Hard enforcement requires the host to call the function before action execution and to stop on `status: blocked`. For hook-only WorkBuddy-style deployments, wire prompt-stage routing, command-tool `PreToolUse` denial, and `Stop`/final-claim checks separately; recording or voice input must arrive as transcript text before the adapter can route it.
 
 Adapter validation is local by default. Do not claim PowerShell, Bash/macOS/Linux, or WorkBuddy Python compatibility until you have run the relevant smoke checks on the target device and client version.
 

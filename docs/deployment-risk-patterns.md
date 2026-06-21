@@ -60,6 +60,11 @@ Most adopters should aim for L1 plus L2. Do not try to wrap every tool call unti
 | DEP-018 | Tool input parsing misses dangerous commands | The command is nested under a tool-specific field not parsed by the adapter | Update the adapter to inspect the actual tool schema used by the host | Capture one real tool event JSON and verify hard patterns are detected |
 | DEP-019 | Hook runner logs `codec can't encode character '\ud...'` | Host stdin JSON decoded to lone UTF-16 surrogate values, then output/logging writes them as Unicode | Sanitize hook payloads before routing and log/output writes; prefer ASCII-escaped hook output | Replay a captured hook payload with `\udcac` or `\udc80` and confirm routing still returns context |
 | DEP-020 | Pre-tool blocking works, but the agent says it did not proactively route the task | Only the tool-stage hook is wired, or the prompt-stage hook failed before adding route context | Wire `UserPromptSubmit` or equivalent prompt-stage hook to store the original prompt and inject compact route context | Start a normal task and confirm the agent receives a compact routing receipt before tool planning |
+| DEP-021 | Chinese or non-ASCII prompts become garbled in hook logs or route decisions | Hook shell or Python process is not forced to UTF-8, especially in Windows Git Bash or mixed Windows shells | Set `PYTHONUTF8=1` and `PYTHONIOENCODING=utf-8` in hook wrappers; replay a Chinese trigger prompt | Confirm the route detects the original Chinese trigger text and the hook log is readable UTF-8 |
+| DEP-022 | Write/Edit file content is blocked because it mentions high-risk words | A broad `PreToolUse` matcher sends non-command file payloads through command-pattern gating | Start with command-tool matchers such as `Bash|PowerShell`, or add a separate schema-aware policy for file tools | A document containing `delete`, `permission`, or `rm -rf` as text examples does not block a safe file edit |
+| DEP-023 | Final answers still overclaim validation or verification | No Stop/final-answer hook is wired, or final text is not passed into the claim gate | Wire a Stop/final hook when the host exposes final text; otherwise mark final claims advisory and require self-downgrade wording | A final sentence with a strong validation claim and no claim schema blocks or is rewritten |
+| DEP-024 | Voice or recording prompts do not affect routing | The host passes raw audio, file paths, blobs, or base64 data instead of a transcript field | Add host-side transcription and pass bounded text fields such as `transcript`, `transcription`, `caption`, `content`, `message`, or `text` | A recording whose transcript contains an R5 action produces an R5 route before planning |
+| DEP-025 | Nested claim JSON works in direct tests but fails inside hooks | Multiple shells reinterpret quotes or escapes before the adapter receives JSON | Use a file-based handoff such as `--ClaimFile` or a JSON file path for nested claims | Replay a nested claim payload through the exact hook shell and confirm the parser receives the same JSON |
 
 ## Agent-Facing Troubleshooting Runbook
 
@@ -153,11 +158,14 @@ cwd / workspace root
 tool name
 tool input
 original user task or stored prompt state
+transcript or transcription text when the user used voice/recording input
 ```
 
 If the payload lacks the original task, add a prompt-stage hook that stores it. If the tool command is nested in an unexpected field, update the adapter to parse that field.
 
 If the payload contains invalid Unicode such as lone surrogate escapes (`\udcac`, `\udc80`), sanitize nested strings before routing, state writes, JSONL logging, or hook output. Do not rely on the host to clean these values.
+
+If the payload contains raw audio, a recording file path, base64 media, or bytes without transcript text, the harness cannot route the spoken content. Add transcription at the host layer, then pass the transcript through a bounded text field.
 
 ### 5. Confirm The Host Honors The Blocked Result
 
@@ -241,6 +249,9 @@ Use this decision tree:
 | Hook command passes, agent tool still runs | host integration | Move hook to the pre-execution event or use the host's required denial schema / exit code. |
 | One tool blocks, another bypasses | coverage | Wire every protected tool surface or document uncovered paths as advisory. |
 | Prompt route is correct, pre-tool route is wrong | state transfer | Store original prompt at prompt-submit time and reload it during pre-tool checks. |
+| File edits block because of text examples | matcher/tool-schema boundary | Narrow command gates to command tools and add separate schema-aware file gates only when needed. |
+| Voice tasks route as ordinary chat | media payload boundary | Confirm the hook receives transcript text rather than only raw audio or a file path. |
+| Final overclaims still display | final-answer boundary | Wire a Stop/final hook or mark final-claim enforcement advisory for that runtime. |
 | Tests pass until client update | drift | Re-check client version, hook schema, paths, bundled runtimes, and settings format. |
 
 ## Mainstream Agent Checklist
@@ -256,7 +267,8 @@ Use this checklist for Codex, Claude Code, WorkBuddy, IDE agents, terminal assis
 7. **Final answer surface:** can the final response text be checked before display? If not, require self-downgrade language.
 8. **Memory surface:** are memory reads/writes routed through meta-first and lane-isolation checks?
 9. **External facts:** are currentness and GitHub/open-source triggers connected to a real research route?
-10. **Update drift:** what smoke test runs after the agent client updates?
+10. **Media input surface:** when the user speaks or uploads a recording, does the hook payload include transcript text rather than raw audio only?
+11. **Update drift:** what smoke test runs after the agent client updates?
 
 ## Minimal Acceptance Tests
 
@@ -269,7 +281,8 @@ Run these before claiming that the harness is deployed in an agent runtime:
 5. **Memory isolation test:** test one allowed memory path and one sibling-prefix or cross-lane blocked path.
 6. **Current fact test:** ask for a latest/current or GitHub/release claim and confirm the external research route is triggered.
 7. **Final claim test:** attempt a strong claim without evidence schema and confirm it blocks or downgrades.
-8. **Client update test:** after updating the agent client, re-run tests 1 through 4 at minimum.
+8. **Transcript route test:** if the runtime supports voice or recording input, pass a recording transcript with a known R5 action and confirm it routes before planning.
+9. **Client update test:** after updating the agent client, re-run tests 1 through 4 at minimum.
 
 ## Public Documentation Rule
 

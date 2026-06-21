@@ -38,10 +38,13 @@ templates/adapter-contract/governance.contract.json
 | Stage | Purpose | Required When | Typical Output |
 | --- | --- | --- | --- |
 | `prompt_stage` | Active routing before planning | Nontrivial task, memory/search/claim decision, adapter route context | `compact_receipt` or `routing_receipt` |
-| `pre_tool` | Selective hard gate before tool execution | R5, high-risk tools, file edits, package install, shell/network actions | `allow`, `warn`, `require_approval`, or `deny` |
+| `pre_tool` | Selective hard gate before protected tool execution | R5, high-risk command tools, package install, shell/network actions | `allow`, `warn`, `require_approval`, or `deny` |
+| `schema_aware_file_tool` | Optional file-tool gate with file-tool semantics | File edits need hard enforcement beyond command gating | file-specific `allow`, `require_approval`, or `deny` |
 | `memory_access` | Meta-first and lane-isolated memory read/write | Memory read/write, project-lane ambiguity, long-term memory request | `allow`, `cross_reference_allowed`, or `deny` |
 | `external_research` | Source-grounded learning or current fact routing | Latest/current/version/GitHub/open-source/policy/legal/price claims | source ledger route and validation boundary |
 | `final_claim` | Strong-claim boundary before final answer | Validated/verified/stable/proven/performance/external fact claims | pass or claim downgrade/block |
+
+Start command hard gates with command-tool matchers such as `Bash|PowerShell` where the host supports matchers. Do not route every Write/Edit payload through command-pattern matching unless the adapter understands that file tool's schema; otherwise normal documentation text can be mistaken for a dangerous command.
 
 ## Decision Vocabulary
 
@@ -103,8 +106,11 @@ This is more important than listing hook names. A `PreToolUse` hook that returns
 The governance contract should reference the payload safety boundary used by the adapter. At minimum:
 
 - stdin JSON must be parsed without executing payload content;
+- the hook process should force UTF-8 where the host shell can drift, for example `PYTHONUTF8=1` and `PYTHONIOENCODING=utf-8` for Python hook runners;
 - invalid Unicode such as lone UTF-16 surrogate escapes must be sanitized before route, log, state, or output writes;
 - hook output must be ASCII-safe or otherwise guaranteed to encode in the hook runner environment;
+- voice or recording input must arrive as bounded transcript text before routing; raw media blobs, bytes, base64 strings, and arbitrary recording paths are not decoded by the default adapter;
+- nested claim payloads should use a file-based handoff when shell quoting would corrupt JSON;
 - captured raw payloads must not be published.
 
 ## Source-Prior Influences

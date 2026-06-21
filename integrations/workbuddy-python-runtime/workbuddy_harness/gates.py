@@ -15,6 +15,23 @@ NEGATION_RE = re.compile(r"(?i)(\bdo\s+not\b|\bdon't\b|\bnever\b|\bnot\b|\bno\b)
 RISK_LABEL_RE = re.compile(r"^R[0-5]$")
 DEFAULT_LOG_FILENAME = "workbuddy_harness_events.jsonl"
 SURROGATE_RE = re.compile(r"[\ud800-\udfff]")
+COMMAND_TOOL_NAME_RE = re.compile(r"(?i)(bash|powershell|shell|terminal|cmd|command|exec|run)")
+COMMAND_INPUT_KEYS = {
+    "args",
+    "argv",
+    "bash_command",
+    "bashcommand",
+    "cmd",
+    "command",
+    "command_line",
+    "commandline",
+    "powershell_command",
+    "powershellcommand",
+    "script",
+    "shell_command",
+    "shellcommand",
+}
+COMMAND_INPUT_KEY_NAMES = {"".join(ch for ch in item.lower() if ch.isalnum()) for item in COMMAND_INPUT_KEYS}
 HARD_TOOL_PATTERNS = [
     r"(?i)\bRemove-Item\b",
     r"(?i)\brmdir\b",
@@ -239,6 +256,56 @@ def _tool_text(tool_name: str = "", tool_input: Any = None) -> str:
             parts.append(json.dumps(tool_input, ensure_ascii=False, sort_keys=True))
         except TypeError:
             parts.append(str(tool_input))
+    return "\n".join(part for part in parts if part)
+
+
+def _input_key(value: Any) -> str:
+    return "".join(ch for ch in str(value or "").lower() if ch.isalnum())
+
+
+def _is_command_tool(tool_name: str = "", tool_input: Any = None) -> bool:
+    if COMMAND_TOOL_NAME_RE.search(str(tool_name or "")):
+        return True
+    if isinstance(tool_input, dict):
+        return any(_input_key(key) in COMMAND_INPUT_KEY_NAMES for key in tool_input)
+    return False
+
+
+def _command_input_parts(value: Any, depth: int = 0) -> list[str]:
+    if depth > 4 or value is None:
+        return []
+    if isinstance(value, str):
+        return [value]
+    if isinstance(value, list):
+        parts: list[str] = []
+        for item in value:
+            parts.extend(_command_input_parts(item, depth + 1))
+        return parts
+    if isinstance(value, dict):
+        parts = []
+        for key, item in value.items():
+            if _input_key(key) in COMMAND_INPUT_KEY_NAMES:
+                if isinstance(item, str):
+                    parts.append(item)
+                else:
+                    try:
+                        parts.append(json.dumps(item, ensure_ascii=False, sort_keys=True))
+                    except TypeError:
+                        parts.append(str(item))
+            elif isinstance(item, (dict, list)):
+                parts.extend(_command_input_parts(item, depth + 1))
+        return parts
+    return []
+
+
+def _risk_relevant_tool_text(tool_name: str = "", tool_input: Any = None) -> str:
+    parts = [tool_name or ""]
+    if _is_command_tool(tool_name, tool_input):
+        command_parts = _command_input_parts(tool_input)
+        if command_parts:
+            parts.extend(command_parts)
+        elif isinstance(tool_input, str):
+            parts.append(tool_input)
     return "\n".join(part for part in parts if part)
 
 
@@ -695,10 +762,11 @@ def runtime_enforcer(
     cwd = cwd or os.getcwd()
     task_text_for_route = original_task_text or ("" if _extract_risk_label(task_text) else task_text)
     explicit_risk_level = risk_level or _extract_risk_label(task_text)
-    route_text = "\n".join(part for part in [task_text_for_route, tool_name, _tool_text(tool_input=tool_input)] if part)
+    tool_risk_text = _risk_relevant_tool_text(tool_name, tool_input)
+    route_text = "\n".join(part for part in [task_text_for_route, tool_risk_text] if part)
     route = intake_router(route_text, cwd, policy)
     route = _apply_risk_override(route, explicit_risk_level, policy)
-    tool_text = _tool_text(tool_name, tool_input)
+    tool_text = tool_risk_text
     hard_hits = _pattern_hits(tool_text, HARD_TOOL_PATTERNS)
     change_hits = _pattern_hits(tool_text, CHANGE_TOOL_PATTERNS)
 
@@ -740,6 +808,7 @@ def runtime_enforcer(
         "task_text_for_route": task_text_for_route,
         "explicit_risk_level": explicit_risk_level,
         "tool_name": tool_name,
+        "tool_text_scope": "command_fields_only_for_command_tools",
         "tool_hard_hits": hard_hits,
         "tool_change_hits": change_hits,
         "constitution_path": resolved_constitution,

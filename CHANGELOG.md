@@ -4,6 +4,14 @@ All notable public changes should be recorded here.
 
 This project uses `vMAJOR.MINOR.PATCH` version labels while the framework is still early-stage.
 
+## v0.14.1 - 2026-06-21
+
+- Hardened the WorkBuddy Python hook runner with bounded nested text extraction so host-provided recording transcripts can be routed while raw media blobs, bytes, base64 strings, and arbitrary recording files remain ignored.
+- Added Stop/final hook enforcement to the WorkBuddy hook runner so strong final validation claims can be blocked when final text is available before display.
+- Narrowed command-risk scanning to command-capable tools and command fields, reducing false positives when Write/Edit payloads merely contain high-risk words as documentation text.
+- Added UTF-8 defaults to the WorkBuddy Bash and `cmd.exe` hook wrappers for Windows Git Bash and mixed-shell non-ASCII prompt handling.
+- Expanded WorkBuddy and generic deployment guidance with command-tool matcher recommendations, transcript payload checks, final-answer hook checks, nested-JSON/claim-file handoff advice, and new acceptance tests.
+
 ## v0.14.0 - 2026-06-18
 
 - Added a lightweight declarative governance contract for adapter stage support, decision vocabulary, denial semantics, payload safety, and cost boundaries.

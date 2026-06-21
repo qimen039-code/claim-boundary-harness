@@ -50,6 +50,14 @@
         "memory_write",
         "installation_or_permission_change"
       ],
+      "recommended_initial_scope": [
+        "command_tools"
+      ],
+      "separate_policy_required_for": [
+        "file_edit_tools",
+        "raw_media_tools",
+        "background_actions"
+      ],
       "decisions": [
         "allow",
         "warn",
@@ -78,9 +86,12 @@
     "bypass_surfaces": []
   },
   "payload_safety": {
+    "force_utf8_hook_process": true,
     "sanitize_lone_utf16_surrogates": true,
     "ascii_safe_hook_output": true,
-    "publish_raw_payloads": false
+    "publish_raw_payloads": false,
+    "raw_media_ignored_by_default": true,
+    "recording_requires_host_transcript_text": true
   },
   "source_prior_references": [
     {

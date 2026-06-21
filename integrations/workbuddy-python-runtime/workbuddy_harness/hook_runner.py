@@ -14,11 +14,65 @@ from .policy import load_policy
 
 STATE_FILENAME = "workbuddy_hook_state.json"
 SESSION_LIMIT = 50
+MAX_EXTRACTED_TEXT_CHARS = 12000
+MAX_EXTRACTED_TEXT_PARTS = 16
+MAX_EXTRACT_DEPTH = 6
 EVENT_STAGE_MAP = {
     "UserPromptSubmit": "user_prompt",
     "PreToolUse": "pre_tool",
     "PostToolUse": "post_tool",
     "Stop": "final",
+}
+TEXT_KEY_NAMES = {
+    "answer",
+    "caption",
+    "content",
+    "finaltext",
+    "message",
+    "messages",
+    "output",
+    "prompt",
+    "response",
+    "summary",
+    "text",
+    "transcript",
+    "transcription",
+    "userprompt",
+    "value",
+}
+PROMPT_KEY_NAMES = {
+    "content",
+    "message",
+    "messages",
+    "prompt",
+    "request",
+    "text",
+    "userprompt",
+}
+FINAL_KEY_NAMES = {
+    "answer",
+    "content",
+    "final",
+    "finalmessage",
+    "finalresponse",
+    "finaltext",
+    "message",
+    "output",
+    "response",
+    "result",
+    "text",
+}
+RAW_MEDIA_KEY_NAMES = {
+    "audio",
+    "audiodata",
+    "base64",
+    "binary",
+    "blob",
+    "bytes",
+    "dataurl",
+    "image",
+    "raw",
+    "video",
 }
 
 
@@ -69,6 +123,78 @@ def _cwd(args: argparse.Namespace, payload: dict[str, Any]) -> str:
     return str(payload.get("cwd") or payload.get("workspace") or args.cwd or os.getcwd())
 
 
+def _key_name(value: Any) -> str:
+    return "".join(ch for ch in str(value or "").lower() if ch.isalnum())
+
+
+def _trim_text(text: str) -> str:
+    return text.strip()[:MAX_EXTRACTED_TEXT_CHARS]
+
+
+def _join_text_parts(parts: list[str]) -> str:
+    unique: list[str] = []
+    seen: set[str] = set()
+    for part in parts:
+        clean = _trim_text(part)
+        if not clean or clean in seen:
+            continue
+        seen.add(clean)
+        unique.append(clean)
+        if len(unique) >= MAX_EXTRACTED_TEXT_PARTS:
+            break
+    return _trim_text("\n".join(unique))
+
+
+def _extract_text_parts(value: Any, *, force_text: bool = False, key_name: str = "", depth: int = 0) -> list[str]:
+    if depth > MAX_EXTRACT_DEPTH:
+        return []
+
+    normalized_key = _key_name(key_name)
+    if isinstance(value, str):
+        if force_text or normalized_key in TEXT_KEY_NAMES:
+            clean = _trim_text(value)
+            return [clean] if clean else []
+        return []
+
+    if isinstance(value, list):
+        parts: list[str] = []
+        for item in value:
+            parts.extend(_extract_text_parts(item, force_text=force_text, key_name=key_name, depth=depth + 1))
+            if len(parts) >= MAX_EXTRACTED_TEXT_PARTS:
+                break
+        return parts
+
+    if isinstance(value, dict):
+        parts: list[str] = []
+        for child_key, child_value in value.items():
+            child_name = _key_name(child_key)
+            if child_name in RAW_MEDIA_KEY_NAMES and not isinstance(child_value, (dict, list)):
+                continue
+            child_force = force_text or child_name in TEXT_KEY_NAMES
+            if child_force or isinstance(child_value, (dict, list)):
+                parts.extend(
+                    _extract_text_parts(
+                        child_value,
+                        force_text=child_force,
+                        key_name=str(child_key),
+                        depth=depth + 1,
+                    )
+                )
+            if len(parts) >= MAX_EXTRACTED_TEXT_PARTS:
+                break
+        return parts
+
+    return []
+
+
+def _text_from_named_keys(payload: dict[str, Any], key_names: set[str]) -> str:
+    parts: list[str] = []
+    for key, value in payload.items():
+        if _key_name(key) in key_names:
+            parts.extend(_extract_text_parts(value, force_text=True, key_name=str(key)))
+    return _join_text_parts(parts)
+
+
 def _log_dir(args: argparse.Namespace, payload: dict[str, Any], cwd: str) -> Path:
     configured = args.log_dir or os.environ.get("AGENT_MEMORY_LANE_LOG_DIR") or payload.get("log_dir")
     if configured:
@@ -111,19 +237,20 @@ def _save_state(log_dir: Path, state: dict[str, Any]) -> None:
     _state_path(log_dir).write_text(json.dumps(state, ensure_ascii=False, indent=2, sort_keys=True), encoding="utf-8")
 
 
-def _prompt_text(payload: dict[str, Any]) -> str:
-    value = payload.get("prompt")
-    if value is None:
-        value = payload.get("user_prompt")
-    if value is None:
-        value = payload.get("message")
-    if isinstance(value, str):
-        return value
-    if isinstance(value, dict):
-        for key in ("text", "content", "value"):
-            if isinstance(value.get(key), str):
-                return str(value[key])
+def _prompt_text(payload: dict[str, Any], *, include_nested_text: bool = True) -> str:
+    explicit = _text_from_named_keys(payload, PROMPT_KEY_NAMES)
+    if explicit:
+        return explicit
+    if include_nested_text:
+        return _join_text_parts(_extract_text_parts(payload))
     return ""
+
+
+def _final_text(payload: dict[str, Any]) -> str:
+    explicit = _text_from_named_keys(payload, FINAL_KEY_NAMES)
+    if explicit:
+        return explicit
+    return _join_text_parts(_extract_text_parts(payload))
 
 
 def _tool_name(payload: dict[str, Any]) -> str:
@@ -208,6 +335,20 @@ def _deny_output(decision: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _final_deny_output(decision: dict[str, Any]) -> dict[str, Any]:
+    reason = _decision_reason(decision)
+    return {
+        "continue": False,
+        "suppressOutput": False,
+        "systemMessage": reason,
+        "hookSpecificOutput": {
+            "hookEventName": "Stop",
+            "permissionDecision": "deny",
+            "permissionDecisionReason": reason,
+        },
+    }
+
+
 def _log_event(log_dir: Path, event: dict[str, Any]) -> None:
     flush_logs(log_dir=log_dir, events=[event])
 
@@ -251,7 +392,7 @@ def _handle_pre_tool(
     policy: dict[str, Any],
 ) -> tuple[int, dict[str, Any]]:
     session_id = _session_id(payload)
-    task_text = _prompt_text(payload) or _stored_task_text(state, session_id)
+    task_text = _stored_task_text(state, session_id) or _prompt_text(payload, include_nested_text=False)
     decision = runtime_enforcer(
         stage="pre_tool",
         task_text=task_text,
@@ -267,6 +408,34 @@ def _handle_pre_tool(
     )
     if decision["status"] == "blocked":
         return 2, _deny_output(decision)
+    return 0, _allow_output()
+
+
+def _handle_final(
+    *,
+    args: argparse.Namespace,
+    payload: dict[str, Any],
+    cwd: str,
+    log_dir: Path,
+    state: dict[str, Any],
+    policy: dict[str, Any],
+) -> tuple[int, dict[str, Any]]:
+    session_id = _session_id(payload)
+    task_text = _stored_task_text(state, session_id) or _prompt_text(payload, include_nested_text=False)
+    decision = runtime_enforcer(
+        stage="final",
+        task_text=task_text,
+        cwd=cwd,
+        final_text=_final_text(payload),
+        human_confirmed=args.human_confirmed,
+        boundary_reviewed=args.boundary_reviewed,
+        constitution_reviewed=args.constitution_reviewed,
+        constitution_path=args.constitution_path,
+        log_dir=log_dir,
+        policy=policy,
+    )
+    if decision["status"] == "blocked":
+        return 2, _final_deny_output(decision)
     return 0, _allow_output()
 
 
@@ -374,6 +543,15 @@ def main(argv: list[str] | None = None) -> int:
             )
         elif stage == "pre_tool":
             code, output = _handle_pre_tool(
+                args=args,
+                payload=payload,
+                cwd=cwd,
+                log_dir=log_dir,
+                state=state,
+                policy=policy,
+            )
+        elif stage == "final":
+            code, output = _handle_final(
                 args=args,
                 payload=payload,
                 cwd=cwd,
