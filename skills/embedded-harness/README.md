@@ -56,7 +56,10 @@ official / authority source search
 -> local validation before strong adoption or success claims
 ```
 
-Use this matrix when a task mentions current facts, latest versions, public products, policies, prices, laws, GitHub, open-source repositories, unfamiliar mechanisms, external architecture comparisons, or avoiding closed-door invention. Do not treat local architecture maintenance as external research unless it includes external comparison or open-source learning. Classify outside material as `fact`, `source_prior`, `hypothesis`, `inspiration`, `unverified_implementation_path`, or `not_applicable`. Do not upgrade external reading into local validation unless local evidence, tests, reproduction, or a concrete project-specific proof path exists.
+Use this matrix when a task mentions current facts, latest versions, public products, policies, prices, laws, GitHub, open-source repositories, unfamiliar mechanisms, external architecture comparisons, or avoiding closed-door invention.
+Do not treat local architecture maintenance as external research unless it includes external comparison or open-source learning.
+Classify outside material as `fact`, `source_prior`, `hypothesis`, `inspiration`, `unverified_implementation_path`, or `not_applicable`.
+Do not upgrade external reading into local validation unless local evidence, tests, reproduction, or a concrete project-specific proof path exists.
 
 Mandatory memory retrieval chain:
 

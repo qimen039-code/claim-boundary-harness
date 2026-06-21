@@ -2,6 +2,10 @@
 
 This example maps the same whiteboard chain into a Claude Code-style workspace. The verified behavior is the local script behavior and exit-code contract. Validate the exact instruction filename and hook surface in your installed client before treating the gates as hard runtime.
 
+Temporary validation note: this public package has not yet completed a full deployment validation inside an installed Claude Code client.
+Treat this page as a reference mapping, not a compatibility guarantee.
+If deployment fails, if the instruction file is not loaded, if hooks are unavailable, or if blocked results are ignored, follow `docs/deployment-risk-patterns.md` and `docs/version-compatibility-management.md` to inspect the exact client version, instruction entry, hook or wrapper surface, denial semantics, and bypass paths.
+
 ## Instruction Entry
 
 Claude Code commonly uses a workspace instruction file such as `CLAUDE.md`. Map the root `AGENTS.md` content into that file, or keep a short `CLAUDE.md` that points the agent to the harness entry files.
@@ -45,6 +49,9 @@ Do not pass a human-confirmed flag for broad classes of future work. Confirmatio
 If Claude Code can call a pre-tool or command hook in your environment, place `harness_runtime_enforcer.ps1` or `harness_tool_proxy.ps1` before the protected action. If it cannot, keep the harness as a mandatory advisory control plane and state the limitation before strong claims.
 
 The wrapper is hard only if all protected command execution goes through it. If normal tool calls can bypass the wrapper, the gate cannot enforce that path.
+
+When the installed client behaves differently from this example, ask the local agent to capture the smallest reproducible deployment fact set: loaded instruction filename, exact hook or wrapper command, one allowed-action test, one blocked-action test, observed denial result, and any bypass surface.
+Do not mark Claude Code hard enforcement as validated until those checks pass in that environment.
 
 ## Update Smoke
 

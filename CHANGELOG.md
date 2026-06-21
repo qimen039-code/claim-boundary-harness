@@ -4,6 +4,14 @@ All notable public changes should be recorded here.
 
 This project uses `vMAJOR.MINOR.PATCH` version labels while the framework is still early-stage.
 
+## v0.14.9 - 2026-06-21
+
+- Added a temporary Claude Code deployment boundary note: the public package has not yet completed a full Claude Code client deployment validation.
+- Pointed Claude Code adopters to the deployment problem examples, troubleshooting runbook, and compatibility manifest when local instruction, hook, wrapper, or denial behavior differs from the reference example.
+- Fixed remaining PowerShell policy readers to use explicit UTF-8 decoding so non-ASCII trigger text does not break policy parsing in Windows PowerShell.
+- Updated the compatibility manifest template harness version and removed a stale README note that referenced an older receipt-profile smoke-test version.
+- Wrapped several fragile long Markdown lines in public docs without changing behavior.
+
 ## v0.14.8 - 2026-06-21
 
 - Revised the public design note with clearer engineering tradeoffs, boundary language, and reproduction limits.

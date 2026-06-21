@@ -78,7 +78,8 @@ Also make the advisory control plane mandatory:
 2. Re-evaluate only after trigger events: new evidence, missing files, tool errors, scope changes, user corrections, cross-project terminology, currentness/version claims, GitHub/open-source mechanism intake, risk/cost escalation, strong claims, R5 actions, or memory writes.
 3. Final-check claim scope, memory scope, version metadata, and unresolved verification debt.
 
-For local single-user adapters, including Codex-style local harness installs, keep R0-R5 classification internal and silent by default. Start with no visible receipt for ordinary work, use `compact_runtime` only when a boundary changes the next action, expand to `extended_governance` only when public/private boundaries, framework rules, adapters, project memory, memory writes, conversation-link decisions, semantic ambiguity, or projectization drift appear, and use `debug_receipt` only for router troubleshooting or explicit audit requests.
+For local single-user adapters, including Codex-style local harness installs, keep R0-R5 classification internal and silent by default.
+Start with no visible receipt for ordinary work, use `compact_runtime` only when a boundary changes the next action, expand to `extended_governance` only when public/private boundaries, framework rules, adapters, project memory, memory writes, conversation-link decisions, semantic ambiguity, or projectization drift appear, and use `debug_receipt` only for router troubleshooting or explicit audit requests.
 
 Do not make this expensive by default. The control plane should choose the cheapest sufficient route and should not wrap every tool call.
 
@@ -126,7 +127,10 @@ Status contract:
 
 For Bash environments, use the scripts under `skills/embedded-harness/bash`. They require `jq` and share the same `embedded_harness_policy.json`.
 
-For hosts that own an in-process Python agent loop, `integrations/workbuddy-python-runtime` is a small reference adapter. It reuses the same policy file and exposes Python functions for routing, memory isolation, claim checks, and runtime enforcement decisions. It is not automatically wired into WorkBuddy or any other client. Hard enforcement requires the host to call the function before action execution and to stop on `status: blocked`. For hook-only WorkBuddy-style deployments, wire prompt-stage routing, command-tool `PreToolUse` denial, and `Stop`/final-claim checks separately; recording or voice input must arrive as transcript text before the adapter can route it.
+For hosts that own an in-process Python agent loop, `integrations/workbuddy-python-runtime` is a small reference adapter.
+It reuses the same policy file and exposes Python functions for routing, memory isolation, claim checks, and runtime enforcement decisions.
+It is not automatically wired into WorkBuddy or any other client. Hard enforcement requires the host to call the function before action execution and to stop on `status: blocked`.
+For hook-only WorkBuddy-style deployments, wire prompt-stage routing, command-tool `PreToolUse` denial, and `Stop`/final-claim checks separately; recording or voice input must arrive as transcript text before the adapter can route it.
 
 Adapter validation is local by default. Do not claim PowerShell, Bash/macOS/Linux, or WorkBuddy Python compatibility until you have run the relevant smoke checks on the target device and client version.
 

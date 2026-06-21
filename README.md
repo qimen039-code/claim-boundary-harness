@@ -2,7 +2,7 @@
 
 Stop coding agents from calling weak evidence "validated." Claim Boundary Harness adds meta-first routing, project-scoped memory lanes, R0-R5 risk receipts, and deployment adapters for claim verification.
 
-Current version: `v0.14.8`
+Current version: `v0.14.9`
 
 Formerly: Agent Memory Lane Harness, originally Agent Harness Skill Tree.
 
@@ -46,7 +46,9 @@ flowchart TD
 - **Format layering:** human-facing docs stay in Markdown, but machine-owned routing facts, append-only records, and large tables should move to JSON, JSONL, CSV/TSV, or SQLite-style stores so agents do not rely on fragile Markdown tables and long lines.
 - **Archive and persona boundaries:** optional global archive is a cold index, not active memory; archive defaults to move/copy, while persona state is conversation-only and cannot affect work decisions.
 - **Source-grounded search and learning:** current facts, GitHub/open-source review, unfamiliar mechanisms, and anti-closed-door-invention tasks are split into official-source search, repository inspection, general web cross-check, source-grounded intake, and local validation.
-- **SkillOpt-style training layer:** recurring skill improvements can be staged as candidate edits, gated with regression probes, recorded as rejected edits when unsafe, or promoted through slow updates without replacing the bounded multi-skill matrix. Invoke it only for recurring skill or router improvements, candidate rule edits, rejected-edit review, slow updates, or external skill-optimization mechanism intake. Do not use it for ordinary chat, one-off fixes, direct memory writes, external fact checks, runtime enforcement, or tasks already handled by the router, memory gate, research gate, or claim gate.
+- **SkillOpt-style training layer:** recurring skill improvements can be staged as candidate edits, gated with regression probes, recorded as rejected edits when unsafe, or promoted through slow updates without replacing the bounded multi-skill matrix.
+  Invoke it only for recurring skill or router improvements, candidate rule edits, rejected-edit review, slow updates, or external skill-optimization mechanism intake.
+  Do not use it for ordinary chat, one-off fixes, direct memory writes, external fact checks, runtime enforcement, or tasks already handled by the router, memory gate, research gate, or claim gate.
 - **Selective hook/wrapper/tool proxy runtime:** only critical boundaries such as R5, high-risk tools, low-confidence routes, long-term memory writes, and final strong claims need hard stops.
 - **Meta-first memory retrieval:** memory lookup is not a direct file dive. The required chain is meta summary or `_META_INDEX`, then category or point index, then only the matching capsule or paired record.
 - **Multi-axis memory meta index:** memory libraries should expose lane, scope, category, record type, status, retrieval terms, applicability, linked modules, linked records, and staleness markers so agents can select one payload instead of scanning history.
@@ -55,6 +57,7 @@ flowchart TD
 - **External optimizer boundary:** SkillOpt-style mechanisms are treated as adapted rules unless executable adoption is explicitly approved. Public benchmark claims remain source-prior until locally validated.
 - **Sanitized whiteboard examples:** This public repository was sanitized before publication. Private records, local project details, machine paths, and real incident history from the original working setup are not included. The included examples are synthetic records used only to help agents and adopters understand how to adapt the framework: routing, layered memory indexes, project memory capsules, paired error/solution records, claim boundaries, and client-update drift handling.
 - **Reference adapters are early:** the main scripts are PowerShell, and the four core gates also have Bash counterparts under `skills/embedded-harness/bash`. Bash scripts require `jq`. The repository also includes an experimental WorkBuddy-oriented Python runtime adapter under `integrations/workbuddy-python-runtime`. These adapters have not been fully tested across devices, operating systems, client versions, or real production loops; they are reference starting points.
+- **Claude Code deployment is not yet field-validated:** the Claude Code guide is a mapping example for instruction files, hooks, wrappers, and exit-code behavior. This package has not yet completed a full deployment validation inside an installed Claude Code client. If local deployment behaves differently, use the deployment problem examples, troubleshooting runbook, and compatibility manifest to inspect the exact instruction entry, hook or wrapper surface, denial behavior, and bypass paths.
 - **WorkBuddy hard enforcement requires hooks:** the WorkBuddy adapter is advisory until the adopter wires it into WorkBuddy/CodeBuddy hooks. For tool execution, start with command-tool `PreToolUse` matchers such as `Bash|PowerShell` so the hook runner can return `permissionDecision: deny` and exit code `2` before commands run. Do not patch the installed WorkBuddy app; configure the supported hook surface in the adopting workspace.
 - **WorkBuddy active routing needs prompt-stage hooks:** use `UserPromptSubmit` to store the original prompt and inject compact route context before `PreToolUse` enforces tool calls. The Python hook runner sanitizes lone UTF-16 surrogate values and forces UTF-8 in the included wrappers so malformed or non-ASCII payload text does not disable routing.
 - **WorkBuddy final and recording boundaries:** use a `Stop` or final-answer hook when the host exposes final text before display. Voice or recording input is routed only when the host passes transcript text; the adapter does not decode raw audio, blobs, base64 strings, or arbitrary recording files.
@@ -277,9 +280,14 @@ This framework has been tried in one private Codex-based project workflow. Once 
 
 This is not yet broad field validation. The public package has not been battle-tested across many projects, many operators, or many agent runtimes.
 
-The PowerShell, Bash, and WorkBuddy Python adapters are also not complete compatibility claims. They were adapted from one local device environment. PowerShell and the WorkBuddy Python decision layer were smoke-tested locally; the Bash/mac-style scripts are reference adapters and still need target-shell verification on the adopter's machine. The WorkBuddy Python adapter now includes a hook runner tested through local unit tests, including prompt routing, command-tool denial, Stop/final claim checks, and transcript extraction. Real hard enforcement still depends on the adopter's WorkBuddy version honoring hook denial, exit code `2`, final-hook blocking, and the configured matcher scope.
+The PowerShell, Bash, and WorkBuddy Python adapters are also not complete compatibility claims.
+They were adapted from one local device environment. PowerShell and the WorkBuddy Python decision layer were smoke-tested locally; the Bash/mac-style scripts are reference adapters and still need target-shell verification on the adopter's machine.
+The WorkBuddy Python adapter now includes a hook runner tested through local unit tests, including prompt routing, command-tool denial, Stop/final claim checks, and transcript extraction.
+Real hard enforcement still depends on the adopter's WorkBuddy version honoring hook denial, exit code `2`, final-hook blocking, and the configured matcher scope.
 
-For `v0.10.0`, receipt profiles were smoke-tested through the PowerShell intake router and the WorkBuddy Python adapter tests. Bash receipt parity was updated in the reference script, but Bash was not available on the current PATH during this update, so the Bash path still needs target-shell verification.
+The Claude Code integration page is currently a reference mapping, not a completed client-deployment validation. Adopters should confirm which instruction file the installed client reads, whether a pre-tool or command hook exists, whether blocked results are honored, and which surfaces can bypass the wrapper. If any of those checks fail, follow the deployment troubleshooting guide and let the adopting agent localize the problem before claiming hard enforcement.
+
+Receipt profile behavior is covered by the current reproduction checks and WorkBuddy Python adapter tests. Bash and macOS/Linux reference paths still need target-shell verification on the adopter's machine.
 
 It also supports independent project lanes. After global routing boundaries are configured, each project can keep its own instructions, memory roots, and incident records. That makes it possible to run separate local chains for separate projects without silent memory bleed, cross-project contamination, or unrelated progress records being mixed together.
 
@@ -382,6 +390,7 @@ This is a foundation package, not a complete safety system.
 - The trigger lists are intentionally small and should be tuned.
 - The memory format is a template, not a database.
 - Different agents need different adapter files and launch methods.
+- The Claude Code guide is a reference mapping and has not yet been fully deployment-validated in an installed Claude Code client.
 - The WorkBuddy Python adapter is experimental and is not a complete WorkBuddy compatibility guarantee.
 - Bash/macOS/Linux support is a reference path until it is tested on the target machine and shell.
 - There are likely missing cases, rough edges, and workflows we have not considered.

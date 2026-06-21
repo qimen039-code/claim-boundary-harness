@@ -66,6 +66,7 @@ Most adopters should aim for L1 plus L2. Do not try to wrap every tool call unti
 | DEP-024 | Voice or recording prompts do not affect routing | The host passes raw audio, file paths, blobs, or base64 data instead of a transcript field | Add host-side transcription and pass bounded text fields such as `transcript`, `transcription`, `caption`, `content`, `message`, or `text` | A recording whose transcript contains an R5 action produces an R5 route before planning |
 | DEP-025 | Nested claim JSON works in direct tests but fails inside hooks | Multiple shells reinterpret quotes or escapes before the adapter receives JSON | Use a file-based handoff such as `--ClaimFile` or a JSON file path for nested claims | Replay a nested claim payload through the exact hook shell and confirm the parser receives the same JSON |
 | DEP-026 | The agent continues an old conversation without reading the right memory lane | Conversation linking is advisory or the host never asks for a link decision before tools | Add a pre-action gate that blocks continuation, merge, archive, or cross-conversation memory tasks until meta-first lookup resolves the link | Ask to continue the previous conversation; the first protected tool call should block with `conversation_link_decision_required` until the link is selected |
+| DEP-027 | A product-specific guide exists, but the installed client behaves differently | The guide is a reference mapping, not completed validation for that client version | Build a compatibility manifest from the actual client and run local acceptance tests | Do not claim hard enforcement until the installed client blocks a disposable high-risk action before execution |
 
 ## Deployment Problem Examples And Solution Playbooks
 
@@ -345,6 +346,35 @@ Acceptance check:
 ```text
 After the update, the same disposable blocked action is still stopped before execution.
 ```
+
+### Example 11: Claude Code Mapping Exists But Local Deployment Is Unverified
+
+Symptom:
+
+```text
+The repository includes a Claude Code integration example, but the installed Claude Code client does not clearly load the rule file or expose the expected hook/wrapper path.
+```
+
+Check:
+
+- Which instruction filename or settings surface does the installed client actually read?
+- Can the client run a pre-task, pre-tool, command, or final-answer hook before the protected action?
+- Does a blocked result stop execution, or is it only shown as advisory text?
+- Which shell, tool executor, file editor, or background path can bypass the wrapper?
+
+Solution path:
+
+1. Treat `docs/integrations/claude-code.md` as a reference mapping until local checks pass.
+2. Ask the local agent to run the instruction-load, allowed-action, blocked-action, and bypass tests from this guide.
+3. Record the actual client version, instruction entry, hook schema, denial behavior, wrapper path, and bypass surfaces in a compatibility manifest.
+4. If no hard pre-action surface exists, keep the harness as a mandatory advisory control plane and state that limitation before strong claims.
+
+Acceptance check:
+
+```text
+The installed Claude Code client loads the intended instruction entry, routes a mixed-risk task, and blocks a disposable high-risk action before execution. Otherwise the Claude Code path remains advisory for that environment.
+```
+
 ## Agent-Facing Troubleshooting Runbook
 
 When an adopting agent reports "the harness is deployed but it does not behave like a hard gate", do not guess from repository files alone. Check the actual runtime path in this order.

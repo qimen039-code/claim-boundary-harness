@@ -4,6 +4,8 @@ Run these commands from the repository root.
 
 These checks are smoke tests for the reference package, not a full compatibility matrix. The current public package was adapted and checked from one local device environment. Re-run the relevant commands on the exact Windows, macOS/Linux, WorkBuddy, Codex, Claude Code, or other agent runtime you plan to use.
 
+Claude Code note: this package has not yet completed a full deployment validation inside an installed Claude Code client. The Claude Code page is a reference mapping. Treat local behavior as unverified until the installed client passes instruction-load, allowed-action, blocked-action, and bypass-surface checks.
+
 ## GitHub Actions Smoke Workflow
 
 `.github/workflows/smoke.yml` runs a lightweight subset of these checks on push, pull request, and manual dispatch:

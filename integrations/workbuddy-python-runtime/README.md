@@ -47,7 +47,11 @@ PreToolUse(Bash|PowerShell) -> command-tool hard gate before execution
 Stop -> final strong-claim gate before display
 ```
 
-`UserPromptSubmit` stores the original task before planning. It keeps ordinary low-risk classification silent and injects only minimal boundary context when memory, search, claim, confirmation, low-confidence, governance, conversation-linking, or debug behavior changes the next action. `PreToolUse` enforces the protected command-tool path before execution. It also blocks continuation, merge, archive, or cross-conversation memory tasks until the adapter marks the conversation-link decision as resolved. `Stop` can block or downgrade final answers that contain strong validation claims without claim-schema evidence.
+`UserPromptSubmit` stores the original task before planning.
+It keeps ordinary low-risk classification silent and injects only minimal boundary context when memory, search, claim, confirmation, low-confidence, governance, conversation-linking, or debug behavior changes the next action.
+`PreToolUse` enforces the protected command-tool path before execution.
+It also blocks continuation, merge, archive, or cross-conversation memory tasks until the adapter marks the conversation-link decision as resolved.
+`Stop` can block or downgrade final answers that contain strong validation claims without claim-schema evidence.
 
 Prefer a command-tool matcher such as `Bash|PowerShell` for the first hard `PreToolUse` deployment. A broad `*` matcher can route Write/Edit file content through the command-risk gate and create false positives when a document merely mentions high-risk words. Gate file tools with a separate schema-aware file policy if you need hard file-write enforcement.
 
