@@ -4,6 +4,11 @@ All notable public changes should be recorded here.
 
 This project uses `vMAJOR.MINOR.PATCH` version labels while the framework is still early-stage.
 
+## v0.14.6 - 2026-06-21
+
+- Clarified the SkillOpt-style training layer activation boundary: it is default-off for ordinary work and should be used only for recurring skill/router improvements, candidate rule edits, rejected-edit review, slow updates, or external skill-optimization intake.
+- Added explicit non-use cases so ordinary chat, one-off fixes, memory writes, external fact checks, runtime enforcement, and claim gating do not accidentally route through the optimizer layer.
+
 ## v0.14.5 - 2026-06-21
 
 - Renamed the public framework identity to Claim Boundary Harness so the repository name, README headline, and claim-boundary terminology use one consistent concept.

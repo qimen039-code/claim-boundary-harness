@@ -79,6 +79,14 @@ L0 microkernel
 
 If the receipt is obvious from the current request, it can stay implicit. Keep R0-R5 labels internal by default. If the classification changes execution path, cost, permission, memory, external search, or claim wording, expose only that minimal boundary. If the user asks for debug or audit, expose the complete debug receipt.
 
+## SkillOpt-Style Training Boundary
+
+The SkillOpt-style training layer is default-off for ordinary tasks. The router should consider it only when the task is about recurring skill or router improvement, candidate rule edits, rejected-edit review, textual learning-rate limits, slow updates, or external skill-optimization mechanism intake.
+
+Do not invoke it for ordinary chat, one-off fixes, direct memory writes, external fact checks, runtime enforcement, or tasks that the router, memory gate, research gate, or claim gate can handle without proposing a reusable skill or routing improvement.
+
+When it is used, it remains subordinate to the existing skill matrix: it drafts candidate edits, regression probes, gate reports, or rejected-edit records. It does not directly mutate primary routers, write long-term memory, run third-party optimizer code, or claim local validation without an accepted gate result and required approval.
+
 ## Dynamic Re-Evaluation Triggers
 
 Re-run the contract when any of these appears:

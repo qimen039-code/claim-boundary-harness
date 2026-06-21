@@ -2,7 +2,7 @@
 
 Stop coding agents from calling weak evidence "validated." Claim Boundary Harness adds meta-first routing, project-scoped memory lanes, R0-R5 risk receipts, and deployment adapters for claim verification.
 
-Current version: `v0.14.5`
+Current version: `v0.14.6`
 
 Formerly: Agent Memory Lane Harness, originally Agent Harness Skill Tree.
 
@@ -46,7 +46,7 @@ flowchart TD
 - **Format layering:** human-facing docs stay in Markdown, but machine-owned routing facts, append-only records, and large tables should move to JSON, JSONL, CSV/TSV, or SQLite-style stores so agents do not rely on fragile Markdown tables and long lines.
 - **Archive and persona boundaries:** optional global archive is a cold index, not active memory; archive defaults to move/copy, while persona state is conversation-only and cannot affect work decisions.
 - **Source-grounded search and learning:** current facts, GitHub/open-source review, unfamiliar mechanisms, and anti-closed-door-invention tasks are split into official-source search, repository inspection, general web cross-check, source-grounded intake, and local validation.
-- **SkillOpt-style training layer:** recurring skill improvements can be staged as candidate edits, gated with regression probes, recorded as rejected edits when unsafe, or promoted through slow updates without replacing the bounded multi-skill matrix.
+- **SkillOpt-style training layer:** recurring skill improvements can be staged as candidate edits, gated with regression probes, recorded as rejected edits when unsafe, or promoted through slow updates without replacing the bounded multi-skill matrix. Invoke it only for recurring skill or router improvements, candidate rule edits, rejected-edit review, slow updates, or external skill-optimization mechanism intake. Do not use it for ordinary chat, one-off fixes, direct memory writes, external fact checks, runtime enforcement, or tasks already handled by the router, memory gate, research gate, or claim gate.
 - **Selective hook/wrapper/tool proxy runtime:** only critical boundaries such as R5, high-risk tools, low-confidence routes, long-term memory writes, and final strong claims need hard stops.
 - **Meta-first memory retrieval:** memory lookup is not a direct file dive. The required chain is meta summary or `_META_INDEX`, then category or point index, then only the matching capsule or paired record.
 - **Multi-axis memory meta index:** memory libraries should expose lane, scope, category, record type, status, retrieval terms, applicability, linked modules, linked records, and staleness markers so agents can select one payload instead of scanning history.

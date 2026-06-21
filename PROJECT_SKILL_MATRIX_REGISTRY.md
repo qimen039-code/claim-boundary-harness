@@ -81,7 +81,7 @@ Outside material can supply completion ideas, boundary control, engineering cons
 | --- | --- | --- | --- | --- |
 | Shared troubleshooting | agent errors, tool failures, skill matrix updates, reusable incidents | `skills/troubleshooting-skill-matrix/SKILL.md` | active | Routes to semantic anchors and paired ERR/SOL ledgers. |
 | Embedded harness | nontrivial task intake, memory isolation, external research trigger, claim schema, policy validation | `skills/embedded-harness/README.md` | active | Low-cost deterministic entry route with PowerShell and Bash reference gates. |
-| SkillOpt-style training layer | SkillOpt, skill optimization, skill training, candidate edit, validation gate, rejected edit buffer, textual learning rate, slow update | `skills/skillopt-training-layer/SKILL.md` | active | Auxiliary optimizer layer only; proposes and gates candidate edits while the existing multi-skill matrix remains the runtime authority. |
+| SkillOpt-style training layer | SkillOpt, skill optimization, skill training, candidate edit, validation gate, rejected edit buffer, textual learning rate, slow update | `skills/skillopt-training-layer/SKILL.md` | active | Default-off auxiliary optimizer. Use only for recurring skill/router improvements, candidate edits, rejected-edit review, slow updates, or external optimization intake; ordinary tasks stay with the router, memory, research, and claim gates. |
 | Example project | `<PROJECT_ROOT>`, `EXAMPLE_PROJECT` | `<PROJECT_ROOT>/AGENTS.md` or a future project router skill | template | Replace with real project details after adoption. |
 
 ## Project Router Manifest Contract
