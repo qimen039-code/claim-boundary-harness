@@ -47,6 +47,8 @@ Use the cheapest sufficient route. Do not load all project memory, all skills, a
 
 Memory recording is routed separately from memory reading. Explicit "record this error" requests go to the self-reflection matrix or common error corpus; small reusable mistakes go to common error-and-solution records first; full ERR/SOL pairs are for high-impact, repeated, or explicit incidents.
 
+Reusable memory capsules use source-monitoring fields: `source_tag`, `belief_status`, structured `confidence`, `derived_from`, `source_monitoring`, and `belief_trace_summary`. Treat optional numeric scores as adapter metadata, not as a replacement for evidence basis and provenance.
+
 Governance-layer updates, dynamic-evaluation rule changes, routing-rule changes, trigger-term updates, decision-matrix edits, and framework behavior changes are `R3` even when they are documentation-only. A missed route should be fixed with the narrowest useful trigger term rather than a broad catch-all.
 
 ## Selective Runtime Enforcement Layer

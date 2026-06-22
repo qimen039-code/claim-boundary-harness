@@ -174,6 +174,37 @@ set_object_array() {
   mv "$tmp" "$file"
 }
 
+find_active_conversation_memory_lane() {
+  local current="$1"
+  local depth root lane meta index combined parent
+  if [ -d "$current" ]; then
+    current="$(cd "$current" 2>/dev/null && pwd -P || printf '%s' "$current")"
+  fi
+  for depth in 0 1 2 3 4; do
+    [ -z "$current" ] && break
+    root="${current%/}/local-conversation-memory"
+    if [ -d "$root" ]; then
+      for lane in "$root"/*; do
+        [ -d "$lane" ] || continue
+        meta="${lane%/}/_META_INDEX.md"
+        index="${lane%/}/index.json"
+        [ -f "$meta" ] || [ -f "$index" ] || continue
+        combined="$(cat "$meta" "$index" 2>/dev/null || true)"
+        case "$combined" in
+          *"status: ACTIVE"*|*'"status": "ACTIVE"'*|*"single_conversation_project_shaped_lane"*)
+            printf '%s' "$lane"
+            return 0
+            ;;
+        esac
+      done
+    fi
+    parent="$(dirname "$current")"
+    [ "$parent" = "$current" ] && break
+    current="$parent"
+  done
+  return 0
+}
+
 matched_file="$(mktemp)"
 negated_file="$(mktemp)"
 trap 'rm -f "$matched_file" "$negated_file" "${matched_file}.tmp" "${negated_file}.tmp"' EXIT
@@ -190,6 +221,10 @@ while IFS=$'\t' read -r lane root; do
     break
   fi
 done < <(jq -r '(.project_lanes // {}) | to_entries[]? | .key as $k | .value[] | [$k, .] | @tsv' "$POLICY_PATH" | tr -d '\r')
+
+active_conversation_memory_lane_path="$(find_active_conversation_memory_lane "$CWD")"
+has_active_conversation_memory_lane=false
+[ -n "$active_conversation_memory_lane_path" ] && has_active_conversation_memory_lane=true
 
 risk="R0"
 classification_confidence="high"
@@ -290,7 +325,7 @@ if [ "${#external_negated[@]}" -gt 0 ]; then
   set_object_array "$negated_file" "external_research" "${external_negated[@]}"
 fi
 
-target_surface="$(first_matching_rule '.router_decision_contract.target_surface_trigger_rules' git_action tool_call adapter public_docs private_rule local_harness skill_matrix conversation_memory project_memory || true)"
+target_surface="$(first_matching_rule '.router_decision_contract.target_surface_trigger_rules' git_action tool_call adapter public_docs conversation_memory private_rule local_harness skill_matrix project_memory || true)"
 [ -z "$target_surface" ] && target_surface="current_chat"
 if [ "$target_surface" = "current_chat" ] && array_contains "R3" "${triggered_risks[@]}"; then
   target_surface="local_harness"
@@ -348,11 +383,15 @@ common_error_hits=()
 projectization_signals=()
 conversation_explicit_hits=()
 conversation_signals=()
+read_only_memory_audit_hits=()
+active_conversation_write_intent_hits=()
 collect_matching_triggers '.router_decision_contract.explicit_record_triggers' explicit_record_hits
 collect_matching_triggers '.router_decision_contract.common_error_triggers' common_error_hits
 collect_matching_triggers '.router_decision_contract.projectization_signals' projectization_signals
 collect_matching_triggers '.router_decision_contract.conversation_memory_explicit_triggers' conversation_explicit_hits
 collect_matching_triggers '.router_decision_contract.conversation_memory_signals' conversation_signals
+collect_matching_triggers '.router_decision_contract.read_only_memory_audit_triggers' read_only_memory_audit_hits
+collect_matching_triggers '.router_decision_contract.active_conversation_write_intent_triggers' active_conversation_write_intent_hits
 projectization_threshold="$(jq -r '.router_decision_contract.projectization_threshold // 3' "$POLICY_PATH" | tr -d '\r')"
 conversation_threshold="$(jq -r '.router_decision_contract.conversation_memory_threshold // 2' "$POLICY_PATH" | tr -d '\r')"
 
@@ -364,11 +403,32 @@ elif [ "${#projectization_signals[@]}" -ge "$projectization_threshold" ]; then
 fi
 
 conversation_memory_decision="none"
-if [ "$project_lane" = "PROJECTLESS" ] && [ "$projectization_decision" = "not_project" ]; then
+read_only_memory_audit_intent=false
+if [ "${#read_only_memory_audit_hits[@]}" -gt 0 ] && [ "${#active_conversation_write_intent_hits[@]}" -eq 0 ] && [ "${#explicit_record_hits[@]}" -eq 0 ] && [ "${#common_error_hits[@]}" -eq 0 ]; then
+  read_only_memory_audit_intent=true
+fi
+active_conversation_write_intent=false
+if [ "${#active_conversation_write_intent_hits[@]}" -gt 0 ]; then
+  active_conversation_write_intent=true
+fi
+if [ "${#explicit_record_hits[@]}" -gt 0 ] || [ "${#common_error_hits[@]}" -gt 0 ]; then
+  active_conversation_write_intent=true
+fi
+active_conversation_memory_durable_signal=false
+if [ "$has_active_conversation_memory_lane" = true ]; then
+  if [ "$read_only_memory_audit_intent" = false ] && { [ "$active_conversation_write_intent" = true ] || [ "${#conversation_signals[@]}" -ge "$conversation_threshold" ] || [ "${#projectization_signals[@]}" -ge "$projectization_threshold" ] || array_contains "$risk" R4 R5; }; then
+    active_conversation_memory_durable_signal=true
+  fi
+fi
+if [ "$project_lane" = "PROJECTLESS" ]; then
   if [ "${#conversation_explicit_hits[@]}" -gt 0 ]; then
     conversation_memory_decision="create_or_update_current_conversation"
-  elif [ "${#conversation_signals[@]}" -ge "$conversation_threshold" ]; then
-    conversation_memory_decision="checkpoint_candidate"
+  elif [ "$active_conversation_memory_durable_signal" = true ]; then
+    conversation_memory_decision="create_or_update_current_conversation"
+  elif [ "$read_only_memory_audit_intent" = false ] && [ "${#conversation_signals[@]}" -ge "$conversation_threshold" ]; then
+    if [ "$projectization_decision" = "not_project" ]; then
+      conversation_memory_decision="checkpoint_candidate"
+    fi
   fi
 fi
 
@@ -383,12 +443,16 @@ if [ "${#explicit_record_hits[@]}" -gt 0 ]; then
   record_intent="explicit_user_request"
 elif [ "${#common_error_hits[@]}" -gt 0 ]; then
   record_intent="inferred_reusable_error"
-elif [ "$projectization_decision" = "emergent_project_candidate" ]; then
-  record_intent="projectization_review"
 elif [ "$conversation_memory_decision" = "create_or_update_current_conversation" ]; then
-  record_intent="explicit_conversation_memory_request"
+  if [ "${#conversation_explicit_hits[@]}" -gt 0 ]; then
+    record_intent="explicit_conversation_memory_request"
+  else
+    record_intent="conversation_checkpoint"
+  fi
 elif [ "$conversation_memory_decision" = "checkpoint_candidate" ]; then
   record_intent="conversation_checkpoint"
+elif [ "$projectization_decision" = "emergent_project_candidate" ]; then
+  record_intent="projectization_review"
 fi
 
 if [ "$conversation_memory_decision" != "none" ] && [ "$memory_need" = "none" ]; then
@@ -402,6 +466,8 @@ elif [ "${#explicit_record_hits[@]}" -gt 0 ]; then
   memory_lane="self_reflection_matrix"
 elif [ "$project_lane" != "PROJECTLESS" ]; then
   memory_lane="current_project"
+elif [ "$conversation_memory_decision" != "none" ] && { [ "$has_active_conversation_memory_lane" = true ] || [ "${#conversation_explicit_hits[@]}" -gt 0 ]; }; then
+  memory_lane="current_conversation"
 elif [ "$projectization_decision" = "emergent_project_candidate" ]; then
   memory_lane="emergent_project_candidate"
 elif [ "$conversation_memory_decision" != "none" ]; then
@@ -410,7 +476,11 @@ fi
 
 memory_mode="none"
 if [ "$record_intent" = "explicit_user_request" ] || [ "$record_intent" = "inferred_reusable_error" ] || [ "$record_intent" = "explicit_conversation_memory_request" ] || [ "$record_intent" = "conversation_checkpoint" ]; then
-  memory_mode="write"
+  if [ "$memory_lane" = "current_conversation" ] && [ "$has_active_conversation_memory_lane" = true ]; then
+    memory_mode="update"
+  else
+    memory_mode="write"
+  fi
 elif [ "$memory_need" != "none" ]; then
   memory_mode="read"
 fi

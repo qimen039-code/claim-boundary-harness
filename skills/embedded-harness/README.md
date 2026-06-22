@@ -73,6 +73,8 @@ Recommended meta index fields: lane, scope, category, record type, status, retri
 
 Memory recording is routed separately from memory reading. Use `common_error_corpus` for lightweight recurring error-and-solution samples with symptom, cause, applied solution, prevention, validation, and evidence. Use paired `ERR-*` / `SOL-*` records for explicit, repeated, or high-impact self-reflection incidents.
 
+Reusable memory capsules should carry source-monitoring fields: `source_tag`, `belief_status`, structured `confidence`, `derived_from`, `source_monitoring`, and `belief_trace_summary`. The router decides whether memory is needed; the capsule schema preserves the source and status boundary after the route chooses to write or update memory.
+
 Scripts:
 
 ```powershell

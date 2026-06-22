@@ -20,6 +20,8 @@ Do not open category payloads before this file has selected the category. If thi
 | external_references | `external_references/` | Source notes, outside mechanisms, citations, and adoption boundaries. | TEMPLATE | Keep source boundary separate from local validation. |
 | raw_logs | `raw_logs/` | Raw or near-raw observations that should not be treated as final memory. | TEMPLATE | Promote into another category only after review. |
 
+For reusable memory capsules, use the source-monitoring schema fields: `source_tag`, `belief_status`, `confidence`, `derived_from`, `source_monitoring`, and `belief_trace_summary`. Keep only compact routing fields in category indexes and open full payloads only when selected.
+
 Status values:
 
 - `ACTIVE`: current guidance.

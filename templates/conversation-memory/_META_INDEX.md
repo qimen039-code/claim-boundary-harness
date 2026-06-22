@@ -28,6 +28,22 @@ read this _META_INDEX.md
 -> open only matching records
 ```
 
+## Capsule Schema
+
+When this lane is compressed into a reusable capsule, use:
+
+```text
+source-monitoring-memory-schema:
+source_tag
+belief_status
+confidence
+derived_from
+source_monitoring
+belief_trace_summary
+```
+
+Conversation-derived claims normally start as `source_prior` or `bounded_claim`; promote them to `local_validated` only with local evidence.
+
 ## Latest And Fuzzy Lookup
 
 Use `updated_at` as the cheap shortcut for "continue the previous conversation". If the user remembers only keywords, search index-level fields first:

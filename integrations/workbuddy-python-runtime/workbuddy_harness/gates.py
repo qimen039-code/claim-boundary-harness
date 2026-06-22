@@ -245,6 +245,34 @@ def _project_lane(cwd: str, policy: dict[str, Any]) -> str:
     return "PROJECTLESS"
 
 
+def _active_conversation_memory_lane(cwd: str) -> str:
+    current = Path(cwd).resolve()
+    for _ in range(5):
+        root = current / "local-conversation-memory"
+        if root.exists() and root.is_dir():
+            for lane in root.iterdir():
+                if not lane.is_dir():
+                    continue
+                meta_path = lane / "_META_INDEX.md"
+                index_path = lane / "index.json"
+                if not meta_path.exists() and not index_path.exists():
+                    continue
+                parts: list[str] = []
+                for path in (meta_path, index_path):
+                    if path.exists():
+                        try:
+                            parts.append(path.read_text(encoding="utf-8", errors="ignore"))
+                        except OSError:
+                            continue
+                combined = "\n".join(parts)
+                if re.search(r"status[\"']?\s*[:=]\s*[\"']?ACTIVE", combined) or "single_conversation_project_shaped_lane" in combined:
+                    return str(lane)
+        if current.parent == current:
+            break
+        current = current.parent
+    return ""
+
+
 def _tool_text(tool_name: str = "", tool_input: Any = None) -> str:
     parts = [tool_name or ""]
     if tool_input is None:
@@ -425,6 +453,8 @@ def intake_router(task_text: str = "", cwd: str | None = None, policy: dict[str,
             negated_risk_triggers["fallback_boundary"] = fallback_match["negated"]
 
     lane = _project_lane(cwd, policy)
+    active_conversation_memory_lane_path = _active_conversation_memory_lane(cwd)
+    has_active_conversation_memory_lane = bool(active_conversation_memory_lane_path)
     if lane != "PROJECTLESS":
         required_gates.extend(["memory_isolation_gate", "project_agents_gate"])
         required_skills.append(f"{lane} project AGENTS/router")
@@ -444,7 +474,7 @@ def intake_router(task_text: str = "", cwd: str | None = None, policy: dict[str,
     target_surface = _first_matching_rule(
         task_text,
         contract.get("target_surface_trigger_rules", {}),
-        ["git_action", "tool_call", "adapter", "public_docs", "private_rule", "local_harness", "skill_matrix", "conversation_memory", "project_memory"],
+        ["git_action", "tool_call", "adapter", "public_docs", "conversation_memory", "private_rule", "local_harness", "skill_matrix", "project_memory"],
     ) or "current_chat"
     if target_surface == "current_chat" and "R3" in triggered_risks:
         target_surface = "local_harness"
@@ -497,11 +527,28 @@ def intake_router(task_text: str = "", cwd: str | None = None, policy: dict[str,
     conversation_signals = _matching_triggers(task_text, contract.get("conversation_memory_signals", []))
     conversation_threshold = int(contract.get("conversation_memory_threshold", 2))
     conversation_memory_decision = "none"
-    if lane == "PROJECTLESS" and projectization_decision == "not_project":
+    read_only_audit_hits = _matching_triggers(task_text, contract.get("read_only_memory_audit_triggers", []))
+    active_conversation_write_intent_hits = _matching_triggers(task_text, contract.get("active_conversation_write_intent_triggers", []))
+    read_only_memory_audit_intent = bool(read_only_audit_hits) and not (
+        active_conversation_write_intent_hits or explicit_record_hits or common_error_hits
+    )
+    active_conversation_write_intent = bool(
+        active_conversation_write_intent_hits or explicit_record_hits or common_error_hits
+    )
+    active_conversation_memory_durable_signal = has_active_conversation_memory_lane and not read_only_memory_audit_intent and (
+        active_conversation_write_intent
+        or len(conversation_signals) >= conversation_threshold
+        or len(projectization_signals) >= projectization_threshold
+        or risk_level in {"R4", "R5"}
+    )
+    if lane == "PROJECTLESS":
         if conversation_explicit_hits:
             conversation_memory_decision = "create_or_update_current_conversation"
+        elif active_conversation_memory_durable_signal:
+            conversation_memory_decision = "create_or_update_current_conversation"
         elif len(conversation_signals) >= conversation_threshold:
-            conversation_memory_decision = "checkpoint_candidate"
+            if projectization_decision == "not_project" and not read_only_memory_audit_intent:
+                conversation_memory_decision = "checkpoint_candidate"
 
     link_intent = _conversation_link_intent(task_text, policy)
     if link_intent != "none":
@@ -516,12 +563,15 @@ def intake_router(task_text: str = "", cwd: str | None = None, policy: dict[str,
         record_intent = "explicit_user_request"
     elif common_error_hits:
         record_intent = "inferred_reusable_error"
-    elif projectization_decision == "emergent_project_candidate":
-        record_intent = "projectization_review"
     elif conversation_memory_decision == "create_or_update_current_conversation":
-        record_intent = "explicit_conversation_memory_request"
+        if conversation_explicit_hits:
+            record_intent = "explicit_conversation_memory_request"
+        else:
+            record_intent = "conversation_checkpoint"
     elif conversation_memory_decision == "checkpoint_candidate":
         record_intent = "conversation_checkpoint"
+    elif projectization_decision == "emergent_project_candidate":
+        record_intent = "projectization_review"
     elif link_intent in {"merge_memories_explicit", "archive_or_seal_memory"}:
         record_intent = "explicit_cross_conversation_update"
     elif link_intent != "none":
@@ -542,10 +592,12 @@ def intake_router(task_text: str = "", cwd: str | None = None, policy: dict[str,
         memory_lane = "self_reflection_matrix"
     elif lane != "PROJECTLESS":
         memory_lane = "current_project"
-    elif projectization_decision == "emergent_project_candidate":
-        memory_lane = "emergent_project_candidate"
     elif link_intent != "none":
         memory_lane = "referenced_conversation"
+    elif conversation_memory_decision != "none" and (has_active_conversation_memory_lane or conversation_explicit_hits):
+        memory_lane = "current_conversation"
+    elif projectization_decision == "emergent_project_candidate":
+        memory_lane = "emergent_project_candidate"
     elif conversation_memory_decision != "none":
         memory_lane = "current_conversation"
     else:
@@ -558,7 +610,10 @@ def intake_router(task_text: str = "", cwd: str | None = None, policy: dict[str,
         "conversation_checkpoint",
         "explicit_cross_conversation_update",
     }:
-        memory_mode = "write"
+        if memory_lane == "current_conversation" and has_active_conversation_memory_lane:
+            memory_mode = "update"
+        else:
+            memory_mode = "write"
     elif memory_need != "none":
         memory_mode = "read"
     else:

@@ -49,6 +49,8 @@ one receipt or delta
 
 Memory use is routed. Ordinary chat should not write memory by default. Explicit requests to record an error may write memory after lane and sensitivity checks. Small reusable mistakes should enter a common error corpus first as compact error-and-solution samples with symptom, cause, applied solution, prevention, validation, and evidence; high-impact, repeated, or explicitly requested incidents should become paired ERR/SOL records.
 
+Reusable memory capsules should use source-monitoring fields: `source_tag`, `belief_status`, structured `confidence`, `derived_from`, `source_monitoring`, and `belief_trace_summary`. `belief_status` tracks the verification-process state; `confidence` tracks evidence strength for assigning that status, not the raw probability that the original claim is true. Compressed or synthesized capsules must preserve `derived_from`.
+
 Projectless work can drift into a project. If repository, versioning, docs, tests, adapters, release, or repeated architecture-decision signals accumulate, mark the task as an emergent project candidate before writing project memory.
 
 Projectless long conversations can also drift into a conversation memory lane before they become a project. Use `templates/conversation-memory/`: read `_META_INDEX.md` first, then `conversation_state.md`, `index.json`, `memory_links.jsonl`, or one matching JSONL family, then only matching records.

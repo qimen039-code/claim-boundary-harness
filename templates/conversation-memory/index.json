@@ -3,6 +3,15 @@
   "memory_type": "conversation",
   "lane": "CONVERSATION_TEMPLATE",
   "status": "TEMPLATE",
+  "capsule_schema": "source-monitoring-memory-schema",
+  "capsule_schema_fields": [
+    "source_tag",
+    "belief_status",
+    "confidence",
+    "derived_from",
+    "source_monitoring",
+    "belief_trace_summary"
+  ],
   "scope": "one isolated long-running conversation or thread",
   "title": "Replace with a short title",
   "summary": "Synthetic template only. No real conversation history is included.",

@@ -28,10 +28,36 @@ Every project, conversation, or skill memory library should expose a compact met
 | `does_not_apply_when` | Explicit non-applicable boundary. |
 | `linked_modules` | Project router, semantic anchor file, skill, gate, or script that should be opened next. |
 | `linked_records` | Related capsule IDs, ERR/SOL pairs, supersession links, or source-ledger IDs. |
+| `source_tag` | Optional index-level source class for capsules, such as `user_claim`, `external_source`, `memory_capsule`, or `inferred_synthesis`. |
+| `belief_status` | Optional index-level verification state for capsules, such as `source_prior`, `bounded_claim`, `local_validated`, `conflicted`, or `rejected`. |
+| `confidence_label` | Optional compact evidence-strength label for the current `belief_status`; full basis stays in the payload. |
 | `created_at` | Creation timestamp for initial ordering and audit. |
 | `updated_at` | Last durable memory update; use for latest-continuation lookup, not every ordinary chat turn. |
 | `link_policy` | Default link behavior, such as `link_only_by_default` or `explicit_merge_required`. |
 | `last_reviewed` | Date or version marker for staleness checks. |
+
+## Capsule Source Monitoring Fields
+
+Memory capsules that contain reusable claims, compressed summaries, source-grounded learning, rejected paths, or synthesized guidance should use the source-monitoring schema:
+
+```text
+source_tag
+belief_status
+confidence
+derived_from
+source_monitoring
+belief_trace or belief_trace_summary
+```
+
+See [source-monitoring-memory-schema.md](source-monitoring-memory-schema.md) for the full field contract.
+
+Important boundaries:
+
+- `belief_status` tracks the verification-process state. It is not a truth score.
+- `confidence` tracks the evidence strength for assigning the current `belief_status`, not the probability that the original claim is true.
+- `derived_from` is required when a capsule is compressed, synthesized, or derived from another memory capsule.
+- `belief_trace_summary.current_status` must match `belief_status`.
+- Optional numeric scores are adapter metadata. They should not replace `confidence.label` and `confidence.basis`.
 
 ## Link And Timestamp Rules
 
@@ -71,7 +97,7 @@ Use a broader scan only when the task is explicitly a full audit, migration, cle
 Use a compact table or structured record:
 
 ```text
-ID | Type | Status | Updated At | Summary | Retrieval Terms | Semantic Anchors | Applies | Not Applies | Linked Modules | Linked Records | Supersedes | Superseded By
+ID | Type | Status | Updated At | Belief Status | Source Tag | Confidence | Summary | Retrieval Terms | Semantic Anchors | Applies | Not Applies | Linked Modules | Linked Records | Supersedes | Superseded By
 ```
 
 For paired incident records, keep `ERR-*` and `SOL-*` linked both ways. The index should be enough to decide whether the payload is relevant before opening it.

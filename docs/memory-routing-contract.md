@@ -42,6 +42,8 @@ When a new conversation continues an older one, default to `link_intent: continu
 
 When the user explicitly asks to merge conversations, use `link_intent: merge_memories_explicit`. Create a new merged memory and append `merged_into` links from the old memory IDs.
 
+When the route writes or updates a reusable memory capsule, apply the source-monitoring schema from [source-monitoring-memory-schema.md](source-monitoring-memory-schema.md). In particular, compressed or synthesized memory must preserve `derived_from`, and untested conversation or source-derived claims should remain `source_prior` or `bounded_claim`.
+
 ## Projectization Drift
 
 If projectless work accumulates durable signals, mark it as `emergent_project_candidate` before writing project memory:

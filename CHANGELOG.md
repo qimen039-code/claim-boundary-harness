@@ -4,6 +4,20 @@ All notable public changes should be recorded here.
 
 This project uses `vMAJOR.MINOR.PATCH` version labels while the framework is still early-stage.
 
+## v0.14.12 - 2026-06-22
+
+- Added plural Chinese/English explicit-recording triggers so phrases such as "record these issues" and "记录这几个问题" route to memory recording instead of falling through as no-memory work.
+- Hardened the WorkBuddy Python runtime tests for Windows/Codex sandbox environments where `tempfile.TemporaryDirectory()` can create directories with unusable ACLs.
+- Added a regression test for plural Chinese issue-recording phrasing.
+
+## v0.14.11 - 2026-06-22
+
+- Added a source-monitoring memory schema for capsules, covering `source_tag`, `belief_status`, structured `confidence`, `derived_from`, `source_monitoring`, `belief_trace`, and `belief_trace_summary`.
+- Clarified that `belief_status` is a verification-process state and `confidence` is the evidence strength for assigning that state, not a naked probability score.
+- Added conditional capsule rules for `score` / `score_method`, synthesized provenance, correction evidence, rejected capsules, novelty adapter boundaries, and trace compression.
+- Updated project, conversation, global archive, and demo memory templates to expose compact source-monitoring fields through meta-first indexes.
+- Tightened conversation-memory routing so explicit current/local conversation memory updates route to the conversation-memory surface and current-conversation lane instead of being swallowed by broader private/local rule wording.
+
 ## v0.14.10 - 2026-06-22
 
 - Removed the former-name line from the README so the public homepage presents Claim Boundary Harness as a new, focused project identity.

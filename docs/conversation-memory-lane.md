@@ -154,6 +154,25 @@ Do not write:
 - credentials, personal values, or sensitive payloads;
 - speculative claims without evidence labels.
 
+## Capsule Compression Schema
+
+When a conversation lane is summarized into a reusable memory capsule, use the same source-monitoring fields as project memory:
+
+```text
+source_tag
+belief_status
+confidence
+derived_from
+source_monitoring
+belief_trace_summary
+```
+
+Typical conversation-memory compression starts as `source_tag: conversation_memory`. If the capsule is distilled from prior chat state or older capsules, `derived_from` must preserve the source memory ID, source record IDs, and inherited boundary.
+
+Do not promote a conversation-derived claim to `local_validated` unless there is local file, test, tool, or explicit evidence for that status. Most conversation summaries should remain `source_prior` or `bounded_claim`.
+
+See [source-monitoring-memory-schema.md](source-monitoring-memory-schema.md) for the complete field contract.
+
 ## Template
 
 Use `templates/conversation-memory/` as a blank starting point. The template is synthetic and contains no real conversation history.

@@ -2,7 +2,7 @@
 
 Stop coding agents from calling weak evidence "validated." Claim Boundary Harness adds meta-first routing, project-scoped memory lanes, R0-R5 risk receipts, and deployment adapters for claim verification.
 
-Current version: `v0.14.10`
+Current version: `v0.14.12`
 
 It is not tied to one agent runtime. It is a neutral starting point that can be mapped into any agent that can read workspace instructions, run local scripts, use command or skill folders, or call hooks before tools.
 
@@ -58,6 +58,7 @@ flowchart TD
 - **Selective hook/wrapper/tool proxy runtime:** only critical boundaries such as R5, high-risk tools, low-confidence routes, long-term memory writes, and final strong claims need hard stops.
 - **Meta-first memory retrieval:** memory lookup is not a direct file dive. The required chain is meta summary or `_META_INDEX`, then category or point index, then only the matching capsule or paired record.
 - **Multi-axis memory meta index:** memory libraries should expose lane, scope, category, record type, status, retrieval terms, applicability, linked modules, linked records, and staleness markers so agents can select one payload instead of scanning history.
+- **Source-monitoring memory schema:** reusable memory capsules can track `source_tag`, `belief_status`, structured `confidence`, `derived_from`, observation state, and belief traces so agents can distinguish hypotheses, source priors, bounded claims, local validation, conflicts, and rejected paths.
 - **No continuous skill generation by default:** the framework does not keep creating new skills automatically. Too many self-generated skills can pollute project boundaries, weaken routing discipline, and make it unclear which rule owns a task. Reusable knowledge should instead be added to a clearly registered skill knowledge library, reference pack, or tool content pack, then routed explicitly.
 - **Leverage-first improvement rule:** external mechanisms are absorbed only when they reduce ambiguity, improve adapter verification, or close a real deployment gap. They must not increase ordinary-task cost, load all skills or memory by default, or turn the whiteboard core into a large runtime.
 - **External optimizer boundary:** SkillOpt-style mechanisms are treated as adapted rules unless executable adoption is explicitly approved. Public benchmark claims remain source-prior until locally validated.
@@ -123,6 +124,7 @@ user request
 - **Paired improvement records**: one error record plus one solution record for each solved recurring incident.
 - **Layered project memory library**: a meta index points to category indexes, and category indexes point to individual capsules.
 - **Memory meta index contract**: a multi-axis index shape for project memory libraries and skill point sets.
+- **Source monitoring memory schema**: provenance and belief-state fields for memory capsules, including `source_tag`, `belief_status`, structured `confidence`, `derived_from`, observation state, belief traces, and optional adapter score boundaries.
 - **Common error corpus template**: lightweight CE records for small recurring field/schema, tool-call, semantic-routing, patch-context, PowerShell/path, and Git-boundary mistakes, including the applied solution and validation, before they become full paired incidents.
 - **Whiteboard templates**: empty project memory categories, project instructions, semantic anchors, and error/solution ledgers.
 
@@ -145,6 +147,7 @@ user request
 |   +-- version-compatibility-management.md
 |   +-- integrations/
 |   +-- memory-meta-index-contract.md
+|   +-- source-monitoring-memory-schema.md
 |   +-- memory-routing-contract.md
 |   +-- common-error-corpus.md
 |   +-- conversation-memory-lane.md
@@ -310,6 +313,7 @@ The package includes synthetic examples that show the intended record shapes wit
 - [docs/version-compatibility-management.md](docs/version-compatibility-management.md): runtime/client compatibility manifest and drift response rules.
 - [docs/memory-routing-contract.md](docs/memory-routing-contract.md): memory mode, memory lane, record intent, and projectization drift contract.
 - [docs/memory-meta-index-contract.md](docs/memory-meta-index-contract.md): multi-axis meta index contract for memory libraries.
+- [docs/source-monitoring-memory-schema.md](docs/source-monitoring-memory-schema.md): source tags, belief-status state, structured confidence, derived provenance, observation state, and belief-trace rules for capsules.
 - [docs/common-error-corpus.md](docs/common-error-corpus.md): lightweight common-error sample format.
 - [docs/conversation-memory-lane.md](docs/conversation-memory-lane.md): isolated memory lane for long-running projectless conversations.
 - [docs/memory-linking-contract.md](docs/memory-linking-contract.md): stable memory IDs, timestamps, link-only continuation, explicit merge, and fuzzy lookup rules.

@@ -137,7 +137,7 @@ function Get-TaskMatchedTerms($patterns) {
 function Get-TargetSurface() {
   $rules = $policy.router_decision_contract.target_surface_trigger_rules
   if ($null -ne $rules) {
-    foreach ($name in @("git_action", "tool_call", "adapter", "public_docs", "private_rule", "local_harness", "skill_matrix", "conversation_memory", "project_memory")) {
+    foreach ($name in @("git_action", "tool_call", "adapter", "public_docs", "conversation_memory", "private_rule", "local_harness", "skill_matrix", "project_memory")) {
       $triggers = Get-ObjectPropertyValue $rules $name
       if ((Get-MatchedTriggers $triggers).Count -gt 0) {
         return $name
@@ -171,7 +171,49 @@ function Get-Audience([string]$lane) {
   return "current_chat"
 }
 
+function Find-ActiveConversationMemoryLane([string]$path) {
+  try {
+    $current = (Resolve-Path -LiteralPath $path).Path
+  } catch {
+    $current = $path
+  }
+  for ($depth = 0; $depth -lt 5; $depth++) {
+    if ([string]::IsNullOrWhiteSpace($current)) {
+      break
+    }
+    $root = Join-Path $current "local-conversation-memory"
+    if (Test-Path -LiteralPath $root) {
+      foreach ($lane in Get-ChildItem -LiteralPath $root -Directory -ErrorAction SilentlyContinue) {
+        $metaPath = Join-Path $lane.FullName "_META_INDEX.md"
+        $indexPath = Join-Path $lane.FullName "index.json"
+        if ((Test-Path -LiteralPath $metaPath) -or (Test-Path -LiteralPath $indexPath)) {
+          $metaText = ""
+          $indexText = ""
+          if (Test-Path -LiteralPath $metaPath) {
+            $metaText = Get-Content -LiteralPath $metaPath -Raw -Encoding UTF8
+          }
+          if (Test-Path -LiteralPath $indexPath) {
+            $indexText = Get-Content -LiteralPath $indexPath -Raw -Encoding UTF8
+          }
+          $combined = "$metaText`n$indexText"
+          if (($combined -match "status[`"']?\s*[:=]\s*[`"']?ACTIVE") -or ($combined -match "single_conversation_project_shaped_lane")) {
+            return $lane.FullName
+          }
+        }
+      }
+    }
+    $parent = Split-Path -Parent $current
+    if (($parent -eq $current) -or [string]::IsNullOrWhiteSpace($parent)) {
+      break
+    }
+    $current = $parent
+  }
+  return ""
+}
+
 $projectLane = Get-ProjectLane $Cwd
+$activeConversationMemoryLanePath = Find-ActiveConversationMemoryLane $Cwd
+$hasActiveConversationMemoryLane = -not [string]::IsNullOrWhiteSpace($activeConversationMemoryLanePath)
 $risk = "R0"
 $approval = @()
 $requiredGates = @("microkernel")
@@ -343,10 +385,42 @@ if ($projectLane -ne "PROJECTLESS") {
 }
 
 $conversationMemoryDecision = "none"
-if (($projectLane -eq "PROJECTLESS") -and ($projectizationDecision -eq "not_project")) {
+$readOnlyAuditTriggers = $policy.router_decision_contract.read_only_memory_audit_triggers
+if ($null -eq $readOnlyAuditTriggers) {
+  $readOnlyAuditTriggers = @("read-only", "readonly", "check whether", "verify whether")
+}
+$activeConversationWriteIntentTriggers = $policy.router_decision_contract.active_conversation_write_intent_triggers
+if ($null -eq $activeConversationWriteIntentTriggers) {
+  $activeConversationWriteIntentTriggers = @("fix", "modify", "change", "write", "record this", "implement")
+}
+$readOnlyAuditHits = Get-MatchedTriggers $readOnlyAuditTriggers
+$activeConversationWriteIntentHits = Get-MatchedTriggers $activeConversationWriteIntentTriggers
+$readOnlyMemoryAuditIntent = (
+  ($readOnlyAuditHits.Count -gt 0) -and
+  ($activeConversationWriteIntentHits.Count -eq 0) -and
+  ($explicitRecordHits.Count -eq 0) -and
+  ($commonErrorHits.Count -eq 0)
+)
+$activeConversationWriteIntent = (
+  ($activeConversationWriteIntentHits.Count -gt 0) -or
+  ($explicitRecordHits.Count -gt 0) -or
+  ($commonErrorHits.Count -gt 0)
+)
+$activeConversationMemoryDurableSignal = (
+  $hasActiveConversationMemoryLane -and
+  (-not $readOnlyMemoryAuditIntent) -and (
+    $activeConversationWriteIntent -or
+    ($conversationSignals.Count -ge $conversationThreshold) -or
+    ($projectizationSignals.Count -ge $projectizationThreshold) -or
+    ($risk -in @("R4", "R5"))
+  )
+)
+if ($projectLane -eq "PROJECTLESS") {
   if ($conversationExplicitHits.Count -gt 0) {
     $conversationMemoryDecision = "create_or_update_current_conversation"
-  } elseif ($conversationSignals.Count -ge $conversationThreshold) {
+  } elseif ($activeConversationMemoryDurableSignal) {
+    $conversationMemoryDecision = "create_or_update_current_conversation"
+  } elseif ((-not $readOnlyMemoryAuditIntent) -and ($projectizationDecision -eq "not_project") -and ($conversationSignals.Count -ge $conversationThreshold)) {
     $conversationMemoryDecision = "checkpoint_candidate"
   }
 }
@@ -379,12 +453,16 @@ if ($explicitRecordHits.Count -gt 0) {
   $recordIntent = "explicit_user_request"
 } elseif ($commonErrorHits.Count -gt 0) {
   $recordIntent = "inferred_reusable_error"
-} elseif ($projectizationDecision -eq "emergent_project_candidate") {
-  $recordIntent = "projectization_review"
 } elseif ($conversationMemoryDecision -eq "create_or_update_current_conversation") {
-  $recordIntent = "explicit_conversation_memory_request"
+  if ($conversationExplicitHits.Count -gt 0) {
+    $recordIntent = "explicit_conversation_memory_request"
+  } else {
+    $recordIntent = "conversation_checkpoint"
+  }
 } elseif ($conversationMemoryDecision -eq "checkpoint_candidate") {
   $recordIntent = "conversation_checkpoint"
+} elseif ($projectizationDecision -eq "emergent_project_candidate") {
+  $recordIntent = "projectization_review"
 } elseif ($linkIntent -in @("merge_memories_explicit", "archive_or_seal_memory")) {
   $recordIntent = "explicit_cross_conversation_update"
 } elseif ($linkIntent -ne "none") {
@@ -407,17 +485,23 @@ if ($commonErrorHits.Count -gt 0) {
   $memoryLane = "self_reflection_matrix"
 } elseif ($projectLane -ne "PROJECTLESS") {
   $memoryLane = "current_project"
-} elseif ($projectizationDecision -eq "emergent_project_candidate") {
-  $memoryLane = "emergent_project_candidate"
 } elseif ($linkIntent -ne "none") {
   $memoryLane = "referenced_conversation"
+} elseif (($conversationMemoryDecision -ne "none") -and ($hasActiveConversationMemoryLane -or ($conversationExplicitHits.Count -gt 0))) {
+  $memoryLane = "current_conversation"
+} elseif ($projectizationDecision -eq "emergent_project_candidate") {
+  $memoryLane = "emergent_project_candidate"
 } elseif ($conversationMemoryDecision -ne "none") {
   $memoryLane = "current_conversation"
 }
 
 $memoryMode = "none"
 if (($recordIntent -eq "explicit_user_request") -or ($recordIntent -eq "inferred_reusable_error") -or ($recordIntent -eq "explicit_conversation_memory_request") -or ($recordIntent -eq "conversation_checkpoint") -or ($recordIntent -eq "explicit_cross_conversation_update")) {
-  $memoryMode = "write"
+  if (($memoryLane -eq "current_conversation") -and $hasActiveConversationMemoryLane) {
+    $memoryMode = "update"
+  } else {
+    $memoryMode = "write"
+  }
 } elseif ($memoryNeed -ne "none") {
   $memoryMode = "read"
 }

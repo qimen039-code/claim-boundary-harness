@@ -217,3 +217,33 @@ Expected boundary:
 - project propagation is off;
 - work decisions still use evidence, gates, risk rules, and verification;
 - persona cannot affect factual claims, tests, memory boundaries, or external research decisions.
+
+## Example 17: Source-Monitoring Memory Capsule
+
+Input:
+
+```text
+turn this external mechanism note into a reusable memory capsule
+```
+
+Expected route:
+
+- read the memory meta index first;
+- classify the note as source-derived or synthesized before writing;
+- write `source_tag`, `belief_status`, structured `confidence`, and `derived_from`;
+- keep optional numeric scores out of the core capsule unless an adapter actually computed them;
+- mark untested adoption claims as `source_prior` or `bounded_claim`, not `local_validated`.
+
+Minimum capsule fields:
+
+```text
+source_tag
+belief_status
+confidence.label
+confidence.basis
+derived_from
+source_monitoring
+belief_trace_summary
+```
+
+See [source-monitoring-memory-schema.md](source-monitoring-memory-schema.md) for conditional rules such as `score` / `score_method`, `corrects` requiring correction evidence, and `belief_trace_summary.current_status` matching `belief_status`.

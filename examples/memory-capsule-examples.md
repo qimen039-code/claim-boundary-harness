@@ -10,6 +10,8 @@ These examples are synthetic. They show record shape only. Replace every lane, p
 status: template_example
 lane: EXAMPLE_PROJECT
 point_kind: project_memory_capsule
+source_tag: inferred_synthesis
+belief_status: bounded_claim
 purpose_anchor: Keep project routing and memory boundaries reusable across conversations.
 meaning_anchor: The agent should read only the active project memory unless the user explicitly asks for cross-project synthesis.
 outer_retrieval_surface:
@@ -18,6 +20,23 @@ outer_retrieval_surface:
   - root instruction reload
 source_boundary: Synthetic example only.
 evidence_boundary: Not a validation result.
+confidence:
+  label: medium
+  basis: Status assigned as bounded_claim because this is a synthetic framework example with explicit scope, not a local runtime validation record.
+derived_from:
+  - type: source_note
+    ref_id: TEMPLATE-SOURCE-001
+    relationship: synthesized_from
+    inherited_boundary: template_only
+source_monitoring:
+  observation_state: resolved
+  trigger_reason: manual_review
+  last_checked: YYYY-MM-DDTHH:MM:SSZ
+belief_trace_summary:
+  initial_status: hypothesis
+  current_status: bounded_claim
+  intermediate_steps_count: 1
+  archived_trace_ref: none
 content_summary: A project lane owns its instructions, progress notes, and incident records. Other lanes are not read or written unless explicitly requested.
 applicable_boundaries:
   - current project tasks
@@ -108,9 +127,26 @@ references: none
   "claim_id": "CLAIM-EXAMPLE-001",
   "claim_text": "The harness continued to route a new conversation through the configured chain.",
   "claim_type": "field_use_note",
+  "source_tag": "local_test",
+  "belief_status": "bounded_claim",
   "source_type": "local_smoke",
   "evidence_boundary": "Example shape only. Replace with your own smoke output.",
-  "confidence": "bounded",
+  "confidence": {
+    "label": "medium",
+    "basis": "Status is bounded_claim because the example requires local smoke output but this public record is synthetic."
+  },
+  "derived_from": [
+    {
+      "type": "test_result",
+      "ref_id": "TEST-EXAMPLE-001",
+      "relationship": "extends"
+    }
+  ],
+  "source_monitoring": {
+    "observation_state": "resolved",
+    "trigger_reason": "manual_review",
+    "last_checked": "YYYY-MM-DDTHH:MM:SSZ"
+  },
   "not_claimed": [
     "universal compatibility",
     "hard security enforcement",
