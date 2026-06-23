@@ -13,6 +13,7 @@ Use the compatibility manifest to answer:
 - which agent/runtime version was checked;
 - which instruction entry is loaded;
 - which hook events exist;
+- which lifecycle capture points are actually wired, such as prompt, pre-tool, post-tool, pre-compaction, and final stages;
 - which hook matchers are intentionally narrow versus broad;
 - which wrapper paths and language runtimes are available;
 - which denial schema and exit code are expected;
@@ -82,6 +83,7 @@ Refresh the manifest when any of these change:
 - transcript payload field names for voice or recording input;
 - nested JSON or claim-file handoff format;
 - memory root or project-lane root;
+- external memory server, MCP memory tool, or plugin path;
 - operating system or shell.
 
 Do not refresh the manifest on every turn. Refresh it only on adapter install, agent client update, wrapper/hook edits, failed smoke tests, or explicit user request.
@@ -107,5 +109,6 @@ Automatic repair should be opt-in. Compatibility checks may read local config an
 
 - LanNguyenSi/harness is a source-prior influence for manifest-style declarative control planes and validation vocabulary: https://github.com/LanNguyenSi/harness
 - Epic Harness is a source-prior influence for hook health and pipeline state ideas, but its self-evolving skill behavior is not part of this default contract: https://github.com/epicsagas/epic-harness
+- rohitg00/agentmemory is a source-prior influence for lifecycle hook coverage, memory command semantics, hybrid retrieval vocabulary, and client-update hook drift caveats. It is not a required backend for this framework: https://github.com/rohitg00/agentmemory
 
 Treat those as design references. Local compatibility remains unverified until the target runtime passes its acceptance matrix.

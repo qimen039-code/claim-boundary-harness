@@ -39,10 +39,13 @@ belief_status
 confidence
 derived_from
 source_monitoring
+lifecycle
 belief_trace_summary
 ```
 
 Conversation-derived claims normally start as `source_prior` or `bounded_claim`; promote them to `local_validated` only with local evidence.
+
+When returning selected conversation memory to an agent, include `source_tag`, `derived_from`, `belief_status`, `confidence`, and `score_method` with the selected text. Use `score_method: none` when no numeric retrieval score is computed.
 
 ## Latest And Fuzzy Lookup
 

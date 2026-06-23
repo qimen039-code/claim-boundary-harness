@@ -1,18 +1,20 @@
 from __future__ import annotations
 
 import json
+import io
 import os
 import shutil
 import subprocess
 import sys
 import unittest
 import uuid
-from contextlib import contextmanager
+from contextlib import contextmanager, redirect_stdout
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
+import workbuddy_harness.hook_runner as hook_runner  # noqa: E402
 from workbuddy_harness import (  # noqa: E402
     claim_schema_verifier,
     flush_logs,
@@ -91,6 +93,29 @@ class HarnessGateTests(unittest.TestCase):
         self.assertNotEqual(route["risk_level"], "R5")
         self.assertIn("R1", route["triggered_risks"])
         self.assertIn("delete", route["negated_risk_triggers"].get("R5", []))
+
+    def test_router_detects_completion_review_as_read_only_scope_check(self) -> None:
+        route = self._route(
+            "review whether the memory layer absorption is complete and identify unfinished public or local work",
+            policy=self.policy,
+        )
+        self.assertEqual(route["risk_level"], "R1")
+        self.assertIn("scope_reassessment_gate", route["required_gates"])
+        self.assertIn("composite_or_scope_reassessment", route["semantic_ambiguity"])
+
+    def test_router_detects_chinese_absorption_status_review_as_composite_change_check(self) -> None:
+        route = self._route("所以刚刚做到一半的功能吸纳落地做完了吗，回顾一下还有什么没做完", policy=self.policy)
+        self.assertEqual(route["risk_level"], "R3")
+        self.assertIn("R1", route["triggered_risks"])
+        self.assertIn("scope_reassessment_gate", route["required_gates"])
+        self.assertIn("composite_or_scope_reassessment", route["semantic_ambiguity"])
+
+    def test_router_detects_static_knowledge_layer_lookup(self) -> None:
+        route = self._route("read the project manual and module map before editing", policy=self.policy)
+        self.assertIn("R1", route["triggered_risks"])
+        self.assertEqual(route["memory_need"], "index_only")
+        self.assertIn("static_knowledge_index", route["module_need"])
+        self.assertIn("static_knowledge_index_gate", route["required_gates"])
 
     def test_router_detects_github_external_research(self) -> None:
         route = self._route("compare GitHub open source repositories and learn from them", policy=self.policy)
@@ -320,6 +345,14 @@ class HarnessGateTests(unittest.TestCase):
             content = log_path.read_text(encoding="utf-8")
             self.assertIn("<invalid-surrogate>", content)
             self.assertNotIn("\\udcac", content)
+
+    def test_hook_runner_json_output_keeps_readable_unicode(self) -> None:
+        buffer = io.StringIO()
+        with redirect_stdout(buffer):
+            hook_runner._write_json({"text": "中文调试"})
+        output = buffer.getvalue()
+        self.assertIn("中文调试", output)
+        self.assertNotIn("\\u4e2d", output)
 
     def test_runtime_log_dir_writes_event_file(self) -> None:
         with writable_test_dir() as tmp:

@@ -1,0 +1,14 @@
+{
+  "schema_version": "skillopt-cycle/v1",
+  "kind": "rejected_edit_record",
+  "rejected_id": "REJ-SKILLOPT-YYYYMMDD-HHMMSS-short-slug",
+  "candidate_id": "SKILLOPT-YYYYMMDD-HHMMSS-short-slug",
+  "target_surface": "skill",
+  "bad_change_summary": "The rejected candidate summary.",
+  "why_rejected": [
+    "Boundary, evidence, schema, or learning-rate failure."
+  ],
+  "evidence": [],
+  "prevention_rule": "Do not promote candidates that fail schema, boundary, evidence, or regression-probe gates.",
+  "date": "YYYY-MM-DDTHH:MM:SSZ"
+}

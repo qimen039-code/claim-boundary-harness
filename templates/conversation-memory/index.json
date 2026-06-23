@@ -10,7 +10,15 @@
     "confidence",
     "derived_from",
     "source_monitoring",
+    "lifecycle",
     "belief_trace_summary"
+  ],
+  "retrieval_result_required_fields": [
+    "source_tag",
+    "belief_status",
+    "confidence",
+    "derived_from",
+    "score_method"
   ],
   "scope": "one isolated long-running conversation or thread",
   "title": "Replace with a short title",

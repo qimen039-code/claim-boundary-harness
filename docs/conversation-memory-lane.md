@@ -164,12 +164,15 @@ belief_status
 confidence
 derived_from
 source_monitoring
+lifecycle
 belief_trace_summary
 ```
 
 Typical conversation-memory compression starts as `source_tag: conversation_memory`. If the capsule is distilled from prior chat state or older capsules, `derived_from` must preserve the source memory ID, source record IDs, and inherited boundary.
 
 Do not promote a conversation-derived claim to `local_validated` unless there is local file, test, tool, or explicit evidence for that status. Most conversation summaries should remain `source_prior` or `bounded_claim`.
+
+When a conversation memory is returned to an agent, the selected result should include `source_tag`, `derived_from`, `belief_status`, structured `confidence`, and `score_method`. If no numeric retrieval score was computed, use `score_method: none` and omit `score`.
 
 See [source-monitoring-memory-schema.md](source-monitoring-memory-schema.md) for the complete field contract.
 

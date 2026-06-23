@@ -4,6 +4,63 @@ All notable public changes should be recorded here.
 
 This project uses `vMAJOR.MINOR.PATCH` version labels while the framework is still early-stage.
 
+## v0.14.21 - 2026-06-23
+
+- Slimmed the README first screen by replacing the long start menu and repeated value sections with a compact overview, fast-path table, and shorter difference summary.
+- Condensed the adoption notes on the README into a shorter reality-check section that links to the detailed adoption and deployment-risk docs.
+- Made the WorkBuddy hook runner emit readable Unicode JSON by default while retaining a UTF-8 fallback for stdout encoding failures.
+- Added routing triggers for README first-screen slimming and similar public-doc simplification tasks so they do not fall through as R0.
+
+## v0.14.20 - 2026-06-23
+
+- Added an explicit attribution section to the Static Knowledge Layer, clarifying that it adapts the established pattern of repository manuals, project wikis, and close-to-code knowledge bases without vendoring a specific upstream wiki implementation.
+- Tightened `docs/memory-meta-index-contract.md` for static knowledge and source-monitoring constraints: `_STATIC_KNOWLEDGE_INDEX.md`, `static_knowledge`, `static_knowledge_page`, `promotion_reason`, and `decay_reason`.
+- Updated the static knowledge index template so lifecycle, retention, promotion, and decay fields are visible at the index layer.
+
+## v0.14.19 - 2026-06-23
+
+- Added an optional Static Knowledge Layer for wiki-style project manuals, including indexed templates for project maps, entry points, conventions, and interface notes.
+- Routed static knowledge lookups through `static_knowledge_index` and `static_knowledge_index_gate` so project manuals stay index-first and `source_prior` by default.
+- Added `source_tag: static_knowledge` and `static_knowledge_page` provenance language to the source-monitoring schema.
+- Updated README, architecture, adoption, reproduction, CI smoke checks, and adapter tests to cover the static knowledge layer without making it a memory backend.
+
+## v0.14.18 - 2026-06-23
+
+- Added read-only completion/status review triggers so phrases such as "review whether this is complete" or "还有什么没做完" do not fall through as R0 ordinary chat.
+- Mirrored scope-reassessment gate handling in the WorkBuddy Python adapter so composite/status-review routing matches the policy-backed PowerShell router.
+- Added a regression test case for completion/status review routing.
+
+## v0.14.17 - 2026-06-23
+
+- Added `docs/test-cases.md` with reference acceptance cases for routing, claim boundaries, memory lanes, adapter/runtime checks, shell robustness, and SkillOpt-style cycles.
+- Added composite-task and scope-reassessment routing rules so multi-intent requests keep the highest risk level and union of required gates instead of being under-routed by the first narrow phrase.
+- Updated public status language for Codex and WorkBuddy: Codex has extended private use observations, and WorkBuddy has one local hook deployment confirmation while remaining non-certified across versions.
+
+## v0.14.16 - 2026-06-23
+
+- Added a practical innovation summary to the README so readers can quickly see the concrete value of claim boundaries, memory-lane linking, metadata-bearing retrieval, low-cost routing, selective hard gates, source-grounded learning, and periodic skill improvement.
+- Clarified that borrowed mechanisms remain attributed while the repository's contribution is the composed boundary contract and runnable reference package.
+
+## v0.14.15 - 2026-06-23
+
+- Clarified the memory-lane innovation in the README: project, conversation, common-error, and archive lanes can be linked through metadata and ledgers while payload writes stay lane-scoped by default.
+- Added a stronger public explanation of meta-first memory lookup, link-only continuation, explicit merge boundaries, and metadata-bearing retrieval results.
+
+## v0.14.14 - 2026-06-23
+
+- Added a default-off executable SkillOpt-style external module at `tools/skillopt/skillopt_cycle.py` for periodic candidate-edit generation, validation gating, rejected-edit records, and slow-update proposals.
+- Added SkillOpt runtime templates under `templates/skillopt/` and a smoke-testable runtime guide in `docs/skillopt-runtime.md`.
+- Added `docs/influences-and-attribution.md` to separate project contributions from public GitHub and engineering-pattern influences.
+- Updated README, reproduction checks, registry wording, and CI smoke workflow so the SkillOpt-style layer is described as an optional executable module rather than only a document.
+
+## v0.14.13 - 2026-06-23
+
+- Added a hook capture point matrix for prompt, tool, compaction, and stop/final stages without turning every tool call into a hard wrapper.
+- Added a retrieval-result boundary requiring memory retrieval outputs to carry source, provenance, belief state, confidence, and score-method metadata instead of returning unbounded text snippets.
+- Added optional lifecycle metadata for reusable memory capsules: `stage`, `retention_policy`, `last_accessed_at`, `promotion_reason`, and `decay_reason`.
+- Added explicit memory command semantics for recall, remember, forget, recap, handoff, session-history, and commit-context style requests.
+- Clarified that full memory backends and automatic cross-agent shared memory are optional adopter choices, not part of the default whiteboard core.
+
 ## v0.14.12 - 2026-06-22
 
 - Added plural Chinese/English explicit-recording triggers so phrases such as "record these issues" and "记录这几个问题" route to memory recording instead of falling through as no-memory work.

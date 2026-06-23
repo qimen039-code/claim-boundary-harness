@@ -13,7 +13,9 @@ read this file
 
 This file is the required first read for the demo memory library. The category indexes and capsule payloads are second- and third-step reads.
 
-Memory capsules in `memory_hierarchy/` use source-monitoring fields so the index can route by `source_tag`, `belief_status`, and confidence label before opening payloads.
+Memory capsules in `memory_hierarchy/` use source-monitoring and lifecycle fields so the index can route by `source_tag`, `belief_status`, confidence label, and lifecycle stage before opening payloads.
+
+Retrieval outputs should return `source_tag`, `derived_from`, `belief_status`, `confidence`, and `score_method` with the selected text.
 
 | Category | Root | Purpose | Current Example | Notes |
 | --- | --- | --- | --- | --- |

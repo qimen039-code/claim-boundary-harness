@@ -370,12 +370,17 @@ fi
 memory_need="none"
 memory_hits=()
 paired_memory_hits=()
+static_knowledge_hits=()
 collect_matching_triggers '.router_decision_contract.memory_need_triggers' memory_hits
 collect_matching_triggers '.router_decision_contract.paired_memory_triggers' paired_memory_hits
+collect_matching_triggers '.router_decision_contract.static_knowledge_triggers' static_knowledge_hits
 if [ "${#paired_memory_hits[@]}" -gt 0 ]; then
   memory_need="paired_err_sol"
-elif [ "${#memory_hits[@]}" -gt 0 ]; then
+elif [ "${#memory_hits[@]}" -gt 0 ] || [ "${#static_knowledge_hits[@]}" -gt 0 ]; then
   memory_need="index_only"
+fi
+if [ "${#static_knowledge_hits[@]}" -gt 0 ]; then
+  add_unique required_gates "static_knowledge_index_gate"
 fi
 
 explicit_record_hits=()
@@ -392,6 +397,10 @@ collect_matching_triggers '.router_decision_contract.conversation_memory_explici
 collect_matching_triggers '.router_decision_contract.conversation_memory_signals' conversation_signals
 collect_matching_triggers '.router_decision_contract.read_only_memory_audit_triggers' read_only_memory_audit_hits
 collect_matching_triggers '.router_decision_contract.active_conversation_write_intent_triggers' active_conversation_write_intent_hits
+self_reflection_record_hits=("${explicit_record_hits[@]}")
+if [ "${#conversation_explicit_hits[@]}" -gt 0 ]; then
+  self_reflection_record_hits=()
+fi
 projectization_threshold="$(jq -r '.router_decision_contract.projectization_threshold // 3' "$POLICY_PATH" | tr -d '\r')"
 conversation_threshold="$(jq -r '.router_decision_contract.conversation_memory_threshold // 2' "$POLICY_PATH" | tr -d '\r')"
 
@@ -434,14 +443,12 @@ fi
 
 if [ "${#common_error_hits[@]}" -gt 0 ]; then
   memory_need="common_error_corpus"
-elif [ "${#explicit_record_hits[@]}" -gt 0 ] && [ "$memory_need" = "none" ]; then
+elif [ "${#self_reflection_record_hits[@]}" -gt 0 ] && [ "$memory_need" = "none" ]; then
   memory_need="paired_err_sol"
 fi
 
 record_intent="no_record"
-if [ "${#explicit_record_hits[@]}" -gt 0 ]; then
-  record_intent="explicit_user_request"
-elif [ "${#common_error_hits[@]}" -gt 0 ]; then
+if [ "${#common_error_hits[@]}" -gt 0 ]; then
   record_intent="inferred_reusable_error"
 elif [ "$conversation_memory_decision" = "create_or_update_current_conversation" ]; then
   if [ "${#conversation_explicit_hits[@]}" -gt 0 ]; then
@@ -449,6 +456,8 @@ elif [ "$conversation_memory_decision" = "create_or_update_current_conversation"
   else
     record_intent="conversation_checkpoint"
   fi
+elif [ "${#self_reflection_record_hits[@]}" -gt 0 ]; then
+  record_intent="explicit_user_request"
 elif [ "$conversation_memory_decision" = "checkpoint_candidate" ]; then
   record_intent="conversation_checkpoint"
 elif [ "$projectization_decision" = "emergent_project_candidate" ]; then
@@ -462,12 +471,12 @@ fi
 memory_lane="none"
 if [ "${#common_error_hits[@]}" -gt 0 ]; then
   memory_lane="common_error_corpus"
-elif [ "${#explicit_record_hits[@]}" -gt 0 ]; then
-  memory_lane="self_reflection_matrix"
 elif [ "$project_lane" != "PROJECTLESS" ]; then
   memory_lane="current_project"
 elif [ "$conversation_memory_decision" != "none" ] && { [ "$has_active_conversation_memory_lane" = true ] || [ "${#conversation_explicit_hits[@]}" -gt 0 ]; }; then
   memory_lane="current_conversation"
+elif [ "${#self_reflection_record_hits[@]}" -gt 0 ]; then
+  memory_lane="self_reflection_matrix"
 elif [ "$projectization_decision" = "emergent_project_candidate" ]; then
   memory_lane="emergent_project_candidate"
 elif [ "$conversation_memory_decision" != "none" ]; then
@@ -485,7 +494,7 @@ elif [ "$memory_need" != "none" ]; then
   memory_mode="read"
 fi
 
-if [ "${#explicit_record_hits[@]}" -gt 0 ] || [ "${#common_error_hits[@]}" -gt 0 ]; then
+if [ "${#self_reflection_record_hits[@]}" -gt 0 ] || [ "${#common_error_hits[@]}" -gt 0 ]; then
   add_unique required_skills "troubleshooting-skill-matrix"
 fi
 
@@ -503,6 +512,7 @@ module_need=()
 [ "${#required_skills[@]}" -gt 0 ] && add_unique module_need "skill_matrix"
 [ "${#semantic_ambiguity[@]}" -gt 0 ] && add_unique module_need "semantic_anchors"
 [ "$memory_need" != "none" ] && add_unique module_need "memory_meta_index"
+[ "${#static_knowledge_hits[@]}" -gt 0 ] && add_unique module_need "static_knowledge_index"
 [ "$conversation_memory_decision" != "none" ] && add_unique module_need "conversation_memory_index"
 if [ "${#external_need[@]}" -gt 0 ] && [ "${external_need[0]}" != "none" ]; then
   add_unique module_need "external_research_gate"

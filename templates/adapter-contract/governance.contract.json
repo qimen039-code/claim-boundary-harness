@@ -65,6 +65,32 @@
         "deny"
       ]
     },
+    "post_tool": {
+      "purpose": "capture observations after execution without promoting them to validated claims",
+      "required_for": [
+        "tool_failure_observation",
+        "candidate_common_error_record",
+        "raw_observation_capture"
+      ],
+      "expected_outputs": [
+        "raw_observation",
+        "working_memory",
+        "no_record"
+      ]
+    },
+    "pre_compact": {
+      "purpose": "checkpoint selected conversation or project state before context compression",
+      "required_for": [
+        "conversation_checkpoint",
+        "handoff",
+        "open_loop_preservation"
+      ],
+      "expected_outputs": [
+        "bounded_summary",
+        "memory_link",
+        "no_record"
+      ]
+    },
     "final_claim": {
       "purpose": "strong claim boundary before final answer",
       "required_for": [
@@ -78,6 +104,16 @@
         "deny"
       ]
     }
+  },
+  "memory_retrieval_result": {
+    "minimum_fields": [
+      "source_tag",
+      "belief_status",
+      "confidence",
+      "derived_from",
+      "score_method"
+    ],
+    "score_rule": "If no numeric score is computed, use score_method=none and omit score. Relevance scores do not replace belief_status or confidence.basis."
   },
   "denial_semantics": {
     "denial_payload_schema": "adapter_specific",
@@ -103,6 +139,11 @@
       "name": "ChatBotKit template-node-agent-cli-js",
       "url": "https://github.com/chatbotkit/template-node-agent-cli-js",
       "used_for": "tool schema and structured CLI output inspiration"
+    },
+    {
+      "name": "rohitg00/agentmemory",
+      "url": "https://github.com/rohitg00/agentmemory",
+      "used_for": "hook lifecycle coverage, explicit memory command vocabulary, and client-update drift caveats"
     }
   ]
 }

@@ -36,7 +36,7 @@ Input:
 
 ```text
 Project lane: EXAMPLE_PROJECT
-Requested path: C:\path\to\project\.agent-memory\note.md
+Requested path: C:\path\to\project\.agent-memory\memory-item.md
 ```
 
 Expected route:
@@ -230,7 +230,7 @@ Expected route:
 
 - read the memory meta index first;
 - classify the note as source-derived or synthesized before writing;
-- write `source_tag`, `belief_status`, structured `confidence`, and `derived_from`;
+- write `source_tag`, `belief_status`, structured `confidence`, `derived_from`, and lifecycle metadata;
 - keep optional numeric scores out of the core capsule unless an adapter actually computed them;
 - mark untested adoption claims as `source_prior` or `bounded_claim`, not `local_validated`.
 
@@ -243,7 +243,42 @@ confidence.label
 confidence.basis
 derived_from
 source_monitoring
+lifecycle
 belief_trace_summary
 ```
 
 See [source-monitoring-memory-schema.md](source-monitoring-memory-schema.md) for conditional rules such as `score` / `score_method`, `corrects` requiring correction evidence, and `belief_trace_summary.current_status` matching `belief_status`.
+
+## Example 18: Bounded Memory Retrieval Result
+
+Input:
+
+```text
+retrieve the memory that explains this adapter failure
+```
+
+Expected returned result:
+
+```json
+{
+  "memory_id": "MEM-EXAMPLE-001",
+  "snippet": "Short selected text only.",
+  "source_tag": "memory_capsule",
+  "belief_status": "bounded_claim",
+  "confidence": {
+    "label": "medium",
+    "basis": "Status came from a reusable capsule; this retrieval did not rerun local tests."
+  },
+  "derived_from": [
+    {
+      "type": "previous_capsule",
+      "ref_id": "MEM-EXAMPLE-000",
+      "relationship": "distilled_from",
+      "inherited_boundary": "source_prior"
+    }
+  ],
+  "score_method": "none"
+}
+```
+
+A text-only result is not enough for reusable memory. It may help the agent search, but it cannot be used as validated guidance without source and belief-state metadata.

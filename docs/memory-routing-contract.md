@@ -44,6 +44,28 @@ When the user explicitly asks to merge conversations, use `link_intent: merge_me
 
 When the route writes or updates a reusable memory capsule, apply the source-monitoring schema from [source-monitoring-memory-schema.md](source-monitoring-memory-schema.md). In particular, compressed or synthesized memory must preserve `derived_from`, and untested conversation or source-derived claims should remain `source_prior` or `bounded_claim`.
 
+## Explicit Memory Command Semantics
+
+Adopting agents may expose slash commands, UI commands, or natural-language equivalents. The framework does not require a CLI, but it should route these intents consistently:
+
+| Intent | Example phrases | Default route | Boundary |
+| --- | --- | --- | --- |
+| `recall` | recall, find prior context, continue from memory, 找回, 接着上次 | `memory_mode: read` | Meta-first lookup before payloads; no write by default. |
+| `remember` | remember this, record this issue, 记一下, 记录这个问题 | `memory_mode: write` or `update` | Lane, sensitivity, and explicit-record checks before writing. |
+| `forget` | forget this, remove this memory, 忘掉, 删除这条记忆 | R5 memory action | Requires explicit confirmation and a deletion or seal policy. |
+| `recap` | recap, summarize checkpoint, 总结断点 | `memory_mode: write` when durable | Write a bounded summary only when checkpoint intent is clear. |
+| `handoff` | handoff, transfer context, 交接 | R2/R3 artifact plus optional memory | Keep claim and project boundaries visible. |
+| `session_history` | session history, show conversation memory, 会话历史 | `memory_mode: read` | Read the current or referenced conversation index first. |
+| `commit_context` | commit context, release context, version context | R3/R5 depending on action | Context is readable; commit or release still needs explicit confirmation. |
+
+Rules:
+
+- These command names are semantic anchors, not mandatory product features.
+- A visible command does not bypass lane isolation, source-monitoring fields, or explicit confirmation for high-risk memory actions.
+- If the user uses vague wording, route to `recall` or `recap` only after the lane is clear.
+- Do not treat `remember` as permission to write into another project or another conversation lane.
+- A remembered item should keep `source_tag`, `derived_from`, `belief_status`, `confidence`, and lifecycle metadata when it becomes a reusable capsule.
+
 ## Projectization Drift
 
 If projectless work accumulates durable signals, mark it as `emergent_project_candidate` before writing project memory:
@@ -72,6 +94,7 @@ This marker does not automatically create a project. It tells the agent to ask, 
 | User asks to continue the previous conversation | `read` then `write` | `current_conversation` | `explicit_conversation_memory_request`; `link_intent: continue_from_latest` |
 | User gives vague keywords for an old conversation | `read` | `referenced_conversation` or `global_inbox` | `no_record`; search index fields before payloads |
 | User explicitly asks to merge conversations | `write` | `current_conversation` or selected lane | `explicit_conversation_memory_request`; `link_intent: merge_memories_explicit` |
+| User asks for project maps, entry points, commands, or conventions | `read` | current project static knowledge index | `no_record`; read `_STATIC_KNOWLEDGE_INDEX.md` before selected static pages |
 
 ## Boundary
 
@@ -86,5 +109,8 @@ Memory writing is still subject to:
 - meta-first retrieval before payload reads;
 - stable `memory_id` and `updated_at` metadata;
 - append-only link records for continuation, merge, archive, or supersession.
+- static knowledge retrieval through `_STATIC_KNOWLEDGE_INDEX.md` before opening a manual page;
+- `source_tag: static_knowledge` and `belief_status: source_prior` for static manual notes until local verification exists.
 
 See [memory-linking-contract.md](memory-linking-contract.md) for the link ledger schema and fuzzy retrieval order.
+See [static-knowledge-layer.md](static-knowledge-layer.md) for the optional static project manual layer.

@@ -1,0 +1,4 @@
+.skillopt/
+.tmp-skillopt-smoke/
+__pycache__/
+*.pyc

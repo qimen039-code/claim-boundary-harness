@@ -11,9 +11,12 @@ Claude Code note: this package has not yet completed a full deployment validatio
 `.github/workflows/smoke.yml` runs a lightweight subset of these checks on push, pull request, and manual dispatch:
 
 - PowerShell policy, router, memory isolation, external research, runtime, tool-proxy, conversation-memory, and claim-gate smoke checks;
+- SkillOpt-style external module self-test;
 - WorkBuddy Python adapter unit tests.
 
 The workflow is intentionally not a full OS/runtime compatibility matrix. It is a low-cost guard that checks the reference package still runs and returns expected gate decisions.
+
+For broader manual acceptance coverage, use [test-cases.md](test-cases.md). It includes route, claim, memory-lane, adapter, shell-robustness, and SkillOpt-cycle cases.
 
 ## 0. Policy Validator
 
@@ -52,7 +55,7 @@ Expected highlights:
 ## 3. Memory Isolation
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\skills\embedded-harness\harness_memory_isolation_gate.ps1 -ProjectLane EXAMPLE_PROJECT -RequestedPath "C:\path\to\project\.agent-memory\note.md"
+powershell -ExecutionPolicy Bypass -File .\skills\embedded-harness\harness_memory_isolation_gate.ps1 -ProjectLane EXAMPLE_PROJECT -RequestedPath "C:\path\to\project\.agent-memory\memory-item.md"
 ```
 
 Expected highlight:
@@ -62,7 +65,7 @@ Expected highlight:
 ## 3a. Memory Prefix Block
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\skills\embedded-harness\harness_memory_isolation_gate.ps1 -ProjectLane EXAMPLE_PROJECT -RequestedPath "C:\path\to\project-evil\.agent-memory\note.md"
+powershell -ExecutionPolicy Bypass -File .\skills\embedded-harness\harness_memory_isolation_gate.ps1 -ProjectLane EXAMPLE_PROJECT -RequestedPath "C:\path\to\project-evil\.agent-memory\memory-item.md"
 ```
 
 Expected highlights:
@@ -136,6 +139,18 @@ Expected highlights:
 - `matched_risk_triggers` includes `dynamic evaluation`, `decision layer`, or `trigger rule`;
 - required gates include `project_context_gate`, `change_contract_gate`, and `claim_gate`.
 
+## 4b-1. Composite Scope Reassessment Route
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\skills\embedded-harness\harness_intake_router.ps1 -TaskText "read this report and also update public docs and test cases from it" -Cwd "C:\path\to\project"
+```
+
+Expected highlights:
+
+- `risk_level`: `R3`;
+- `semantic_ambiguity` includes `composite_or_scope_reassessment`;
+- required gates include `scope_reassessment_gate` and `change_contract_gate`.
+
 ## 4c. Runtime Enforcer Pass
 
 ```powershell
@@ -194,6 +209,20 @@ Expected highlights:
 - `conversation_memory_decision`: `none`;
 - projectization review takes precedence over conversation checkpointing.
 
+## 4f. Static Knowledge Layer Route
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\skills\embedded-harness\harness_intake_router.ps1 -TaskText "read the project manual and module map before editing" -Cwd "C:\path\to\project"
+```
+
+Expected highlights:
+
+- `memory_need`: `index_only`;
+- `module_need` includes `static_knowledge_index`;
+- `required_gates` includes `static_knowledge_index_gate`;
+- selected static notes remain `source_prior` until checked against local files,
+  tests, or other evidence.
+
 ## 5. Claim Schema
 
 ```powershell
@@ -220,7 +249,24 @@ Expected highlights:
 - intake router records the negated `delete` trigger without direct `R5`;
 - external research gate returns `needs_external_research: false`.
 
-## 7. WorkBuddy Python Runtime Adapter
+## 7. SkillOpt-Style External Module
+
+Run this if Python is available:
+
+```bash
+python tools/skillopt/skillopt_cycle.py self-test
+```
+
+Expected highlight:
+
+- output includes `status`: `pass`;
+- the temporary `.tmp-skillopt-smoke` work directory is removed unless `--keep` is used.
+
+This proves only that the optional module can create and gate a candidate edit
+packet. It does not prove a candidate improves the target skill, because the
+module never patches primary skill files by itself.
+
+## 8. WorkBuddy Python Runtime Adapter
 
 Run this if Python is available:
 

@@ -37,7 +37,9 @@ Do not regenerate old memory content as a default archive step.
 | `supersession.jsonl` | Optional links between old and replacement archive records. |
 | `capsules/` | Optional cold payload folders or compressed capsules. |
 
-Archived capsules should keep source-monitoring fields when they exist: `source_tag`, `belief_status`, `confidence`, `derived_from`, `source_monitoring`, and `belief_trace_summary`. Keep the index row compact and open payloads only after meta-level selection.
+Archived capsules should keep source-monitoring fields when they exist: `source_tag`, `belief_status`, `confidence`, `derived_from`, `source_monitoring`, `lifecycle`, and `belief_trace_summary`. Keep the index row compact and open payloads only after meta-level selection.
+
+Archive retrieval results should still include `source_tag`, `derived_from`, `belief_status`, `confidence`, and `score_method` so cold records do not re-enter active context as unbounded facts.
 
 ## Retrieval Boundary
 

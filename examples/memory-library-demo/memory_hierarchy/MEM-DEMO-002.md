@@ -25,6 +25,12 @@ evidence_boundary: Synthetic demo record.
 confidence:
   label: medium
   basis: Status is bounded_claim because this capsule has explicit applicability and claim boundaries but is still a synthetic demo record.
+lifecycle:
+  stage: capsule
+  retention_policy: preserve
+  last_accessed_at: YYYY-MM-DDTHH:MM:SSZ
+  promotion_reason: Reusable routing boundary distilled from the older demo note.
+  decay_reason: null
 derived_from:
 - type: previous_capsule
   ref_id: MEM-DEMO-001

@@ -1,0 +1,14 @@
+{
+  "schema_version": "skillopt-cycle/v1",
+  "kind": "gate_report",
+  "candidate_id": "SKILLOPT-YYYYMMDD-HHMMSS-short-slug",
+  "created_at": "YYYY-MM-DDTHH:MM:SSZ",
+  "gate_result": "accepted",
+  "blocking_issues": [],
+  "deferred_reasons": [],
+  "warnings": [],
+  "manual_apply_only": true,
+  "applied_to_target": false,
+  "next_action": "Candidate may enter the normal human-reviewed change process.",
+  "claim_boundary": "Gate result validates packet shape and boundaries only; it does not prove the proposed edit improves behavior until regression probes are actually run."
+}

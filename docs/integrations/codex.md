@@ -2,6 +2,18 @@
 
 This is the smallest Codex-oriented integration pattern for the whiteboard package. The verified behavior is the local script behavior and exit-code contract. Any Codex client update can change launch paths or hook behavior, so re-run the smoke checks after updates.
 
+## Field Status
+
+This integration has extended private Codex use behind it. In that use, the
+root instruction entry, router, memory boundaries, and skill tree continued to
+shape behavior across long-running work. One observed benefit was better reuse
+of prior process lessons: the agent sometimes recognized an old mistake pattern
+and looked up the relevant reusable fix.
+
+Treat that as operator-observed behavior, not proof of model fine-tuning or a
+guarantee that every Codex client version will behave the same way. Re-run the
+update smoke checks after client changes.
+
 ## Instruction Entry
 
 Keep `AGENTS.md` at the workspace root, or copy its microkernel into the instruction file Codex actually reads.

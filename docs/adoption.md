@@ -43,6 +43,13 @@ Use [memory-meta-index-contract.md](memory-meta-index-contract.md) as the recomm
 
 For long-running conversations that are not yet project lanes, use [conversation-memory-lane.md](conversation-memory-lane.md), [memory-linking-contract.md](memory-linking-contract.md), and `templates/conversation-memory/`. Conversation memory is isolated by thread/session, follows the same meta-first rule, and should not silently write into project or global memory. New conversations continue old ones through link-only edges by default; explicit merges create a new merged memory.
 
+If your project needs a stable manual for agents, copy
+`templates/static-knowledge-layer/` into the project and fill only the pages that
+are useful. This layer is for module maps, entry points, commands, conventions,
+and interface notes. It is read through `_STATIC_KNOWLEDGE_INDEX.md` first and
+should remain `source_prior` until the agent checks the referenced files, tests,
+or schemas. See [static-knowledge-layer.md](static-knowledge-layer.md).
+
 Use [format-layering.md](format-layering.md) when deciding whether a record belongs in Markdown, JSON, JSONL, CSV/TSV, or a queryable local store. Public explanations can stay in Markdown; machine-owned routing facts and append-only records should use structured formats.
 
 Use [cost-control-contract.md](cost-control-contract.md) to keep the active context small. Default execution should use compact receipts, action-relevant fields, delta receipts after re-evaluation, and at most one meta index plus one category index plus a small number of payloads.

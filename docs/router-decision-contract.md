@@ -37,7 +37,7 @@ Field meanings:
 | `project_lane` | Keep memory and project instructions scoped to one lane unless cross-project work is explicit. |
 | `risk_level` | Use additive R0-R5 routing; keep the highest risk and union of gates. |
 | `semantic_ambiguity` | Mark terms that could mean multiple actions, such as update, record, publish, call, route, memory, or skill. |
-| `module_need` | Decide whether to use no module, project router, semantic anchors, skill matrix, memory meta index, conversation memory index, external research gate, claim verifier, or runtime hard gate. |
+| `module_need` | Decide whether to use no module, project router, semantic anchors, skill matrix, memory meta index, conversation memory index, static knowledge index, external research gate, claim verifier, or runtime hard gate. |
 | `memory_need` | Decide whether memory is unnecessary, meta-only, index-only, capsule-level, paired ERR/SOL retrieval, common error corpus, or conversation state. |
 | `memory_mode` | Decide whether memory should be skipped, read, written, or updated. |
 | `memory_lane` | Decide whether the memory action belongs to a current project, current conversation, referenced conversation, emergent project candidate, common error corpus, self-reflection matrix, global inbox, or no lane. |
@@ -78,6 +78,41 @@ L0 microkernel
 ```
 
 If the receipt is obvious from the current request, it can stay implicit. Keep R0-R5 labels internal by default. If the classification changes execution path, cost, permission, memory, external search, or claim wording, expose only that minimal boundary. If the user asks for debug or audit, expose the complete debug receipt.
+
+## Composite Task And Scope Reassessment Rule
+
+Some user requests contain more than one task shape. A request may start as a
+report review, then also ask to update public docs, add tests, change an adapter,
+record an issue, or absorb a mechanism. Do not classify these by the first or
+narrowest phrase.
+
+Use this order:
+
+```text
+split obvious sub-intents
+-> classify each sub-intent
+-> keep the highest risk level
+-> union the required gates
+-> expose only the action-changing boundary
+```
+
+Examples:
+
+| Request shape | Route |
+| --- | --- |
+| "Read this report and summarize it." | R2 artifact or R1/R2 read/report route. |
+| "Read this report and update public docs/tests from it." | R3 governance/docs route plus artifact and claim gates. |
+| "Check whether a feature exists." | R1 read-only inspection. |
+| "Check whether it exists, then implement it if missing." | R3 implementation route; do not stop at R1. |
+| "Discuss an external project and absorb useful mechanisms." | External source intake plus R3 candidate integration route. |
+| "Record these issues and classify them." | Memory record route plus lane/sensitivity checks. |
+
+Trigger words such as "also", "plus", "and", "not only", "but also",
+"同时", "还有", "另外", "以及", "不只是", "不仅", "并且", "组合",
+or "多个问题" should set a scope-reassessment marker. This marker does not make
+the task expensive by itself; it tells the agent to avoid under-routing and to
+re-evaluate before editing, writing memory, searching externally, or making a
+strong claim.
 
 ## SkillOpt-Style Training Boundary
 

@@ -91,7 +91,12 @@ def _read_hook_payload() -> dict[str, Any]:
 
 
 def _write_json(payload: dict[str, Any]) -> None:
-    sys.stdout.write(json.dumps(sanitize_json_value(payload), ensure_ascii=True, sort_keys=True) + "\n")
+    line = json.dumps(sanitize_json_value(payload), ensure_ascii=False, sort_keys=True) + "\n"
+    try:
+        sys.stdout.write(line)
+    except UnicodeEncodeError:
+        sys.stdout.buffer.write(line.encode("utf-8", errors="replace"))
+        sys.stdout.buffer.flush()
 
 
 def _hook_event(payload: dict[str, Any]) -> str:
@@ -342,7 +347,7 @@ def _context_output(route: dict[str, Any]) -> dict[str, Any]:
     if str(route.get("receipt_profile")) == "debug_receipt":
         context = "Claim Boundary Harness debug receipt: " + json.dumps(
             sanitize_json_value(route),
-            ensure_ascii=True,
+            ensure_ascii=False,
             sort_keys=True,
         )
         return {

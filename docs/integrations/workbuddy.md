@@ -156,7 +156,9 @@ For enforcement, remove `--fail-open`. The default is fail-closed for `PreToolUs
 
 ## Validation Status
 
-This adapter has not been fully tested across WorkBuddy versions, operating systems, permission modes, or real production agent loops. It was adapted from one local device environment and verified as a standalone Python decision layer.
+This adapter has been verified as a standalone Python decision layer and has one local WorkBuddy hook deployment reported as running normally with this package.
+
+This is still not a broad WorkBuddy compatibility certification. It has not been fully tested across WorkBuddy versions, operating systems, permission modes, or production agent loops.
 
 Before relying on it:
 

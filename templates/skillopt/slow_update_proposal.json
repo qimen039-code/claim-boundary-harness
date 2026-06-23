@@ -1,0 +1,14 @@
+{
+  "schema_version": "skillopt-cycle/v1",
+  "kind": "slow_update_proposal",
+  "candidate_id": "SKILLOPT-YYYYMMDD-HHMMSS-short-slug",
+  "created_at": "YYYY-MM-DDTHH:MM:SSZ",
+  "target": {
+    "file": "skills/example-skill/SKILL.md",
+    "surface": "skill"
+  },
+  "gate_result": "deferred",
+  "promotion_condition": "Require repeated local evidence or explicit approval before applying to primary skill/router files.",
+  "review_cadence": "periodic_or_user_requested",
+  "status": "open"
+}

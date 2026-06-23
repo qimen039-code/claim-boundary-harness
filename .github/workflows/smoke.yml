@@ -107,12 +107,12 @@ jobs:
 
           $memoryPass = Invoke-HarnessJson `
             -ScriptPath ".\skills\embedded-harness\harness_memory_isolation_gate.ps1" `
-            -Arguments @("-ProjectLane", "EXAMPLE_PROJECT", "-RequestedPath", "C:\path\to\project\.agent-memory\note.md")
+            -Arguments @("-ProjectLane", "EXAMPLE_PROJECT", "-RequestedPath", "C:\path\to\project\.agent-memory\memory-item.md")
           Assert-Equal $memoryPass.Json.status "pass" "memory isolation pass"
 
           $memoryBlock = Invoke-HarnessJson `
             -ScriptPath ".\skills\embedded-harness\harness_memory_isolation_gate.ps1" `
-            -Arguments @("-ProjectLane", "EXAMPLE_PROJECT", "-RequestedPath", "C:\path\to\project-evil\.agent-memory\note.md") `
+            -Arguments @("-ProjectLane", "EXAMPLE_PROJECT", "-RequestedPath", "C:\path\to\project-evil\.agent-memory\memory-item.md") `
             -AllowedExitCodes @(2)
           Assert-Equal $memoryBlock.Json.status "blocked" "memory prefix block"
 
@@ -147,6 +147,21 @@ jobs:
           Assert-Equal $localArchitecture.Json.risk_level "R3" "local architecture route risk"
           Assert-True (-not [bool]$localArchitecture.Json.needs_external_research) "local architecture maintenance should not force external research"
 
+          $compositeScope = Invoke-HarnessJson `
+            -ScriptPath ".\skills\embedded-harness\harness_intake_router.ps1" `
+            -Arguments @("-TaskText", "read this report and also update public docs and test cases from it", "-Cwd", "C:\path\to\project")
+          Assert-Equal $compositeScope.Json.risk_level "R3" "composite scope route risk"
+          Assert-Contains $compositeScope.Json.semantic_ambiguity "composite_or_scope_reassessment" "composite scope semantic marker"
+          Assert-Contains $compositeScope.Json.required_gates "scope_reassessment_gate" "composite scope required gates"
+          Assert-Contains $compositeScope.Json.required_gates "change_contract_gate" "composite scope required gates"
+
+          $staticKnowledge = Invoke-HarnessJson `
+            -ScriptPath ".\skills\embedded-harness\harness_intake_router.ps1" `
+            -Arguments @("-TaskText", "read the project manual and module map before editing", "-Cwd", "C:\path\to\project")
+          Assert-Equal $staticKnowledge.Json.memory_need "index_only" "static knowledge memory need"
+          Assert-Contains $staticKnowledge.Json.module_need "static_knowledge_index" "static knowledge module need"
+          Assert-Contains $staticKnowledge.Json.required_gates "static_knowledge_index_gate" "static knowledge required gate"
+
           $runtimePass = Invoke-HarnessJson `
             -ScriptPath ".\skills\embedded-harness\harness_runtime_enforcer.ps1" `
             -Arguments @("-Stage", "pre_task", "-TaskText", "inspect project files", "-Cwd", (Get-Location).Path)
@@ -177,6 +192,9 @@ jobs:
             -ScriptPath ".\skills\embedded-harness\harness_claim_schema_verifier.ps1" `
             -Arguments @("-ClaimFile", $claimFile)
           Assert-Equal $claim.Json.status "pass" "claim verifier pass"
+
+      - name: Run SkillOpt-style external module self-test
+        run: python tools/skillopt/skillopt_cycle.py self-test
 
       - name: Run WorkBuddy Python adapter tests
         run: python -m unittest discover -s integrations/workbuddy-python-runtime/tests

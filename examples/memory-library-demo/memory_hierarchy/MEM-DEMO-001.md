@@ -16,6 +16,12 @@ evidence_boundary: Synthetic demo record.
 confidence:
   label: high
   basis: Status is rejected for current guidance because MEM-DEMO-002 supersedes it and the missing claim boundary is recorded in this synthetic example.
+lifecycle:
+  stage: capsule
+  retention_policy: preserve
+  last_accessed_at: YYYY-MM-DDTHH:MM:SSZ
+  promotion_reason: Superseded demo capsule retained as audit memory.
+  decay_reason: superseded_by_newer_fix
 derived_from:
 - type: raw_log
   ref_id: RAW-DEMO-001

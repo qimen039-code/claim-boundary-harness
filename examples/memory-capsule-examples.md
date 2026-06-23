@@ -23,6 +23,12 @@ evidence_boundary: Not a validation result.
 confidence:
   label: medium
   basis: Status assigned as bounded_claim because this is a synthetic framework example with explicit scope, not a local runtime validation record.
+lifecycle:
+  stage: capsule
+  retention_policy: preserve
+  last_accessed_at: YYYY-MM-DDTHH:MM:SSZ
+  promotion_reason: Template shows a reusable project-routing memory shape.
+  decay_reason: null
 derived_from:
   - type: source_note
     ref_id: TEMPLATE-SOURCE-001
@@ -134,6 +140,13 @@ references: none
   "confidence": {
     "label": "medium",
     "basis": "Status is bounded_claim because the example requires local smoke output but this public record is synthetic."
+  },
+  "lifecycle": {
+    "stage": "capsule",
+    "retention_policy": "until_superseded",
+    "last_accessed_at": "YYYY-MM-DDTHH:MM:SSZ",
+    "promotion_reason": "Synthetic claim-boundary example promoted from a smoke-test shape.",
+    "decay_reason": null
   },
   "derived_from": [
     {

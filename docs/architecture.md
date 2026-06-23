@@ -40,6 +40,21 @@ routing receipt
 
 The control plane decides whether to use project instructions, a project router, memory retrieval, existing skills/tools/plugins, external research, claim checks, or human confirmation. It should not expand into every memory, every skill, or every tool call by default.
 
+## Hook Capture Point Matrix
+
+Adopters can map the control plane onto host lifecycle hooks when the runtime exposes them. These stages capture the right context at the right time; they are not a requirement to run a full memory backend.
+
+| Capture point | Main purpose | Harness action | Default cost boundary |
+| --- | --- | --- | --- |
+| `session_start` | Rehydrate only the minimum active lane context. | Read root instructions and memory meta index when needed. | Meta/index only; no payload scan. |
+| `user_prompt_submit` | Preserve the original user task before tools lose context. | Build route receipt, classify memory/search/claim needs, store compact prompt state if hooks support it. | Compact receipt; no full history. |
+| `pre_tool` | Stop or warn before protected actions. | Enforce R5, low-confidence route review, memory write, high-risk command, and external-search requirements. | Hard only on hooked paths. |
+| `post_tool` | Capture what actually happened. | Store observations, tool failures, or candidate CE records as raw or working memory; do not mark success as validated without evidence. | Raw observation or working memory only. |
+| `pre_compact` | Avoid context-compression loss. | Write a conversation checkpoint or open-loop summary when routed. | Summary and links only. |
+| `stop` / `final` | Prevent final overclaims and decide durable updates. | Run final claim boundary, update memory only when routed, and record remaining verification debt. | Claim schema plus optional capsule update. |
+
+If a host lacks one of these hooks, keep that stage advisory and record the missing surface in the compatibility manifest.
+
 ## Router Decision Contract
 
 The router and dynamic decision layer use a compact contract before opening deeper modules:
@@ -139,6 +154,8 @@ This prevents the framework from treating every mistake as permanent memory or e
 
 See [memory-routing-contract.md](memory-routing-contract.md) and [common-error-corpus.md](common-error-corpus.md).
 
+Memory retrieval results should preserve provenance. A selected record should return at least `source_tag`, `derived_from`, `belief_status`, structured `confidence`, and `score_method` alongside the snippet. A relevance score can rank candidates, but it does not turn a raw observation or source prior into a validated claim.
+
 ## Conversation Memory Lane
 
 Projectless long conversations can use a separate conversation memory lane when the router detects explicit checkpoint instructions or durable long-chat signals:
@@ -154,6 +171,31 @@ This lane is isolated by conversation or thread id. It can be read by later conv
 Conversation memories use stable `memory_id`, `updated_at`, index-level retrieval terms, and append-only links. A later conversation can continue an old one through a `continues` edge without writing new content into the old lane. Explicit merges create a new merged memory and link old memories into it.
 
 See [conversation-memory-lane.md](conversation-memory-lane.md) and [memory-linking-contract.md](memory-linking-contract.md).
+
+## Static Knowledge Layer
+
+Projects may also keep a static knowledge layer for stable repository manuals:
+
+```text
+static-knowledge-layer/_STATIC_KNOWLEDGE_INDEX.md
+-> project-map.md
+-> entrypoints-and-commands.md
+-> conventions.md
+-> interfaces-and-data.md
+```
+
+This layer is not a memory backend and not a validation source by itself. It is a
+low-cost orientation layer for module maps, entry points, commands, conventions,
+and interface notes. Static notes should be returned with `source_tag:
+static_knowledge`, `belief_status: source_prior`, `derived_from`, `confidence`,
+and `score_method` metadata.
+
+Use it when a task needs project navigation. Use the memory library when a task
+needs decisions, incidents, evolving state, or source-monitoring capsules. A
+static page can point to memory records, but it should not copy volatile memory
+payloads by default.
+
+See [static-knowledge-layer.md](static-knowledge-layer.md).
 
 ## Format Layering
 

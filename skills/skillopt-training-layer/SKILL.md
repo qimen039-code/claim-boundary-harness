@@ -22,6 +22,8 @@ This file does not vendor SkillOpt code or copy its implementation. It translate
 
 If future work copies SkillOpt source code, substantial documentation text, examples, or executable components, include the upstream MIT copyright and permission notice with the copied material, pin the upstream version or commit, and preserve a rollback or yank path before publishing.
 
+For the broader source ledger, see `../../docs/influences-and-attribution.md`.
+
 ## Scope
 
 Use this layer for:
@@ -50,6 +52,29 @@ Use this layer when a task asks to:
 - apply textual learning-rate limits;
 - propose a slow update;
 - absorb a public skill-optimization mechanism as a local rule rather than executable code.
+
+## Executable External Module
+
+This repository includes an optional, default-off runner:
+
+```bash
+python tools/skillopt/skillopt_cycle.py --help
+```
+
+Use it only for periodic skill or router maintenance, not ordinary task
+execution. The runner creates:
+
+- `candidate_edit_packet.json`;
+- `gate_report.json`;
+- `source_intake_note.json`;
+- `regression_probe_set.jsonl`;
+- local `.skillopt/records/*.jsonl` ledgers.
+
+The runner never patches the target skill or router file. `accepted` means the
+candidate may enter the normal human-reviewed change process. It does not mean
+the proposed change has been applied or behavior-validated.
+
+Runtime details: `../../docs/skillopt-runtime.md`.
 
 ## Architecture Boundary
 

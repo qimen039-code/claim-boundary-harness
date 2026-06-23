@@ -11,6 +11,7 @@ root AGENTS.md microkernel
 -> lightweight routing receipt
 -> event-triggered re-evaluation
 -> optional project router / project AGENTS / project memory
+-> static knowledge index / selected manual page, if project navigation is needed
 -> memory meta summary / category index / matching capsule, if memory is needed
 -> selective hard runtime gates only for critical risks
 -> final claim and memory boundary check
@@ -27,6 +28,7 @@ Design boundaries:
 - Receipt profiles keep runtime cost low: `compact_runtime` is used only when fields change the next action, `extended_governance` expands for public/framework/project-boundary work, and `debug_receipt` is only for route diagnosis or explicit full-receipt requests.
 - Do not wrap every tool call by default; use runtime hard gates only for R5, high-risk tool calls, strong final claims, long-term memory writes, and low-confidence boundaries.
 - Memory retrieval is meta-first: read `_META_INDEX.md`, a memory summary, or a router manifest before opening category indexes or capsule payloads.
+- Static knowledge retrieval is index-first: read `_STATIC_KNOWLEDGE_INDEX.md` before opening a project manual page, and treat static notes as `source_tag: static_knowledge` / `belief_status: source_prior` until checked.
 - Runtime enforcement is available through hook/wrapper/tool proxy scripts. A `blocked` JSON result exits nonzero and should stop the caller when these scripts are placed before task or tool execution.
 - These scripts cannot stop a caller that bypasses the runtime entry scripts.
 - A wrapper is truly mandatory only if it is the agent's only command execution path for the protected action. If another command path bypasses the wrapper, this layer is advisory for that path.
@@ -73,7 +75,9 @@ Recommended meta index fields: lane, scope, category, record type, status, retri
 
 Memory recording is routed separately from memory reading. Use `common_error_corpus` for lightweight recurring error-and-solution samples with symptom, cause, applied solution, prevention, validation, and evidence. Use paired `ERR-*` / `SOL-*` records for explicit, repeated, or high-impact self-reflection incidents.
 
-Reusable memory capsules should carry source-monitoring fields: `source_tag`, `belief_status`, structured `confidence`, `derived_from`, `source_monitoring`, and `belief_trace_summary`. The router decides whether memory is needed; the capsule schema preserves the source and status boundary after the route chooses to write or update memory.
+Reusable memory capsules should carry source-monitoring fields: `source_tag`, `belief_status`, structured `confidence`, `derived_from`, `source_monitoring`, `lifecycle`, and `belief_trace_summary`. The router decides whether memory is needed; the capsule schema preserves the source and status boundary after the route chooses to write or update memory.
+
+Memory retrieval results used as reusable context should return `source_tag`, `derived_from`, `belief_status`, structured `confidence`, and `score_method` with the selected snippet. If no numeric score was computed, use `score_method: none` and omit `score`.
 
 Scripts:
 

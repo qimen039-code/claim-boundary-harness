@@ -13,6 +13,7 @@ Use it for project memory capsules, conversation memory capsules, source-grounde
 | `confidence` | Yes | Evidence strength for assigning the current `belief_status`, not the probability that the claim content is true. |
 | `derived_from` | Conditional | Provenance records and relationship boundaries. Required for compressed, synthesized, or memory-derived capsules. |
 | `source_monitoring` | Recommended | Current observation or audit state and why the capsule was placed there. |
+| `lifecycle` | Recommended | Memory lifecycle metadata for retrieval priority and retention policy. |
 | `belief_trace` | Recommended | Append-only status transition events while the capsule is active. |
 | `belief_trace_summary` | Recommended for compressed capsules | Compact trace summary after memory compression. |
 
@@ -27,6 +28,7 @@ user_claim
 model_hypothesis
 tool_output
 external_source
+static_knowledge
 memory_capsule
 local_test
 inferred_synthesis
@@ -108,6 +110,7 @@ Recommended `type` values:
 raw_log
 conversation_memory
 source_note
+static_knowledge_page
 user_confirmation
 test_result
 external_search
@@ -201,6 +204,50 @@ Recommended compressed summary:
 
 Invariant: `belief_trace_summary.current_status` must always equal `belief_status`.
 
+## `lifecycle`
+
+`lifecycle` describes how the record should be used by retrieval and retention policies. It does not change the truth value of the capsule.
+
+Recommended shape:
+
+```json
+{
+  "stage": "capsule",
+  "retention_policy": "preserve",
+  "last_accessed_at": "2026-06-23T00:00:00Z",
+  "promotion_reason": "Repeated deployment failure class with a verified fix.",
+  "decay_reason": null
+}
+```
+
+Recommended `stage` values:
+
+| Value | Meaning | Default retrieval behavior |
+| --- | --- | --- |
+| `raw_observation` | Direct event, tool output, user wording, screenshot summary, or log excerpt. | Do not treat as current guidance. Open only as evidence. |
+| `working_memory` | Short-horizon task state, blocker, plan, or current open loop. | Use only inside the current task, conversation, or active lane. |
+| `capsule` | Compact reusable memory with source, provenance, status, and claim boundary. | Eligible for meta-first retrieval. |
+| `archive` | Cold record or full historical payload retained for audit, reproduction, or long projects. | Do not open by default; use index and capsule first. |
+
+Recommended `retention_policy` values:
+
+```text
+preserve
+until_superseded
+until_resolved
+user_pinned
+delete_on_request
+```
+
+Rules:
+
+- `stage: raw_observation` should normally have `belief_status: hypothesis`, `source_prior`, or a narrow `bounded_claim`; it should not become `local_validated` without a separate verification record.
+- `stage: capsule` should include `derived_from` unless the capsule is a direct user-maintained note with its own evidence boundary.
+- `stage: archive` means default retrieval priority is low, not that the record is untrusted or obsolete.
+- `last_accessed_at` is a retrieval hint for recent-use ranking. It is not evidence strength.
+- `promotion_reason` should say why the record was promoted from raw or working state into a reusable capsule.
+- `decay_reason` means reduced default retrieval priority, not reduced truth. Use values such as `superseded_by_newer_fix`, `low_recent_relevance`, `obsolete_adapter`, or `resolved_issue`.
+
 ## Soft Constraints
 
 | `belief_status` | Typical confidence labels | Source monitoring expectation |
@@ -239,6 +286,13 @@ If used, the score should be converted into `confidence.label + confidence.basis
   "confidence": {
     "label": "high",
     "basis": "Status assigned from DOC-DEMO-001 and TEST-DEMO-001; the boundary is explicit and local smoke output covered the documented path."
+  },
+  "lifecycle": {
+    "stage": "capsule",
+    "retention_policy": "preserve",
+    "last_accessed_at": "2026-06-23T00:00:00Z",
+    "promotion_reason": "Reusable adapter boundary extracted from source note and local smoke result.",
+    "decay_reason": null
   },
   "derived_from": [
     {

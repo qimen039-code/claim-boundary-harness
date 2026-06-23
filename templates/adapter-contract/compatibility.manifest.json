@@ -1,7 +1,7 @@
 {
   "schema_version": "0.1",
   "manifest_type": "agent_memory_lane_compatibility_manifest",
-  "harness_version": "v0.14.9",
+  "harness_version": "v0.14.13",
   "adapter": {
     "name": "example-adapter",
     "version": "unverified",
@@ -33,11 +33,34 @@
       "blocked_exit_code": 2,
       "host_honors_denial": "unverified"
     },
+    "post_tool": {
+      "event_name": "unverified",
+      "supported": "unverified",
+      "captures_observation_before_memory_promotion": "unverified"
+    },
+    "pre_compact": {
+      "event_name": "unverified",
+      "supported": "unverified",
+      "writes_checkpoint_before_context_loss": "unverified"
+    },
+    "stop": {
+      "event_name": "unverified",
+      "supported": "unverified",
+      "runs_final_boundary_review": "unverified"
+    },
     "final_claim": {
       "event_name": "unverified",
       "supported": "unverified",
       "final_text_fields": []
     }
+  },
+  "memory_retrieval_result": {
+    "requires_source_tag": true,
+    "requires_belief_status": true,
+    "requires_confidence": true,
+    "requires_derived_from": true,
+    "requires_score_method": true,
+    "text_only_results_are_unbounded": true
   },
   "wrappers": {
     "python": {

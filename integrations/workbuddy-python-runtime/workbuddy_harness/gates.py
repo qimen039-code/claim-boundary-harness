@@ -488,6 +488,10 @@ def intake_router(task_text: str = "", cwd: str | None = None, policy: dict[str,
         audience = "project_operator" if lane != "PROJECTLESS" else "current_chat"
 
     semantic_ambiguity = _matching_triggers(task_text, contract.get("semantic_ambiguity_triggers", []))
+    scope_reassessment_hits = _matching_triggers(task_text, contract.get("scope_reassessment_triggers", []))
+    if scope_reassessment_hits:
+        semantic_ambiguity.append("composite_or_scope_reassessment")
+        required_gates.append("scope_reassessment_gate")
     if "R3" in triggered_risks:
         semantic_ambiguity.append("governance_or_change_surface")
     semantic_ambiguity = _unique(semantic_ambiguity)
@@ -504,12 +508,15 @@ def intake_router(task_text: str = "", cwd: str | None = None, policy: dict[str,
 
     paired_memory_hits = _matching_triggers(task_text, contract.get("paired_memory_triggers", []))
     memory_hits = _matching_triggers(task_text, contract.get("memory_need_triggers", []))
+    static_knowledge_hits = _matching_triggers(task_text, contract.get("static_knowledge_triggers", []))
     if paired_memory_hits:
         memory_need = "paired_err_sol"
-    elif memory_hits:
+    elif memory_hits or static_knowledge_hits:
         memory_need = "index_only"
     else:
         memory_need = "none"
+    if static_knowledge_hits:
+        required_gates.append("static_knowledge_index_gate")
 
     explicit_record_hits = _matching_triggers(task_text, contract.get("explicit_record_triggers", []))
     common_error_hits = _matching_triggers(task_text, contract.get("common_error_triggers", []))
@@ -525,6 +532,7 @@ def intake_router(task_text: str = "", cwd: str | None = None, policy: dict[str,
 
     conversation_explicit_hits = _matching_triggers(task_text, contract.get("conversation_memory_explicit_triggers", []))
     conversation_signals = _matching_triggers(task_text, contract.get("conversation_memory_signals", []))
+    self_reflection_record_hits = [] if conversation_explicit_hits else explicit_record_hits
     conversation_threshold = int(contract.get("conversation_memory_threshold", 2))
     conversation_memory_decision = "none"
     read_only_audit_hits = _matching_triggers(task_text, contract.get("read_only_memory_audit_triggers", []))
@@ -556,18 +564,18 @@ def intake_router(task_text: str = "", cwd: str | None = None, policy: dict[str,
 
     if common_error_hits:
         memory_need = "common_error_corpus"
-    elif explicit_record_hits and memory_need == "none":
+    elif self_reflection_record_hits and memory_need == "none":
         memory_need = "paired_err_sol"
 
-    if explicit_record_hits:
-        record_intent = "explicit_user_request"
-    elif common_error_hits:
+    if common_error_hits:
         record_intent = "inferred_reusable_error"
     elif conversation_memory_decision == "create_or_update_current_conversation":
         if conversation_explicit_hits:
             record_intent = "explicit_conversation_memory_request"
         else:
             record_intent = "conversation_checkpoint"
+    elif self_reflection_record_hits:
+        record_intent = "explicit_user_request"
     elif conversation_memory_decision == "checkpoint_candidate":
         record_intent = "conversation_checkpoint"
     elif projectization_decision == "emergent_project_candidate":
@@ -588,14 +596,14 @@ def intake_router(task_text: str = "", cwd: str | None = None, policy: dict[str,
 
     if common_error_hits:
         memory_lane = "common_error_corpus"
-    elif explicit_record_hits:
-        memory_lane = "self_reflection_matrix"
     elif lane != "PROJECTLESS":
         memory_lane = "current_project"
     elif link_intent != "none":
         memory_lane = "referenced_conversation"
     elif conversation_memory_decision != "none" and (has_active_conversation_memory_lane or conversation_explicit_hits):
         memory_lane = "current_conversation"
+    elif self_reflection_record_hits:
+        memory_lane = "self_reflection_matrix"
     elif projectization_decision == "emergent_project_candidate":
         memory_lane = "emergent_project_candidate"
     elif conversation_memory_decision != "none":
@@ -619,7 +627,7 @@ def intake_router(task_text: str = "", cwd: str | None = None, policy: dict[str,
     else:
         memory_mode = "none"
 
-    if explicit_record_hits or common_error_hits:
+    if self_reflection_record_hits or common_error_hits:
         required_skills.append("troubleshooting-skill-matrix")
 
     strong_claim_hits = _matching_triggers(task_text, policy.get("blocked_claim_phrases_without_schema", []))
@@ -639,6 +647,8 @@ def intake_router(task_text: str = "", cwd: str | None = None, policy: dict[str,
         module_need.append("semantic_anchors")
     if memory_need != "none":
         module_need.append("memory_meta_index")
+    if static_knowledge_hits:
+        module_need.append("static_knowledge_index")
     if conversation_memory_decision != "none":
         module_need.append("conversation_memory_index")
     if link_intent != "none":

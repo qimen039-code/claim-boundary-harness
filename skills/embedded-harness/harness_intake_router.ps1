@@ -300,6 +300,15 @@ if ($null -eq $semanticTriggers) {
   $semanticTriggers = @("update", "record", "publish", "call", "use", "memory", "skill", "route", "harness", "public", "internal", "whiteboard")
 }
 $semanticAmbiguity = @(Get-MatchedTriggers $semanticTriggers)
+$scopeReassessmentTriggers = $policy.router_decision_contract.scope_reassessment_triggers
+if ($null -eq $scopeReassessmentTriggers) {
+  $scopeReassessmentTriggers = @("also", "plus", "not only", "but also", "multiple issues", "scope", "narrow", "re-evaluate scope")
+}
+$scopeReassessmentHits = Get-MatchedTriggers $scopeReassessmentTriggers
+if ($scopeReassessmentHits.Count -gt 0) {
+  $semanticAmbiguity += @("composite_or_scope_reassessment")
+  $requiredGates += "scope_reassessment_gate"
+}
 if ($triggeredRisks -contains "R3") {
   $semanticAmbiguity += @("governance_or_change_surface")
 }
@@ -335,12 +344,20 @@ if ($null -eq $pairedMemoryTriggers) {
   $pairedMemoryTriggers = @("ERR-", "SOL-", "error memory", "solution memory", "self-reflection")
 }
 $explicitMemoryNeed = (Get-MatchedTriggers $memoryNeedTriggers).Count -gt 0
+$staticKnowledgeTriggers = $policy.router_decision_contract.static_knowledge_triggers
+if ($null -eq $staticKnowledgeTriggers) {
+  $staticKnowledgeTriggers = @("static knowledge", "project manual", "repository manual", "module map", "project map")
+}
+$staticKnowledgeHits = Get-MatchedTriggers $staticKnowledgeTriggers
 if ((Get-MatchedTriggers $pairedMemoryTriggers).Count -gt 0) {
   $memoryNeed = "paired_err_sol"
-} elseif ($explicitMemoryNeed) {
+} elseif (($explicitMemoryNeed) -or ($staticKnowledgeHits.Count -gt 0)) {
   $memoryNeed = "index_only"
 } else {
   $memoryNeed = "none"
+}
+if ($staticKnowledgeHits.Count -gt 0) {
+  $requiredGates += "static_knowledge_index_gate"
 }
 
 $explicitRecordTriggers = $policy.router_decision_contract.explicit_record_triggers
@@ -368,6 +385,10 @@ if ($null -eq $conversationSignalTriggers) {
 $projectizationSignals = Get-MatchedTriggers $projectizationTriggers
 $conversationExplicitHits = Get-MatchedTriggers $conversationExplicitTriggers
 $conversationSignals = Get-MatchedTriggers $conversationSignalTriggers
+$selfReflectionRecordHits = @($explicitRecordHits)
+if ($conversationExplicitHits.Count -gt 0) {
+  $selfReflectionRecordHits = @()
+}
 $projectizationThreshold = 3
 if ($null -ne $policy.router_decision_contract.projectization_threshold) {
   $projectizationThreshold = [int]$policy.router_decision_contract.projectization_threshold
@@ -444,14 +465,12 @@ if ($linkIntent -ne "none") {
 
 if ($commonErrorHits.Count -gt 0) {
   $memoryNeed = "common_error_corpus"
-} elseif (($explicitRecordHits.Count -gt 0) -and ($memoryNeed -eq "none")) {
+} elseif (($selfReflectionRecordHits.Count -gt 0) -and ($memoryNeed -eq "none")) {
   $memoryNeed = "paired_err_sol"
 }
 
 $recordIntent = "no_record"
-if ($explicitRecordHits.Count -gt 0) {
-  $recordIntent = "explicit_user_request"
-} elseif ($commonErrorHits.Count -gt 0) {
+if ($commonErrorHits.Count -gt 0) {
   $recordIntent = "inferred_reusable_error"
 } elseif ($conversationMemoryDecision -eq "create_or_update_current_conversation") {
   if ($conversationExplicitHits.Count -gt 0) {
@@ -459,6 +478,8 @@ if ($explicitRecordHits.Count -gt 0) {
   } else {
     $recordIntent = "conversation_checkpoint"
   }
+} elseif ($selfReflectionRecordHits.Count -gt 0) {
+  $recordIntent = "explicit_user_request"
 } elseif ($conversationMemoryDecision -eq "checkpoint_candidate") {
   $recordIntent = "conversation_checkpoint"
 } elseif ($projectizationDecision -eq "emergent_project_candidate") {
@@ -481,14 +502,14 @@ if ($linkIntent -ne "none") {
 $memoryLane = "none"
 if ($commonErrorHits.Count -gt 0) {
   $memoryLane = "common_error_corpus"
-} elseif ($explicitRecordHits.Count -gt 0) {
-  $memoryLane = "self_reflection_matrix"
 } elseif ($projectLane -ne "PROJECTLESS") {
   $memoryLane = "current_project"
 } elseif ($linkIntent -ne "none") {
   $memoryLane = "referenced_conversation"
 } elseif (($conversationMemoryDecision -ne "none") -and ($hasActiveConversationMemoryLane -or ($conversationExplicitHits.Count -gt 0))) {
   $memoryLane = "current_conversation"
+} elseif ($selfReflectionRecordHits.Count -gt 0) {
+  $memoryLane = "self_reflection_matrix"
 } elseif ($projectizationDecision -eq "emergent_project_candidate") {
   $memoryLane = "emergent_project_candidate"
 } elseif ($conversationMemoryDecision -ne "none") {
@@ -506,7 +527,7 @@ if (($recordIntent -eq "explicit_user_request") -or ($recordIntent -eq "inferred
   $memoryMode = "read"
 }
 
-if (($explicitRecordHits.Count -gt 0) -or ($commonErrorHits.Count -gt 0)) {
+if (($selfReflectionRecordHits.Count -gt 0) -or ($commonErrorHits.Count -gt 0)) {
   $requiredSkills += "troubleshooting-skill-matrix"
 }
 
@@ -524,6 +545,7 @@ if ($projectLane -ne "PROJECTLESS") { $moduleNeed += "project_router" }
 if ($requiredSkills.Count -gt 0) { $moduleNeed += "skill_matrix" }
 if ($semanticAmbiguity.Count -gt 0) { $moduleNeed += "semantic_anchors" }
 if ($memoryNeed -ne "none") { $moduleNeed += "memory_meta_index" }
+if ($staticKnowledgeHits.Count -gt 0) { $moduleNeed += "static_knowledge_index" }
 if ($conversationMemoryDecision -ne "none") { $moduleNeed += "conversation_memory_index" }
 if ($linkIntent -ne "none") { $moduleNeed += "memory_link_ledger" }
 if (($externalNeed.Count -gt 0) -and ($externalNeed[0] -ne "none")) { $moduleNeed += "external_research_gate" }
