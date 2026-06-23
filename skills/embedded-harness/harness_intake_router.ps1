@@ -38,6 +38,33 @@ function ConvertTo-TriggerList($value) {
   return @([string]$value)
 }
 
+function Normalize-PathText([string]$path) {
+  if ([string]::IsNullOrWhiteSpace($path)) { return "" }
+  try {
+    return [System.IO.Path]::GetFullPath($path).TrimEnd('\','/')
+  } catch {
+    return $path.TrimEnd('\','/')
+  }
+}
+
+function Add-TrailingSeparator([string]$path) {
+  if ([string]::IsNullOrWhiteSpace($path)) { return "" }
+  return $path.TrimEnd('\','/') + [System.IO.Path]::DirectorySeparatorChar
+}
+
+function Test-PathInsideRoot([string]$path, [string]$root) {
+  $normalizedPath = Normalize-PathText $path
+  $normalizedRoot = Normalize-PathText $root
+  if ([string]::IsNullOrWhiteSpace($normalizedPath) -or [string]::IsNullOrWhiteSpace($normalizedRoot)) {
+    return $false
+  }
+  if ($normalizedPath.Equals($normalizedRoot, [System.StringComparison]::OrdinalIgnoreCase)) {
+    return $true
+  }
+  $rootWithSeparator = Add-TrailingSeparator $normalizedRoot
+  return $normalizedPath.StartsWith($rootWithSeparator, [System.StringComparison]::OrdinalIgnoreCase)
+}
+
 function Get-ObjectPropertyValue($object, [string]$name) {
   if ($null -eq $object) {
     return $null
@@ -62,9 +89,9 @@ function New-TriggerRegex([string]$text) {
 }
 
 function Test-NegatedMatch([string]$source, [int]$index) {
-  $start = [Math]::Max(0, $index - 48)
+  $start = [Math]::Max(0, $index - 256)
   $prefix = $source.Substring($start, $index - $start)
-  return ($prefix -match "(?i)(\bdo\s+not\b|\bdon't\b|\bnever\b|\bnot\b|\bno\b)[\s\w'-]{0,36}$")
+  return ($prefix -match "(?i)(\bdo\s+not\b|\bdon't\b|\bnever\b|\bnot\b|\bno\b)[\s\w'-]{0,128}$")
 }
 
 function Get-TriggerMatchSet($triggers) {
@@ -96,10 +123,9 @@ function Get-MatchedTriggers($triggers) {
 }
 
 function Get-ProjectLane([string]$path) {
-  $normalized = $path.ToLowerInvariant()
   foreach ($prop in $policy.project_lanes.PSObject.Properties) {
     foreach ($root in $prop.Value) {
-      if ($normalized.StartsWith($root.ToLowerInvariant())) {
+      if (Test-PathInsideRoot $path ([string]$root)) {
         return $prop.Name
       }
     }
@@ -132,6 +158,98 @@ function Get-TaskMatchedTerms($patterns) {
     }
   }
   return @($terms | Select-Object -Unique)
+}
+
+function Get-SourceMatchedTerms([string]$source, $terms) {
+  $hits = @()
+  foreach ($term in (ConvertTo-TriggerList $terms)) {
+    $text = [string]$term
+    if ([string]::IsNullOrWhiteSpace($text)) {
+      continue
+    }
+    $regex = New-TriggerRegex $text
+    if ([regex]::IsMatch($source, $regex)) {
+      $hits += $text
+    }
+  }
+  return @($hits | Select-Object -Unique)
+}
+
+function Get-TermIntersection($leftTerms, $rightTerms) {
+  $right = @{}
+  foreach ($term in (ConvertTo-TriggerList $rightTerms)) {
+    $key = ([string]$term).ToLowerInvariant()
+    if (-not [string]::IsNullOrWhiteSpace($key)) {
+      $right[$key] = $true
+    }
+  }
+  $hits = @()
+  foreach ($term in (ConvertTo-TriggerList $leftTerms)) {
+    $text = [string]$term
+    if ($right.ContainsKey($text.ToLowerInvariant())) {
+      $hits += $text
+    }
+  }
+  return @($hits | Select-Object -Unique)
+}
+
+function Get-R5ContextDecision {
+  param(
+    [string]$SourceText,
+    [object[]]$PositiveTermsInput = @(),
+    [object[]]$NegatedTermsInput = @()
+  )
+  $candidateTerms = @($positiveTermsInput | Select-Object -Unique)
+  $negatedTerms = @($negatedTermsInput | Select-Object -Unique)
+  if ($candidateTerms.Count -eq 0) {
+    return [pscustomobject]@{
+      decision = "none"
+      action_surface = "none"
+      promote_to_risk = $false
+      candidate_terms = @()
+      negated_terms = @($negatedTerms)
+      reason = "no_R5_candidate"
+    }
+  }
+
+  $contextRules = $policy.r5_context_decision_rules
+  $directActionHits = Get-SourceMatchedTerms -source $sourceText -terms $contextRules.direct_action_terms
+  $actionContextHits = Get-SourceMatchedTerms -source $sourceText -terms $contextRules.action_context_terms
+  $documentationContextHits = Get-SourceMatchedTerms -source $sourceText -terms $contextRules.documentation_context_terms
+  $nonActionContextHits = Get-SourceMatchedTerms -source $sourceText -terms $contextRules.non_action_context_terms
+  $contextRequiredCandidateHits = Get-TermIntersection -leftTerms $candidateTerms -rightTerms $contextRules.context_required_candidate_terms
+  $alwaysActionCandidateHits = Get-TermIntersection -leftTerms $candidateTerms -rightTerms $contextRules.always_action_candidate_terms
+
+  if (($directActionHits.Count -gt 0) -or (($alwaysActionCandidateHits.Count -gt 0) -and ($documentationContextHits.Count -eq 0)) -or (($contextRequiredCandidateHits.Count -gt 0) -and ($actionContextHits.Count -gt 0) -and ($nonActionContextHits.Count -eq 0))) {
+    return [pscustomobject]@{
+      decision = "requires_confirmation"
+      action_surface = "actionable_R5"
+      promote_to_risk = $true
+      candidate_terms = @($candidateTerms)
+      negated_terms = @($negatedTerms)
+      reason = "action_context_detected"
+    }
+  }
+
+  if (($documentationContextHits.Count -gt 0) -or ($nonActionContextHits.Count -gt 0)) {
+    return [pscustomobject]@{
+      decision = "contextual_review"
+      action_surface = "documentation_or_discussion"
+      promote_to_risk = $false
+      candidate_terms = @($candidateTerms)
+      negated_terms = @($negatedTerms)
+      reason = "R5_terms_are_context_not_action"
+    }
+  }
+
+  return [pscustomobject]@{
+    decision = "contextual_review"
+    action_surface = "ambiguous_R5_candidate"
+    promote_to_risk = $false
+    candidate_terms = @($candidateTerms)
+    negated_terms = @($negatedTerms)
+    reason = "R5_candidate_needs_context_review"
+  }
 }
 
 function Get-TargetSurface() {
@@ -221,6 +339,8 @@ $requiredSkills = @()
 $triggeredRisks = @()
 $matchedRiskTriggers = [ordered]@{}
 $negatedRiskTriggers = [ordered]@{}
+$riskCandidates = [ordered]@{}
+$risk_context_decisions = [ordered]@{}
 $fallbackModelJudgmentRecommended = $false
 $classificationConfidence = "high"
 $riskRules = $policy.risk_trigger_rules
@@ -234,6 +354,25 @@ foreach ($riskName in (ConvertTo-Array $policy.risk_order_high_to_low)) {
   $matched = @($matchSet.positive)
   if ($matchSet.negated.Count -gt 0) {
     $negatedRiskTriggers[[string]$riskName] = @($matchSet.negated)
+  }
+  if ([string]$riskName -eq "R5") {
+    $r5DecisionArgs = @{
+      SourceText = [string]$TaskText
+      PositiveTermsInput = @($matched)
+      NegatedTermsInput = @($matchSet.negated)
+    }
+    $r5Decision = Get-R5ContextDecision @r5DecisionArgs
+    if ($matched.Count -gt 0) {
+      $riskCandidates["R5"] = @($matched)
+      $risk_context_decisions["R5"] = $r5Decision
+      if (-not $r5Decision.promote_to_risk) {
+        if ($r5Decision.action_surface -eq "ambiguous_R5_candidate") {
+          $classificationConfidence = "low"
+          $requiredGates += "risk_context_review_gate"
+        }
+        continue
+      }
+    }
   }
   if ($matched.Count -gt 0) {
     $triggeredRisks += [string]$riskName
@@ -260,11 +399,28 @@ foreach ($riskName in (ConvertTo-Array $policy.risk_order_high_to_low)) {
 
 if ($triggeredRisks.Count -eq 0) {
   $fallbackMatched = Get-MatchedTriggers $policy.fallback_boundary_triggers
-  if ($fallbackMatched.Count -gt 0) {
+  $fallbackShortTextMaxChars = 30
+  $fallbackLongTextMinChars = 100
+  if ($null -ne $policy.router_decision_contract.fallback_short_text_max_chars) {
+    $fallbackShortTextMaxChars = [int]$policy.router_decision_contract.fallback_short_text_max_chars
+  }
+  if ($null -ne $policy.router_decision_contract.fallback_long_text_min_chars) {
+    $fallbackLongTextMinChars = [int]$policy.router_decision_contract.fallback_long_text_min_chars
+  }
+  $trimmedTaskLength = $TaskText.Trim().Length
+  $fallbackEligible = (
+    ($trimmedTaskLength -ge $fallbackLongTextMinChars) -or
+    (($trimmedTaskLength -ge $fallbackShortTextMaxChars) -and ($fallbackMatched.Count -gt 0))
+  )
+  if ($fallbackEligible) {
     $fallbackModelJudgmentRecommended = $true
     $classificationConfidence = "low"
     $requiredGates += "model_boundary_review_gate"
-    $matchedRiskTriggers["fallback_boundary"] = @($fallbackMatched)
+    if ($fallbackMatched.Count -gt 0) {
+      $matchedRiskTriggers["fallback_boundary"] = @($fallbackMatched)
+    } else {
+      $matchedRiskTriggers["fallback_boundary"] = @("long_unclassified_task")
+    }
   }
 }
 
@@ -389,11 +545,11 @@ $selfReflectionRecordHits = @($explicitRecordHits)
 if ($conversationExplicitHits.Count -gt 0) {
   $selfReflectionRecordHits = @()
 }
-$projectizationThreshold = 3
+$projectizationThreshold = 5
 if ($null -ne $policy.router_decision_contract.projectization_threshold) {
   $projectizationThreshold = [int]$policy.router_decision_contract.projectization_threshold
 }
-$conversationThreshold = 2
+$conversationThreshold = 5
 if ($null -ne $policy.router_decision_contract.conversation_memory_threshold) {
   $conversationThreshold = [int]$policy.router_decision_contract.conversation_memory_threshold
 }
@@ -655,6 +811,8 @@ $result = [ordered]@{
   triggered_risks = @($triggeredRisks | Select-Object -Unique)
   matched_risk_triggers = $matchedRiskTriggers
   negated_risk_triggers = $negatedRiskTriggers
+  risk_candidates = $riskCandidates
+  risk_context_decisions = $risk_context_decisions
   classification_confidence = $classificationConfidence
   required_gates = @($requiredGates | Select-Object -Unique)
   required_skills = @($requiredSkills | Select-Object -Unique)

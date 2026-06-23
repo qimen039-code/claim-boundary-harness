@@ -11,12 +11,46 @@ Claude Code note: this package has not yet completed a full deployment validatio
 `.github/workflows/smoke.yml` runs a lightweight subset of these checks on push, pull request, and manual dispatch:
 
 - PowerShell policy, router, memory isolation, external research, runtime, tool-proxy, conversation-memory, and claim-gate smoke checks;
+- Bash policy/router path smoke checks on Ubuntu, including paths with spaces and R5 context disambiguation;
+- `cbh-doctor` read-only adoption diagnostics;
+- pytest contract checks for automatically verifiable `TC-xxx` cases and machine-readable credits;
 - SkillOpt-style external module self-test;
 - WorkBuddy Python adapter unit tests.
 
 The workflow is intentionally not a full OS/runtime compatibility matrix. It is a low-cost guard that checks the reference package still runs and returns expected gate decisions.
 
 For broader manual acceptance coverage, use [test-cases.md](test-cases.md). It includes route, claim, memory-lane, adapter, shell-robustness, and SkillOpt-cycle cases.
+
+## 0a. Adoption Doctor
+
+`cbh-doctor` is a one-shot diagnostic. It does not install packages, configure
+hooks, write memory, or certify that a host agent honors every path. It checks
+the local reference package and reports pass/warn/fail with evidence.
+
+```bash
+python tools/cbh_doctor.py --repo-root . --json
+```
+
+Expected highlights:
+
+- `status` is `pass` or `warn`;
+- no check has `status: fail`;
+- missing Bash or `jq` on a Windows-only machine appears as a warning, not as a package failure.
+
+## 0b. Pytest Contract Checks
+
+These tests code only the automatically verifiable subset of
+[test-cases.md](test-cases.md). The Markdown file remains the readable contract
+for humans and agents; pytest is the CI regression layer.
+
+```bash
+python -m pytest tests
+```
+
+Expected highlight:
+
+- router contract cases keep their `TC-xxx` ids;
+- `CREDITS.toml` parses and includes attribution boundaries.
 
 ## 0. Policy Validator
 
@@ -93,6 +127,35 @@ Expected highlights:
 
 - `risk_level` is not `R5`;
 - `negated_risk_triggers` includes `delete`.
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\skills\embedded-harness\harness_intake_router.ps1 -TaskText "trigger list contains commit push 删除 提交, docs discussion only, no npm/pip distribution" -Cwd "C:\path with spaces\project"
+```
+
+Expected highlights:
+
+- `risk_level` is not `R5`;
+- `risk_candidates.R5` includes `commit`;
+- `risk_context_decisions.R5.action_surface`: `documentation_or_discussion`.
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\skills\embedded-harness\harness_intake_router.ps1 -TaskText "提交报告" -Cwd "C:\path with spaces\project"
+```
+
+Expected highlights:
+
+- `risk_level` is not `R5`;
+- `risk_context_decisions.R5.action_surface`: `documentation_or_discussion`.
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\skills\embedded-harness\harness_intake_router.ps1 -TaskText "删除旧 release" -Cwd "C:\path with spaces\project"
+```
+
+Expected highlights:
+
+- `risk_level`: `R5`;
+- `risk_context_decisions.R5.promote_to_risk`: `true`;
+- `approval_required` includes `high_risk_action`.
 
 ## 4. External Research Trigger
 
@@ -228,7 +291,7 @@ Expected highlights:
 ## 5. Claim Schema
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\skills\embedded-harness\harness_claim_schema_verifier.ps1 -ClaimJson '{"claim_type":"architecture_decision","source_type":"local_file","evidence_boundary":"whiteboard smoke"}'
+powershell -ExecutionPolicy Bypass -File .\skills\embedded-harness\harness_claim_schema_verifier.ps1 -ClaimJson '{"claim_type":"architecture_decision","source_type":"local_file","source_ref":"README.md","evidence_boundary":"whiteboard_smoke"}'
 ```
 
 Expected highlight:

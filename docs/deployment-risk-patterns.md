@@ -6,6 +6,17 @@ The WorkBuddy case shows the core deployment risk: copying the harness files is 
 
 This document is intentionally version-neutral. Agent clients change hook names, config locations, environment variables, and tool schemas. Treat every product-specific integration as unverified until it passes the local acceptance tests below.
 
+For a quick local preflight, run the read-only doctor from the repository root:
+
+```bash
+python tools/cbh_doctor.py --repo-root . --json
+```
+
+The doctor checks package files, policy shape, PowerShell routing probes,
+selective tool-proxy blocking, and Bash/jq availability. It does not configure
+hooks, install dependencies, write memory, or prove that a host agent honors
+every execution path.
+
 For a concrete adapter, keep two compact records near the adapter layer:
 
 - a declarative governance contract describing stages, denial semantics, payload safety, and cost boundaries;

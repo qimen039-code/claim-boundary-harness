@@ -173,7 +173,10 @@ class HarnessGateTests(unittest.TestCase):
         self.assertIn("conversation_link_gate", route["required_gates"])
 
     def test_router_detects_conversation_checkpoint_candidate(self) -> None:
-        route = self._route("long conversation with open loops and context compression risk", policy=self.policy)
+        route = self._route(
+            "long conversation with open loops, context compression, continue later, unresolved decision, and checkpoint risk",
+            policy=self.policy,
+        )
         self.assertEqual(route["conversation_memory_decision"], "checkpoint_candidate")
         self.assertEqual(route["memory_lane"], "current_conversation")
         self.assertEqual(route["record_intent"], "conversation_checkpoint")

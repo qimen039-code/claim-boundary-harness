@@ -20,8 +20,9 @@ root AGENTS.md microkernel
 Design boundaries:
 
 - Risk rules are additive: keep the highest risk label, but return the union of all gates matched by the task.
+- R5 trigger terms are candidates first. The router promotes them to R5 only when context shows an actionable delete, git, install, login, permission, network/proxy, sensitive-transfer, or memory-write operation.
 - `R4` includes `R3` change and claim gates, plus external research and verification gates.
-- If no deterministic risk rule matches but the text looks like a nontrivial task, the router sets `fallback_model_judgment_recommended=true` rather than silently treating it as high-confidence `R0`.
+- If no deterministic risk rule matches, fallback review is reserved for medium-length text with fallback terms or long unclassified text. Short ordinary questions stay cheap R0 unless another rule fires.
 - `GLOBAL` memory is manual-only by default.
 - The mandatory advisory control plane is required for nontrivial tasks: create a lightweight routing receipt, re-evaluate only on trigger events, and re-check claim/memory/version boundaries before final output.
 - R0-R5 classification always runs internally but stays silent by default in user-facing surfaces. Expose only action-changing boundaries; `debug_receipt` is for route diagnosis or explicit full-receipt requests.
@@ -89,7 +90,7 @@ Scripts:
 .\harness_task_wrapper.ps1 -TaskText "list files" -CommandPath "powershell" -CommandArgs @("-NoProfile","-Command","Get-ChildItem")
 .\harness_memory_isolation_gate.ps1 -ProjectLane EXAMPLE_PROJECT -RequestedPath "<PROJECT_ROOT>/.agent-memory/item.md"
 .\harness_external_research_gate.ps1 -TaskText "check latest version"
-.\harness_claim_schema_verifier.ps1 -ClaimJson '{"claim_type":"architecture_decision","source_type":"local_file","evidence_boundary":"example"}'
+.\harness_claim_schema_verifier.ps1 -ClaimJson '{"claim_type":"architecture_decision","source_type":"local_file","source_ref":"README.md","evidence_boundary":"whiteboard_smoke"}'
 ```
 
 Bash counterparts:
@@ -99,7 +100,7 @@ bash ./bash/validate_policy.sh
 bash ./bash/harness_intake_router.sh --task-text "fix the build and run benchmark" --cwd "<PROJECT_ROOT>"
 bash ./bash/harness_memory_isolation_gate.sh --project-lane EXAMPLE_PROJECT --requested-path "<PROJECT_ROOT>/.agent-memory/item.md"
 bash ./bash/harness_external_research_gate.sh --task-text "check latest version"
-bash ./bash/harness_claim_schema_verifier.sh --claim-json '{"claim_type":"architecture_decision","source_type":"local_file","evidence_boundary":"example"}'
+bash ./bash/harness_claim_schema_verifier.sh --claim-json '{"claim_type":"architecture_decision","source_type":"local_file","source_ref":"README.md","evidence_boundary":"whiteboard_smoke"}'
 ```
 
 Bash scripts require `jq`. They are reference adapters, not a package-manager distribution.

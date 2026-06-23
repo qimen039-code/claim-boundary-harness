@@ -64,19 +64,51 @@ if [ -n "$CLAIM_JSON" ]; then
     while IFS= read -r source_type; do
       [ -z "$source_type" ] && continue
       add_unique issues "missing_source_ref_for_${source_type}"
-    done < <(printf '%s' "$CLAIM_JSON" | jq -r '
+    done < <(printf '%s' "$CLAIM_JSON" | jq -r --argjson policy "$(cat "$POLICY_PATH")" '
+      def tok: tostring | ascii_downcase | gsub("^[[:space:]]+|[[:space:]]+$"; "") | gsub("[[:space:]]+"; "_") | gsub("-+"; "_");
+      ($policy.claim_schema_contract.source_ref_required_for // ["external_retrieval","memory_capsule_ref"] | map(tok)) as $required
+      | if type == "array" then .[] else . end
+      | (.source_type | tok) as $source_type
+      | select(($required | index($source_type)) and ((has("source_ref") | not) or ((.source_ref | tostring) == "")))
+      | $source_type
+    ' | tr -d '\r')
+
+    while IFS= read -r issue; do
+      [ -z "$issue" ] && continue
+      add_unique issues "$issue"
+    done < <(printf '%s' "$CLAIM_JSON" | jq -r --argjson policy "$(cat "$POLICY_PATH")" '
+      def tok: tostring | ascii_downcase | gsub("^[[:space:]]+|[[:space:]]+$"; "") | gsub("[[:space:]]+"; "_") | gsub("-+"; "_");
+      ($policy.claim_schema_contract.allowed_source_types // [] | map(tok)) as $sources
+      | ($policy.claim_schema_contract.evidence_boundary_enum // [] | map(tok)) as $boundaries
       if type == "array" then .[] else . end
-      | select((.source_type == "external_retrieval" or .source_type == "memory_capsule_ref") and ((has("source_ref") | not) or ((.source_ref | tostring) == "")))
-      | .source_type
+      | (.source_type | tok) as $source_type
+      | (.evidence_boundary | tok) as $boundary
+      | if (($sources | length) > 0 and (($sources | index($source_type)) | not)) then
+          "unsupported_source_type:\(.source_type)"
+        elif (($boundaries | length) > 0 and (($boundaries | index($boundary)) | not)) then
+          "unsupported_evidence_boundary:\(.evidence_boundary)"
+        else empty end
     ' | tr -d '\r')
   fi
 fi
 
-if [ -n "$FINAL_TEXT" ] && [ "$claims_checked" -eq 0 ]; then
+if [ -n "$FINAL_TEXT" ]; then
   while IFS= read -r phrase; do
     [ -z "$phrase" ] && continue
     if printf '%s' "$FINAL_TEXT" | grep -Fqi -- "$phrase"; then
-      add_unique issues "blocked_claim_phrase_without_schema:${phrase}"
+      if [ "$claims_checked" -eq 0 ]; then
+        add_unique issues "blocked_claim_phrase_without_schema:${phrase}"
+      else
+        strong_match_count="$(printf '%s' "$CLAIM_JSON" | jq -r --argjson policy "$(cat "$POLICY_PATH")" '
+          def tok: tostring | ascii_downcase | gsub("^[[:space:]]+|[[:space:]]+$"; "") | gsub("[[:space:]]+"; "_") | gsub("-+"; "_");
+          ($policy.claim_schema_contract.strong_claim_evidence_boundaries // [] | map(tok)) as $strong
+          | [if type == "array" then .[] else . end
+             | select(($strong | index(.evidence_boundary | tok)) != null)] | length
+        ' | tr -d '\r')"
+        if [ "$strong_match_count" -eq 0 ]; then
+          add_unique issues "insufficient_evidence_boundary_for_strong_phrase:${phrase}"
+        fi
+      fi
     fi
   done < <(jq -r '.blocked_claim_phrases_without_schema[]?' "$POLICY_PATH" | tr -d '\r')
 fi
@@ -98,7 +130,7 @@ result="$(
       status: $status,
       claims_checked: $claims_checked,
       issues: $issues,
-      rule: "schema completeness check only; no extra model judgment"
+      rule: "schema enum and evidence-boundary check only; no extra model judgment"
     }'
 )"
 

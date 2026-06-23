@@ -118,6 +118,13 @@ final-answer gate -> skills/embedded-harness/harness_runtime_enforcer.ps1 -Stage
 
 For PowerShell final-answer checks, pass the actual response body through `-FinalText` when available. If `-FinalText` is omitted, the final gate falls back to scanning `-TaskText`.
 
+Claim payloads should use enumerated `source_type` and `evidence_boundary`
+values from `embedded_harness_policy.json`. Source-backed claims such as
+`local_file`, `local_test`, `tool_output`, `external_retrieval`, and
+`memory_capsule_ref` should include `source_ref`. Strong wording such as
+validated, verified, stable, or proven requires an evidence boundary at least as
+strong as the policy's `strong_claim_evidence_boundaries`.
+
 Do not replace your normal agent launcher until the scripts pass local smoke checks. Start with high-risk blocking, final-claim checks, and memory-write checks. Keep ordinary tool calls on the advisory control plane unless you have a reason to harden them. Keep a fallback path so a bad adapter can be disabled without losing workspace access.
 
 Exit code contract:

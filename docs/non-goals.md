@@ -5,7 +5,7 @@ These items are intentionally out of scope for the whiteboard package. They can 
 | Non-goal | Reason |
 | --- | --- |
 | Package-manager distribution | The framework should stay copyable, inspectable, and easy to adapt while the rule contract is still early. |
-| Python or Node script ports | PowerShell and Bash cover the current reference surfaces. More ports would increase drift until adoption contracts stabilize. |
+| Python or Node runtime ports | PowerShell and Bash cover the current router/runtime reference surfaces. Python diagnostics and tests are allowed; a third full router implementation would increase drift until adoption contracts stabilize. |
 | Community boilerplate such as contribution templates or stale automation | Useful for mature projects, but not needed to validate the harness chain itself. |
 | Monitoring dashboards | The current package is a local gate and memory-lane framework, not an operations monitoring system. |
 | Full memory backend or shared memory server | The core defines routing, source boundaries, and lane isolation. Downstream adopters may connect a database, vector search, graph search, MCP memory tool, or server, but that backend is not part of the default whiteboard core. |

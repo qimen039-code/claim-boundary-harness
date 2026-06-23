@@ -6,6 +6,7 @@ param(
 
 $ErrorActionPreference = "Stop"
 $issues = @()
+$warnings = @()
 $policy = $null
 
 function ConvertTo-Array($value) {
@@ -16,6 +17,10 @@ function ConvertTo-Array($value) {
 
 function Add-Issue([string]$issue) {
   $script:issues += $issue
+}
+
+function Add-Warning([string]$warning) {
+  $script:warnings += $warning
 }
 
 function Get-RelativeDisplayPath([string]$Path, [string]$Root) {
@@ -157,6 +162,18 @@ if ($null -ne $policy) {
     }
   }
 
+  $r5ContextRules = $policy.r5_context_decision_rules
+  if ($null -eq $r5ContextRules) {
+    Add-Issue "r5_context_decision_rules_missing"
+  } else {
+    foreach ($field in @("direct_action_terms","context_required_candidate_terms","always_action_candidate_terms","action_context_terms","non_action_context_terms","documentation_context_terms")) {
+      $value = Get-ObjectPropertyValue $r5ContextRules $field
+      if ((ConvertTo-Array $value).Count -eq 0) {
+        Add-Issue "r5_context_decision_rule_empty:$field"
+      }
+    }
+  }
+
   if ($null -eq $policy.memory_roots) {
     Add-Issue "memory_roots_missing"
   } else {
@@ -177,6 +194,43 @@ if ($null -ne $policy) {
       }
     }
   }
+
+  $placeholderPaths = @()
+  if ($null -ne $policy.project_lanes) {
+    foreach ($lane in $policy.project_lanes.PSObject.Properties) {
+      if ($lane.Name -eq "EXAMPLE_PROJECT") {
+        Add-Warning "template_project_lane_present:EXAMPLE_PROJECT"
+      }
+      foreach ($path in (ConvertTo-Array $lane.Value)) {
+        if ([string]$path -like "C:\path\to\*") {
+          $placeholderPaths += [string]$path
+        }
+      }
+    }
+  }
+  if ($null -ne $policy.memory_roots) {
+    foreach ($lane in $policy.memory_roots.PSObject.Properties) {
+      foreach ($path in (ConvertTo-Array $lane.Value)) {
+        if ([string]$path -like "C:\path\to\*") {
+          $placeholderPaths += [string]$path
+        }
+      }
+    }
+  }
+  if ($placeholderPaths.Count -gt 0) {
+    Add-Warning "template_placeholder_paths_present:replace_before_production_use"
+  }
+
+  $claimContract = $policy.claim_schema_contract
+  if ($null -eq $claimContract) {
+    Add-Issue "claim_schema_contract_missing"
+  } else {
+    foreach ($field in @("allowed_source_types","source_ref_required_for","evidence_boundary_enum","strong_claim_evidence_boundaries")) {
+      if ((ConvertTo-Array (Get-ObjectPropertyValue $claimContract $field)).Count -eq 0) {
+        Add-Issue "claim_schema_contract_empty:$field"
+      }
+    }
+  }
 }
 
 $repoCandidate = if ($RepoRoot) { $RepoRoot } else { Join-Path $PSScriptRoot "..\.." }
@@ -192,7 +246,8 @@ $result = [ordered]@{
   status = $status
   policy_path = $PolicyPath
   issues = @($issues | Select-Object -Unique)
-  rule = "lightweight policy parse, shape check, and belief_trace_summary.current_status invariant check when repo root is available; not a full JSON Schema validator"
+  warnings = @($warnings | Select-Object -Unique)
+  rule = "lightweight policy parse, shape check, claim schema contract check, placeholder warnings, and belief_trace_summary.current_status invariant check when repo root is available; not a full JSON Schema validator"
 }
 
 $json = $result | ConvertTo-Json -Depth 20

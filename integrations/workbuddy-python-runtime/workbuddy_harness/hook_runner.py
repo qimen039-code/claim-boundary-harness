@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+from contextlib import contextmanager
 import json
 import os
 import sys
@@ -14,6 +15,7 @@ from .policy import load_policy
 
 STATE_FILENAME = "workbuddy_hook_state.json"
 SESSION_LIMIT = 50
+STATE_LOCK_FILENAME = STATE_FILENAME + ".lock"
 MAX_EXTRACTED_TEXT_CHARS = 12000
 MAX_EXTRACTED_TEXT_PARTS = 16
 MAX_EXTRACT_DEPTH = 6
@@ -215,6 +217,45 @@ def _state_path(log_dir: Path) -> Path:
     return log_dir / STATE_FILENAME
 
 
+def _state_lock_path(log_dir: Path) -> Path:
+    return log_dir / STATE_LOCK_FILENAME
+
+
+@contextmanager
+def _exclusive_state_lock(log_dir: Path):
+    log_dir.mkdir(parents=True, exist_ok=True)
+    lock_path = _state_lock_path(log_dir)
+    with lock_path.open("a+b") as handle:
+        handle.seek(0, os.SEEK_END)
+        if handle.tell() == 0:
+            handle.write(b"\0")
+            handle.flush()
+        handle.seek(0)
+        if os.name == "nt":
+            import msvcrt
+
+            msvcrt.locking(handle.fileno(), msvcrt.LK_LOCK, 1)
+            try:
+                yield
+            finally:
+                handle.seek(0)
+                msvcrt.locking(handle.fileno(), msvcrt.LK_UNLCK, 1)
+        else:
+            import fcntl
+
+            fcntl.flock(handle.fileno(), fcntl.LOCK_EX)
+            try:
+                yield
+            finally:
+                fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
+
+
+@contextmanager
+def _locked_state(log_dir: Path):
+    with _exclusive_state_lock(log_dir):
+        yield _load_state(log_dir)
+
+
 def _load_state(log_dir: Path) -> dict[str, Any]:
     path = _state_path(log_dir)
     if not path.exists():
@@ -240,7 +281,10 @@ def _save_state(log_dir: Path, state: dict[str, Any]) -> None:
             key=lambda item: str(item[1].get("updated_at", "")) if isinstance(item[1], dict) else "",
         )
         state["sessions"] = dict(ordered[-SESSION_LIMIT:])
-    _state_path(log_dir).write_text(json.dumps(state, ensure_ascii=False, indent=2, sort_keys=True), encoding="utf-8")
+    path = _state_path(log_dir)
+    tmp_path = path.with_suffix(path.suffix + ".tmp")
+    tmp_path.write_text(json.dumps(state, ensure_ascii=False, indent=2, sort_keys=True), encoding="utf-8")
+    tmp_path.replace(path)
 
 
 def _prompt_text(payload: dict[str, Any], *, include_nested_text: bool = True) -> str:
@@ -609,35 +653,36 @@ def main(argv: list[str] | None = None) -> int:
         stage = _stage(args, payload)
         cwd = _cwd(args, payload)
         log_dir = _log_dir(args, payload, cwd)
-        state = _load_state(log_dir)
         policy = load_policy(args.policy or None)
-        if stage == "user_prompt":
-            code, output = _handle_user_prompt(
-                args=args,
-                payload=payload,
-                cwd=cwd,
-                log_dir=log_dir,
-                state=state,
-                policy=policy,
-            )
-        elif stage == "pre_tool":
-            code, output = _handle_pre_tool(
-                args=args,
-                payload=payload,
-                cwd=cwd,
-                log_dir=log_dir,
-                state=state,
-                policy=policy,
-            )
-        elif stage == "final":
-            code, output = _handle_final(
-                args=args,
-                payload=payload,
-                cwd=cwd,
-                log_dir=log_dir,
-                state=state,
-                policy=policy,
-            )
+        if stage in {"user_prompt", "pre_tool", "final"}:
+            with _locked_state(log_dir) as state:
+                if stage == "user_prompt":
+                    code, output = _handle_user_prompt(
+                        args=args,
+                        payload=payload,
+                        cwd=cwd,
+                        log_dir=log_dir,
+                        state=state,
+                        policy=policy,
+                    )
+                elif stage == "pre_tool":
+                    code, output = _handle_pre_tool(
+                        args=args,
+                        payload=payload,
+                        cwd=cwd,
+                        log_dir=log_dir,
+                        state=state,
+                        policy=policy,
+                    )
+                else:
+                    code, output = _handle_final(
+                        args=args,
+                        payload=payload,
+                        cwd=cwd,
+                        log_dir=log_dir,
+                        state=state,
+                        policy=policy,
+                    )
         else:
             code, output = _handle_passthrough(
                 stage=stage,

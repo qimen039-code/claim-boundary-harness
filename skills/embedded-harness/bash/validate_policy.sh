@@ -142,6 +142,16 @@ else
     done
   fi
 
+  if ! jq -e '.r5_context_decision_rules != null' "$POLICY_PATH" >/dev/null; then
+    add_unique issues "r5_context_decision_rules_missing"
+  else
+    for field in direct_action_terms context_required_candidate_terms always_action_candidate_terms action_context_terms non_action_context_terms documentation_context_terms; do
+      if ! jq -e --arg field "$field" '(.r5_context_decision_rules[$field] // []) | length > 0' "$POLICY_PATH" >/dev/null; then
+        add_unique issues "r5_context_decision_rule_empty:${field}"
+      fi
+    done
+  fi
+
   if ! jq -e '.memory_roots != null' "$POLICY_PATH" >/dev/null; then
     add_unique issues "memory_roots_missing"
   else

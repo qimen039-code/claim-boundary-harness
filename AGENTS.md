@@ -75,6 +75,14 @@ Persona or companion state is conversation-only and default-off. It may affect t
 
 Governance-layer updates, dynamic-evaluation rule changes, routing-rule changes, trigger-term updates, decision-matrix edits, and framework behavior changes are `R3` even when they are documentation-only.
 
+R5 trigger terms are candidates before they are final risk decisions. Terms such
+as `delete`, `commit`, `push`, `删除`, and `提交` may appear in docs, examples,
+negations, reports, or routing discussions. Record them as `risk_candidates`,
+then promote to R5 only when context shows an actionable delete, git, install,
+login, permission, network/proxy, sensitive-transfer, or long-term memory-write
+operation. Actual tool commands such as `git push`, `Remove-Item`, or `rm -rf`
+remain hard-gate actions without explicit confirmation.
+
 Trigger-term promotion must pass a durability check. Promote a term only when it describes a recurring routing class that changes execution boundaries, memory/search/claim behavior, or risk. Do not promote one-off task wording into long-lived policy when an existing generic rule already routes the work.
 
 ## Selective Runtime Enforcement Surface

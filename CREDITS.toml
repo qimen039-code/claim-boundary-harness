@@ -1,0 +1,160 @@
+schema_version = "credits/v1"
+
+[[influence]]
+id = "microsoft-skillopt"
+name = "Microsoft SkillOpt"
+url = "https://github.com/microsoft/SkillOpt"
+source_type = "public_github"
+used_for = [
+  "candidate skill edits",
+  "validation-gated updates",
+  "rejected edit buffers",
+  "textual learning-rate boundaries",
+  "default-off skill improvement cycles",
+]
+not_adopted = [
+  "upstream code vendoring",
+  "training loops",
+  "datasets",
+  "model backends",
+  "benchmark claims",
+]
+boundary = "source-prior design influence; tools/skillopt/skillopt_cycle.py is an independent lightweight implementation"
+docs_ref = "docs/influences-and-attribution.md"
+
+[[influence]]
+id = "rohitg00-agentmemory"
+name = "rohitg00/agentmemory"
+url = "https://github.com/rohitg00/agentmemory"
+source_type = "public_github"
+used_for = [
+  "lifecycle hook coverage",
+  "explicit memory command semantics",
+  "retrieval metadata pressure",
+  "client-update hook drift concerns",
+]
+not_adopted = [
+  "external memory backend requirement",
+  "memory server",
+  "vector database requirement",
+  "automatic cross-agent shared memory",
+  "automatic memory mutation",
+]
+boundary = "source-prior design influence; memory lanes remain isolated by project, conversation, common-error corpus, and archive boundary"
+docs_ref = "docs/influences-and-attribution.md"
+
+[[influence]]
+id = "lannguyensi-harness"
+name = "LanNguyenSi/harness"
+url = "https://github.com/LanNguyenSi/harness"
+source_type = "public_github"
+used_for = [
+  "declarative control-plane vocabulary",
+  "adapter compatibility thinking",
+  "evidence-ledger ideas",
+  "policy and enforcement separation",
+]
+not_adopted = [
+  "manifest format requirement",
+  "CLI dependency",
+  "Rego-like policy layer",
+  "generated runtime config",
+  "always-on hook enforcement",
+]
+boundary = "source-prior design influence; Claim Boundary Harness keeps a portable markdown and script reference contract"
+docs_ref = "docs/influences-and-attribution.md"
+
+[[influence]]
+id = "epicsagas-epic-harness"
+name = "epicsagas/epic-harness"
+url = "https://github.com/epicsagas/epic-harness"
+source_type = "public_github"
+used_for = [
+  "hook health framing",
+  "pipeline state awareness",
+  "multi-tool harness framing",
+  "staged self-improvement concern",
+]
+not_adopted = [
+  "always-on self-evolution",
+  "autonomous spec-to-PR behavior",
+  "unified memory default",
+]
+boundary = "source-prior design influence; self-improvement stays staged, gated, and optional"
+docs_ref = "docs/influences-and-attribution.md"
+
+[[influence]]
+id = "chatbotkit-template-node-agent-cli-js"
+name = "ChatBotKit template-node-agent-cli-js"
+url = "https://github.com/chatbotkit/template-node-agent-cli-js"
+source_type = "public_github"
+used_for = [
+  "tool schema inspiration",
+  "CLI-agent structure inspiration",
+  "structured command-output inspiration",
+]
+not_adopted = [
+  "ChatBotKit dependency",
+  "SDK dependency",
+]
+boundary = "source-prior design influence only"
+docs_ref = "docs/influences-and-attribution.md"
+
+[[pattern]]
+id = "policy-decision-enforcement-separation"
+name = "Policy decision point / policy enforcement point separation"
+used_for = [
+  "separate routing decisions from execution",
+  "make hard enforcement depend on host hook or wrapper integration",
+]
+boundary = "not a complete policy engine and not a sandbox by itself"
+
+[[pattern]]
+id = "admission-control-hooks"
+name = "Admission-control style hooks"
+used_for = [
+  "check critical actions before persistence or execution",
+  "keep ordinary tool calls low cost",
+]
+boundary = "critical risks only; not every ordinary tool call becomes a hard gate"
+
+[[pattern]]
+id = "append-only-ledgers"
+name = "Append-only ledgers"
+used_for = [
+  "decision records",
+  "error and solution records",
+  "rejected edit records",
+]
+boundary = "lightweight files by default, not a database requirement"
+
+[[pattern]]
+id = "structured-provenance"
+name = "Structured provenance"
+used_for = [
+  "source tags",
+  "confidence labels",
+  "derived-from chains",
+  "belief status boundaries",
+]
+boundary = "provenance preserves evidence boundary; it does not make a claim true"
+
+[[pattern]]
+id = "meta-first-retrieval"
+name = "Meta-first retrieval"
+used_for = [
+  "read summaries and indexes before deep payloads",
+  "bound memory and static-knowledge lookup cost",
+]
+boundary = "retrieval discipline, not a semantic correctness guarantee"
+
+[[pattern]]
+id = "project-manuals"
+name = "Project manuals and wiki-style knowledge bases"
+used_for = [
+  "stable module maps",
+  "command maps",
+  "conventions",
+  "interface notes near the repository",
+]
+boundary = "static notes are source-prior orientation until checked against files, tests, or schemas"

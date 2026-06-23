@@ -9,6 +9,10 @@ External references are source-prior inputs. They are useful for design,
 terminology, and validation ideas, but they do not prove this framework works in
 an adopting runtime until local smoke checks pass.
 
+`CREDITS.toml` is the machine-readable companion to this page. Keep public
+external influences there; do not use it for private discussions or local
+deployment notes.
+
 ## Public GitHub Influences
 
 | Source | Absorbed or adapted ideas | Boundary |

@@ -64,6 +64,20 @@ This keeps Codex-style, Claude-style, WorkBuddy-style, and custom local adapters
 
 For field-budget, silent classification, and delta-receipt rules, see [cost-control-contract.md](cost-control-contract.md). The short rule is: classify every task internally, but emit a field by default only when it can change the next action.
 
+## Fallback Boundary Rule
+
+Fallback routing is a last-resort ambiguity signal, not a broad nontrivial-task
+classifier. If no deterministic R1-R5 rule matches:
+
+- very short text stays R0 unless another rule fires;
+- medium-length text needs a configured fallback term before low-confidence
+  review is recommended;
+- long unclassified text may request boundary review even without a fallback
+  term, because the agent lacks a deterministic route.
+
+This keeps phrases such as "what is the task?" from becoming low-confidence
+governance work while still catching long, underspecified requests.
+
 ## Low-Cost Rule
 
 Do not load all skills, all memory, or all history because this contract exists. The preferred expansion order is:
@@ -78,6 +92,37 @@ L0 microkernel
 ```
 
 If the receipt is obvious from the current request, it can stay implicit. Keep R0-R5 labels internal by default. If the classification changes execution path, cost, permission, memory, external search, or claim wording, expose only that minimal boundary. If the user asks for debug or audit, expose the complete debug receipt.
+
+## R5 Candidate And Context Rule
+
+R5 trigger terms are a recall layer, not the final decision. Terms such as
+`delete`, `commit`, `push`, `删除`, and `提交` may appear inside documentation,
+examples, quoted text, negated requests, or non-git phrases such as "submit a
+report". The router should record these hits under `risk_candidates` first,
+then decide whether the context is an actionable high-risk operation.
+
+Use this low-cost order:
+
+```text
+lexical trigger hit
+-> risk_candidates
+-> context decision
+-> promote to R5 only when the surface is actionable
+```
+
+Expected behavior:
+
+| Request shape | Expected route |
+| --- | --- |
+| "do not delete anything" | Not R5; record a negated R5 trigger. |
+| "trigger list contains commit push 删除 提交" | Not R5; record R5 candidates with `documentation_or_discussion`. |
+| "提交报告" | Not R5; treat as non-action or artifact/report context. |
+| "删除旧 release" | R5; concrete delete action requiring confirmation. |
+| "git push" or "commit changes" | R5; concrete git action requiring confirmation. |
+
+Runtime hard gates should still inspect actual tool commands. A command such as
+`git push` or `Remove-Item` must be blocked without explicit human confirmation
+even if the earlier prompt-level route was ambiguous.
 
 ## Composite Task And Scope Reassessment Rule
 

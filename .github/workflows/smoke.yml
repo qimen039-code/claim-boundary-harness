@@ -27,6 +27,9 @@ jobs:
         with:
           python-version: "3.11"
 
+      - name: Install test dependencies
+        run: python -m pip install pytest
+
       - name: Run PowerShell harness smoke checks
         shell: pwsh
         run: |
@@ -101,7 +104,7 @@ jobs:
 
           $fallback = Invoke-HarnessJson `
             -ScriptPath ".\skills\embedded-harness\harness_intake_router.ps1" `
-            -Arguments @("-TaskText", "handle this project issue", "-Cwd", "C:\path\to\other")
+            -Arguments @("-TaskText", "handle this project issue with unclear ownership and no other deterministic trigger", "-Cwd", "C:\path\to\other")
           Assert-Equal $fallback.Json.classification_confidence "low" "fallback confidence"
           Assert-True ([bool]$fallback.Json.fallback_model_judgment_recommended) "fallback judgment recommendation"
 
@@ -121,6 +124,25 @@ jobs:
             -Arguments @("-TaskText", "do not delete anything", "-Cwd", "C:\path\to\other")
           Assert-True ($negatedDelete.Json.risk_level -ne "R5") "negated delete should not route as R5"
           Assert-Contains $negatedDelete.Json.negated_risk_triggers.R5 "delete" "negated R5 triggers"
+
+          $docsR5Context = Invoke-HarnessJson `
+            -ScriptPath ".\skills\embedded-harness\harness_intake_router.ps1" `
+            -Arguments @("-TaskText", "trigger list contains commit push 删除 提交, docs discussion only, no npm/pip distribution", "-Cwd", "C:\path with spaces\project")
+          Assert-True ($docsR5Context.Json.risk_level -ne "R5") "documentation context should not route as R5"
+          Assert-Contains $docsR5Context.Json.risk_candidates.R5 "commit" "documentation R5 candidate terms"
+          Assert-Equal $docsR5Context.Json.risk_context_decisions.R5.action_surface "documentation_or_discussion" "documentation R5 action surface"
+
+          $deleteRelease = Invoke-HarnessJson `
+            -ScriptPath ".\skills\embedded-harness\harness_intake_router.ps1" `
+            -Arguments @("-TaskText", "删除旧 release", "-Cwd", "C:\path with spaces\project")
+          Assert-Equal $deleteRelease.Json.risk_level "R5" "delete release should route as R5"
+          Assert-Equal $deleteRelease.Json.risk_context_decisions.R5.promote_to_risk $true "delete release should promote R5"
+
+          $submitReport = Invoke-HarnessJson `
+            -ScriptPath ".\skills\embedded-harness\harness_intake_router.ps1" `
+            -Arguments @("-TaskText", "提交报告", "-Cwd", "C:\path with spaces\project")
+          Assert-True ($submitReport.Json.risk_level -ne "R5") "submit report should not route as R5"
+          Assert-Equal $submitReport.Json.risk_context_decisions.R5.action_surface "documentation_or_discussion" "submit report action surface"
 
           $research = Invoke-HarnessJson `
             -ScriptPath ".\skills\embedded-harness\harness_external_research_gate.ps1" `
@@ -183,7 +205,8 @@ jobs:
           $claimJson = @{
             claim_type = "architecture_decision"
             source_type = "local_file"
-            evidence_boundary = "whiteboard smoke"
+            source_ref = "README.md"
+            evidence_boundary = "whiteboard_smoke"
           } | ConvertTo-Json -Compress
           $tempRoot = if ($env:RUNNER_TEMP) { $env:RUNNER_TEMP } else { [System.IO.Path]::GetTempPath() }
           $claimFile = Join-Path $tempRoot "agent-memory-lane-claim-smoke.json"
@@ -196,5 +219,51 @@ jobs:
       - name: Run SkillOpt-style external module self-test
         run: python tools/skillopt/skillopt_cycle.py self-test
 
+      - name: Run cbh-doctor diagnostics
+        run: python tools/cbh_doctor.py --repo-root . --json
+
+      - name: Run pytest contract checks
+        run: python -m pytest tests
+
       - name: Run WorkBuddy Python adapter tests
         run: python -m unittest discover -s integrations/workbuddy-python-runtime/tests
+
+  bash-smoke:
+    name: Bash path and router smoke checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Verify jq is available
+        shell: bash
+        run: command -v jq
+
+      - name: Run Bash harness smoke checks
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          bash ./skills/embedded-harness/bash/validate_policy.sh
+
+          work_root="/tmp/claim boundary harness/path with spaces"
+          mkdir -p "$work_root"
+
+          negated_delete="$(bash ./skills/embedded-harness/bash/harness_intake_router.sh --task-text "do not delete anything" --cwd "$work_root")"
+          test "$(printf '%s' "$negated_delete" | jq -r '.risk_level')" != "R5"
+          printf '%s' "$negated_delete" | jq -e '.negated_risk_triggers.R5 | index("delete")' >/dev/null
+
+          docs_context="$(bash ./skills/embedded-harness/bash/harness_intake_router.sh --task-text "trigger list contains commit push 删除 提交, docs discussion only, no npm/pip distribution" --cwd "$work_root")"
+          test "$(printf '%s' "$docs_context" | jq -r '.risk_level')" != "R5"
+          printf '%s' "$docs_context" | jq -e '.risk_candidates.R5 | index("commit")' >/dev/null
+          printf '%s' "$docs_context" | jq -e '.risk_context_decisions.R5.action_surface == "documentation_or_discussion"' >/dev/null
+
+          delete_release="$(bash ./skills/embedded-harness/bash/harness_intake_router.sh --task-text "删除旧 release" --cwd "$work_root")"
+          test "$(printf '%s' "$delete_release" | jq -r '.risk_level')" = "R5"
+          printf '%s' "$delete_release" | jq -e '.risk_context_decisions.R5.promote_to_risk == true' >/dev/null
+
+          submit_report="$(bash ./skills/embedded-harness/bash/harness_intake_router.sh --task-text "提交报告" --cwd "$work_root")"
+          test "$(printf '%s' "$submit_report" | jq -r '.risk_level')" != "R5"
+          printf '%s' "$submit_report" | jq -e '.risk_context_decisions.R5.action_surface == "documentation_or_discussion"' >/dev/null

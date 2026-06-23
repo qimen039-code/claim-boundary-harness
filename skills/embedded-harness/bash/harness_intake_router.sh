@@ -80,12 +80,85 @@ match_trigger() {
     return 1
   fi
   if is_english_trigger "$trigger"; then
-    neg_regex="(do[[:space:]]+not|don't|never|not|no)[[:space:][:alnum:]_'-]{0,36}${escaped}"
+    neg_regex="(do[[:space:]]+not|don't|never|not|no)[[:space:][:alnum:]_'-]{0,128}${escaped}"
     if [[ "$source" =~ $neg_regex ]]; then
       return 2
     fi
   fi
   return 0
+}
+
+set_object_json() {
+  local file="$1"
+  local key="$2"
+  local value_json="$3"
+  local tmp
+  tmp="${file}.tmp"
+  jq --arg key "$key" --argjson value "$value_json" '. + {($key): $value}' "$file" > "$tmp"
+  mv "$tmp" "$file"
+}
+
+is_r5_direct_action_context() {
+  has_matches_filter '.r5_context_decision_rules.direct_action_terms' && return 0
+  if has_candidate_in_filter '.r5_context_decision_rules.always_action_candidate_terms' && ! has_matches_filter '.r5_context_decision_rules.documentation_context_terms'; then
+    return 0
+  fi
+  if has_candidate_in_filter '.r5_context_decision_rules.context_required_candidate_terms' && has_matches_filter '.r5_context_decision_rules.action_context_terms' && ! has_matches_filter '.r5_context_decision_rules.non_action_context_terms'; then
+    return 0
+  fi
+  return 1
+}
+
+is_r5_documentation_or_discussion_context() {
+  has_matches_filter '.r5_context_decision_rules.documentation_context_terms' && return 0
+  has_matches_filter '.r5_context_decision_rules.non_action_context_terms' && return 0
+  return 1
+}
+
+has_matches_filter() {
+  local filter="$1"
+  local hits=()
+  collect_matching_triggers "$filter" hits
+  [ "${#hits[@]}" -gt 0 ]
+}
+
+has_candidate_in_filter() {
+  local filter="$1"
+  local candidate term
+  for candidate in "${positives[@]}"; do
+    while IFS= read -r term; do
+      [ -z "$term" ] && continue
+      if [ "${candidate,,}" = "${term,,}" ]; then
+        return 0
+      fi
+    done < <(triggers_from_filter "$filter")
+  done
+  return 1
+}
+
+r5_context_decision_json() {
+  local decision="$1"
+  local action_surface="$2"
+  local promote="$3"
+  local reason="$4"
+  local candidate_json negated_json
+  candidate_json="$(json_array "${positives[@]}")"
+  negated_json="$(json_array "${negated[@]}")"
+  jq -n \
+    --arg decision "$decision" \
+    --arg action_surface "$action_surface" \
+    --arg reason "$reason" \
+    --argjson promote "$promote" \
+    --argjson candidate_terms "$candidate_json" \
+    --argjson negated_terms "$negated_json" \
+    '{
+      decision: $decision,
+      action_surface: $action_surface,
+      promote_to_risk: $promote,
+      candidate_terms: $candidate_terms,
+      negated_terms: $negated_terms,
+      reason: $reason
+    }'
 }
 
 triggers_for_risk() {
@@ -207,9 +280,13 @@ find_active_conversation_memory_lane() {
 
 matched_file="$(mktemp)"
 negated_file="$(mktemp)"
-trap 'rm -f "$matched_file" "$negated_file" "${matched_file}.tmp" "${negated_file}.tmp"' EXIT
+candidates_file="$(mktemp)"
+context_file="$(mktemp)"
+trap 'rm -f "$matched_file" "$negated_file" "$candidates_file" "$context_file" "${matched_file}.tmp" "${negated_file}.tmp" "${candidates_file}.tmp" "${context_file}.tmp"' EXIT
 printf '{}\n' > "$matched_file"
 printf '{}\n' > "$negated_file"
+printf '{}\n' > "$candidates_file"
+printf '{}\n' > "$context_file"
 
 project_lane="PROJECTLESS"
 cwd_canon="$(with_sep "$(canonical_path "$CWD")")"
@@ -254,6 +331,20 @@ for risk_name in "${risk_order[@]}"; do
   if [ "${#negated[@]}" -gt 0 ]; then
     set_object_array "$negated_file" "$risk_name" "${negated[@]}"
   fi
+  if [ "$risk_name" = "R5" ] && [ "${#positives[@]}" -gt 0 ]; then
+    set_object_array "$candidates_file" "R5" "${positives[@]}"
+    if is_r5_direct_action_context; then
+      set_object_json "$context_file" "R5" "$(r5_context_decision_json "requires_confirmation" "actionable_R5" true "action_context_detected")"
+    elif is_r5_documentation_or_discussion_context; then
+      set_object_json "$context_file" "R5" "$(r5_context_decision_json "contextual_review" "documentation_or_discussion" false "R5_terms_are_context_not_action")"
+      continue
+    else
+      classification_confidence="low"
+      add_unique required_gates "risk_context_review_gate"
+      set_object_json "$context_file" "R5" "$(r5_context_decision_json "contextual_review" "ambiguous_R5_candidate" false "R5_candidate_needs_context_review")"
+      continue
+    fi
+  fi
   if [ "${#positives[@]}" -gt 0 ]; then
     add_unique triggered_risks "$risk_name"
     set_object_array "$matched_file" "$risk_name" "${positives[@]}"
@@ -279,11 +370,23 @@ if [ "${#triggered_risks[@]}" -eq 0 ]; then
       add_unique fallback "$trigger"
     fi
   done < <(triggers_from_filter '.fallback_boundary_triggers')
-  if [ "${#fallback[@]}" -gt 0 ]; then
+  fallback_short_max="$(jq -r '.router_decision_contract.fallback_short_text_max_chars // 30' "$POLICY_PATH" | tr -d '\r')"
+  fallback_long_min="$(jq -r '.router_decision_contract.fallback_long_text_min_chars // 100' "$POLICY_PATH" | tr -d '\r')"
+  task_trimmed="$(printf '%s' "$TASK_TEXT" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')"
+  task_length="${#task_trimmed}"
+  fallback_eligible=false
+  if [ "$task_length" -ge "$fallback_long_min" ] || { [ "$task_length" -ge "$fallback_short_max" ] && [ "${#fallback[@]}" -gt 0 ]; }; then
+    fallback_eligible=true
+  fi
+  if [ "$fallback_eligible" = true ]; then
     fallback_model_judgment_recommended=true
     classification_confidence="low"
     add_unique required_gates "model_boundary_review_gate"
-    set_object_array "$matched_file" "fallback_boundary" "${fallback[@]}"
+    if [ "${#fallback[@]}" -gt 0 ]; then
+      set_object_array "$matched_file" "fallback_boundary" "${fallback[@]}"
+    else
+      set_object_array "$matched_file" "fallback_boundary" "long_unclassified_task"
+    fi
   fi
 fi
 
@@ -401,8 +504,8 @@ self_reflection_record_hits=("${explicit_record_hits[@]}")
 if [ "${#conversation_explicit_hits[@]}" -gt 0 ]; then
   self_reflection_record_hits=()
 fi
-projectization_threshold="$(jq -r '.router_decision_contract.projectization_threshold // 3' "$POLICY_PATH" | tr -d '\r')"
-conversation_threshold="$(jq -r '.router_decision_contract.conversation_memory_threshold // 2' "$POLICY_PATH" | tr -d '\r')"
+projectization_threshold="$(jq -r '.router_decision_contract.projectization_threshold // 5' "$POLICY_PATH" | tr -d '\r')"
+conversation_threshold="$(jq -r '.router_decision_contract.conversation_memory_threshold // 5' "$POLICY_PATH" | tr -d '\r')"
 
 projectization_decision="not_project"
 if [ "$project_lane" != "PROJECTLESS" ]; then
@@ -584,6 +687,8 @@ result="$(
     --argjson triggered_risks "$(json_array "${triggered_risks[@]}")" \
     --argjson matched_risk_triggers "$(cat "$matched_file")" \
     --argjson negated_risk_triggers "$(cat "$negated_file")" \
+    --argjson risk_candidates "$(cat "$candidates_file")" \
+    --argjson risk_context_decisions "$(cat "$context_file")" \
     --argjson required_gates "$(json_array "${required_gates[@]}")" \
     --argjson required_skills "$(json_array "${required_skills[@]}")" \
     --argjson needs_external_research "$needs_external_research" \
@@ -649,6 +754,8 @@ result="$(
       triggered_risks: $triggered_risks,
       matched_risk_triggers: $matched_risk_triggers,
       negated_risk_triggers: $negated_risk_triggers,
+      risk_candidates: $risk_candidates,
+      risk_context_decisions: $risk_context_decisions,
       classification_confidence: $classification_confidence,
       required_gates: $required_gates,
       required_skills: $required_skills,

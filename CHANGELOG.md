@@ -4,6 +4,26 @@ All notable public changes should be recorded here.
 
 This project uses `vMAJOR.MINOR.PATCH` version labels while the framework is still early-stage.
 
+## v0.15.0 - 2026-06-23
+
+- Hardened PowerShell runtime parity with original task text and explicit risk-level overrides, schema-aware command-tool scanning, policy-backed hard-tool patterns, and safer project-lane path boundary checks.
+- Tightened claim schema checks with enumerated source types, source references for source-backed claims, enumerated evidence boundaries, and stronger evidence requirements for final validation wording.
+- Reduced noisy fallback routing by keeping short unclassified prompts cheap while reserving boundary review for medium fallback matches or long unclassified tasks.
+- Added WorkBuddy hook-state locking and atomic state writes to reduce cross-session prompt-state overwrite risk.
+- Updated smoke tests, pytest contract checks, and adoption notes for the runtime parity and claim-boundary behavior.
+
+## v0.14.27 - 2026-06-23
+
+- Added `tools/cbh_doctor.py`, a read-only adoption diagnostic for package files, policy shape, PowerShell router probes, selective tool-proxy blocking, and Bash/jq availability.
+- Added pytest contract checks for automatically verifiable `TC-xxx` routing cases, tool-proxy blocking, doctor execution, and machine-readable credits.
+- Added `CREDITS.toml` as a machine-readable companion to the public influences and attribution document.
+
+## v0.14.26 - 2026-06-23
+
+- Added R5 candidate/context routing so high-risk words are recorded before being promoted to hard R5 actions.
+- Added PowerShell and Bash smoke coverage for R5 documentation context, Chinese submit/report phrasing, Chinese delete/release actions, and paths with spaces.
+- Kept package-manager distribution as a non-goal; no npm or pip distribution layer was added.
+
 ## v0.14.25 - 2026-06-23
 
 - Extended the policy validator to check that `belief_trace_summary.current_status` stays synchronized with `belief_status` when reusable memory examples or templates include both fields.

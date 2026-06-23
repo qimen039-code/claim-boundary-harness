@@ -2,6 +2,8 @@ param(
   [ValidateSet("pre_tool", "post_tool")]
   [string]$Stage = "pre_tool",
   [string]$TaskText = "",
+  [string]$OriginalTaskText = "",
+  [string]$RiskLevel = "",
   [string]$Cwd = (Get-Location).Path,
   [string]$ToolName = "",
   [string]$ToolInputJson = "",
@@ -18,6 +20,8 @@ $ErrorActionPreference = "Stop"
 $argsForGate = @{
   Stage = $Stage
   TaskText = $TaskText
+  OriginalTaskText = $OriginalTaskText
+  RiskLevel = $RiskLevel
   Cwd = $Cwd
   ToolName = $ToolName
   ToolInputJson = $ToolInputJson

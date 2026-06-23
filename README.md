@@ -2,7 +2,7 @@
 
 Stop coding agents from calling weak evidence "validated." Claim Boundary Harness adds meta-first routing, project-scoped memory lanes, R0-R5 risk receipts, and deployment adapters for claim verification.
 
-Current version: `v0.14.25`
+Current version: `v0.15.0`
 
 It is not tied to one agent runtime. It is a neutral starting point that can be mapped into any agent that can read workspace instructions, run local scripts, use command or skill folders, or call hooks before tools.
 
@@ -63,7 +63,8 @@ those slices into one low-cost contract:
   SkillOpt-style candidate edits without always-on self-rewriting.
 
 Some mechanisms are adapted from public projects and established engineering
-patterns. See [docs/influences-and-attribution.md](docs/influences-and-attribution.md).
+patterns. See [docs/influences-and-attribution.md](docs/influences-and-attribution.md)
+and `CREDITS.toml`.
 
 ## Memory Lanes Without Memory Bleed
 
@@ -178,6 +179,8 @@ user request
 - **Version compatibility manifest**: a compact record of runtime/client version, hook schema, wrapper paths, tested denial behavior, bypass surfaces, and drift response.
 - **Hook capture matrix**: a deployment-neutral stage map for prompt intake, pre-tool enforcement, post-tool observation, pre-compaction checkpointing, and final claim checks.
 - **Lightweight CI smoke workflow**: a single GitHub Actions workflow for representative reproduction checks and WorkBuddy Python adapter tests, not a full compatibility matrix.
+- **cbh-doctor diagnostics**: a read-only adoption preflight that checks package files, policy shape, PowerShell routing, selective hard-gate blocking, and Bash/jq availability.
+- **Pytest contract checks**: parameterized tests for automatically verifiable `TC-xxx` routing and gate cases while keeping the Markdown contract readable for humans and agents.
 - **Governance/routing update handling**: framework-rule, trigger-term, routing-rule, decision-matrix, and dynamic-evaluation edits are treated as R3 changes even when they are documentation-only.
 - **Selective runtime enforcer scripts**: hook, wrapper, and tool-proxy entry points that return nonzero only at configured hard-stop boundaries when called by the adopting runtime. They are truly mandatory only when they are the sole execution path for the relevant agent action. The WorkBuddy Python adapter includes a hook runner for `UserPromptSubmit`, command-tool `PreToolUse`, and `Stop`/final checks.
 - **Search and learning decision matrix**: routes public facts, GitHub repository evidence, general web cross-checks, external mechanism intake, and local validation boundaries.
@@ -203,6 +206,7 @@ user request
 ```text
 .
 +-- AGENTS.md
++-- CREDITS.toml
 +-- CHANGELOG.md
 +-- PROJECT_SKILL_MATRIX_REGISTRY.md
 +-- VERSION
@@ -234,6 +238,9 @@ user request
 |   +-- router-decision-contract.md
 +-- integrations/
 |   +-- workbuddy-python-runtime/
++-- tests/
+|   +-- test_credits.py
+|   +-- test_router_contract.py
 +-- examples/
 |   +-- sample-routing.md
 |   +-- memory-capsule-examples.md
@@ -251,6 +258,7 @@ user request
 |   +-- skillopt-training-layer/
 |   +-- troubleshooting-skill-matrix/
 +-- tools/
+|   +-- cbh_doctor.py
 |   +-- skillopt/
 |       +-- skillopt_cycle.py
 +-- templates/
@@ -403,6 +411,19 @@ Run the optional SkillOpt-style external module smoke test when Python is availa
 python tools/skillopt/skillopt_cycle.py self-test
 ```
 
+Run the read-only adoption diagnostic before trusting a new adapter or after a
+client update:
+
+```bash
+python tools/cbh_doctor.py --repo-root . --json
+```
+
+Run the parameterized contract checks when `pytest` is available:
+
+```bash
+python -m pytest tests
+```
+
 After any agent client update, re-check the adapter surface before relying on the chain:
 
 ```text
@@ -427,6 +448,8 @@ The whiteboard package was smoke-tested locally with:
 - claim schema verification;
 - policy validation;
 - Bash smoke checks when `jq` is available;
+- cbh-doctor adoption diagnostics;
+- pytest contract checks for the automatically verifiable `TC-xxx` route cases and machine-readable credits;
 - optional SkillOpt-style external module self-test;
 - WorkBuddy Python adapter unit tests as a standalone decision layer, including prompt routing, command blocking, Stop/final claim blocking, surrogate-safe payloads, recording transcript extraction, and non-command file-content false-positive guards;
 - package content scan for local project terms and sensitive field names.

@@ -11,7 +11,7 @@ from typing import Any
 from .policy import load_policy
 
 
-NEGATION_RE = re.compile(r"(?i)(\bdo\s+not\b|\bdon't\b|\bnever\b|\bnot\b|\bno\b)[\s\w'-]{0,36}$")
+NEGATION_RE = re.compile(r"(?i)(\bdo\s+not\b|\bdon't\b|\bnever\b|\bnot\b|\bno\b)[\s\w'-]{0,128}$")
 RISK_LABEL_RE = re.compile(r"^R[0-5]$")
 DEFAULT_LOG_FILENAME = "workbuddy_harness_events.jsonl"
 SURROGATE_RE = re.compile(r"[\ud800-\udfff]")
@@ -91,6 +91,10 @@ def _as_list(value: Any) -> list[Any]:
     return [value]
 
 
+def _contract_token(value: Any) -> str:
+    return re.sub(r"[\s-]+", "_", str(value or "").strip().lower())
+
+
 def _risk_rank(risk_level: str, policy: dict[str, Any]) -> int:
     order = [str(item) for item in _as_list(policy.get("risk_order_high_to_low"))]
     try:
@@ -136,7 +140,7 @@ def _trigger_regex(text: str) -> re.Pattern[str]:
 
 
 def _is_negated(source: str, index: int) -> bool:
-    start = max(0, index - 48)
+    start = max(0, index - 256)
     return bool(NEGATION_RE.search(source[start:index]))
 
 
@@ -444,11 +448,16 @@ def intake_router(task_text: str = "", cwd: str | None = None, policy: dict[str,
     fallback_recommended = False
     if not triggered_risks:
         fallback_match = _trigger_matches(task_text, policy.get("fallback_boundary_triggers", []))
-        if fallback_match["positive"]:
+        contract = policy.get("router_decision_contract", {})
+        short_max = int(contract.get("fallback_short_text_max_chars", 30))
+        long_min = int(contract.get("fallback_long_text_min_chars", 100))
+        task_len = len(task_text.strip())
+        fallback_eligible = task_len >= long_min or (task_len >= short_max and bool(fallback_match["positive"]))
+        if fallback_eligible:
             fallback_recommended = True
             classification_confidence = "low"
             required_gates.append("model_boundary_review_gate")
-            matched_risk_triggers["fallback_boundary"] = fallback_match["positive"]
+            matched_risk_triggers["fallback_boundary"] = fallback_match["positive"] or ["long_unclassified_task"]
         if fallback_match["negated"]:
             negated_risk_triggers["fallback_boundary"] = fallback_match["negated"]
 
@@ -521,7 +530,7 @@ def intake_router(task_text: str = "", cwd: str | None = None, policy: dict[str,
     explicit_record_hits = _matching_triggers(task_text, contract.get("explicit_record_triggers", []))
     common_error_hits = _matching_triggers(task_text, contract.get("common_error_triggers", []))
     projectization_signals = _matching_triggers(task_text, contract.get("projectization_signals", []))
-    projectization_threshold = int(contract.get("projectization_threshold", 3))
+    projectization_threshold = int(contract.get("projectization_threshold", 5))
 
     if lane != "PROJECTLESS":
         projectization_decision = "current_project"
@@ -533,7 +542,7 @@ def intake_router(task_text: str = "", cwd: str | None = None, policy: dict[str,
     conversation_explicit_hits = _matching_triggers(task_text, contract.get("conversation_memory_explicit_triggers", []))
     conversation_signals = _matching_triggers(task_text, contract.get("conversation_memory_signals", []))
     self_reflection_record_hits = [] if conversation_explicit_hits else explicit_record_hits
-    conversation_threshold = int(contract.get("conversation_memory_threshold", 2))
+    conversation_threshold = int(contract.get("conversation_memory_threshold", 5))
     conversation_memory_decision = "none"
     read_only_audit_hits = _matching_triggers(task_text, contract.get("read_only_memory_audit_triggers", []))
     active_conversation_write_intent_hits = _matching_triggers(task_text, contract.get("active_conversation_write_intent_triggers", []))
@@ -820,6 +829,14 @@ def claim_schema_verifier(
         except Exception:
             issues.append("claim_json_parse_failed")
 
+    contract = policy.get("claim_schema_contract", {})
+    allowed_source_types = {_contract_token(item) for item in _as_list(contract.get("allowed_source_types"))}
+    source_ref_required_for = {_contract_token(item) for item in _as_list(contract.get("source_ref_required_for"))}
+    allowed_evidence_boundaries = {_contract_token(item) for item in _as_list(contract.get("evidence_boundary_enum"))}
+    strong_evidence_boundaries = {
+        _contract_token(item) for item in _as_list(contract.get("strong_claim_evidence_boundaries"))
+    }
+
     for claim in claims:
         if not isinstance(claim, dict):
             issues.append("claim_not_object")
@@ -827,14 +844,27 @@ def claim_schema_verifier(
         for field in ("claim_type", "source_type", "evidence_boundary"):
             if not str(claim.get(field, "")).strip():
                 issues.append(f"missing_{field}")
-        source_type = str(claim.get("source_type", ""))
-        if source_type in {"external_retrieval", "memory_capsule_ref"} and not str(claim.get("source_ref", "")).strip():
+        source_type = _contract_token(claim.get("source_type", ""))
+        evidence_boundary = _contract_token(claim.get("evidence_boundary", ""))
+        if allowed_source_types and source_type not in allowed_source_types:
+            issues.append(f"unsupported_source_type:{claim.get('source_type', '')}")
+        if allowed_evidence_boundaries and evidence_boundary not in allowed_evidence_boundaries:
+            issues.append(f"unsupported_evidence_boundary:{claim.get('evidence_boundary', '')}")
+        if source_type in source_ref_required_for and not str(claim.get("source_ref", "")).strip():
             issues.append(f"missing_source_ref_for_{source_type}")
 
     if final_text:
         for phrase in _as_list(policy.get("blocked_claim_phrases_without_schema")):
-            if str(phrase) in final_text and not claims:
-                issues.append(f"blocked_claim_phrase_without_schema:{phrase}")
+            if str(phrase) in final_text:
+                if not claims:
+                    issues.append(f"blocked_claim_phrase_without_schema:{phrase}")
+                    continue
+                if strong_evidence_boundaries and not any(
+                    _contract_token(claim.get("evidence_boundary", "")) in strong_evidence_boundaries
+                    for claim in claims
+                    if isinstance(claim, dict)
+                ):
+                    issues.append(f"insufficient_evidence_boundary_for_strong_phrase:{phrase}")
 
     return {
         "ts": _now(),
@@ -842,7 +872,7 @@ def claim_schema_verifier(
         "status": "blocked" if issues else "pass",
         "claims_checked": len(claims),
         "issues": sorted(set(issues)),
-        "rule": "schema completeness check only; no extra LLM judgment",
+        "rule": "schema enum and evidence-boundary check only; no extra LLM judgment",
     }
 
 
@@ -875,7 +905,9 @@ def runtime_enforcer(
     route = intake_router(route_text, cwd, policy)
     route = _apply_risk_override(route, explicit_risk_level, policy)
     tool_text = tool_risk_text
-    hard_hits = _pattern_hits(tool_text, HARD_TOOL_PATTERNS)
+    configured_hard_patterns = _as_list(policy.get("runtime_enforcement", {}).get("hard_tool_patterns"))
+    hard_patterns = [str(item) for item in configured_hard_patterns] or HARD_TOOL_PATTERNS
+    hard_hits = _pattern_hits(tool_text, hard_patterns)
     change_hits = _pattern_hits(tool_text, CHANGE_TOOL_PATTERNS)
     conversation_link_required = _conversation_link_required(route, policy)
 
