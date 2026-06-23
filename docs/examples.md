@@ -230,7 +230,7 @@ Expected route:
 
 - read the memory meta index first;
 - classify the note as source-derived or synthesized before writing;
-- write `source_tag`, `belief_status`, structured `confidence`, `derived_from`, and lifecycle metadata;
+- write required source-monitoring fields: `source_tag` `belief_status` `confidence` `derived_from`, plus lifecycle metadata;
 - keep optional numeric scores out of the core capsule unless an adapter actually computed them;
 - mark untested adoption claims as `source_prior` or `bounded_claim`, not `local_validated`.
 

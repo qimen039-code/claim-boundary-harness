@@ -20,9 +20,9 @@ Do not open category payloads before this file has selected the category. If thi
 | external_references | `external_references/` | Source notes, outside mechanisms, citations, and adoption boundaries. | TEMPLATE | Keep source boundary separate from local validation. |
 | raw_logs | `raw_logs/` | Raw or near-raw observations that should not be treated as final memory. | TEMPLATE | Promote into another category only after review. |
 
-For reusable memory capsules, use the source-monitoring schema fields: `source_tag`, `belief_status`, `confidence`, `derived_from`, `source_monitoring`, `lifecycle`, and `belief_trace_summary`. Keep only compact routing fields in category indexes and open full payloads only when selected.
+For reusable memory capsules, use the source-monitoring schema fields: `source_tag` `belief_status` `confidence` `derived_from` `source_monitoring` `lifecycle` `belief_trace_summary`. Keep only compact routing fields in category indexes and open full payloads only when selected.
 
-Retrieval outputs that leave this memory library should include `source_tag`, `derived_from`, `belief_status`, `confidence`, and `score_method` with the selected text. If no numeric score is computed, use `score_method: none` and omit `score`.
+Retrieval outputs that leave this memory library should include these fields with the selected text: `source_tag` `derived_from` `belief_status` `confidence` `score_method`. If no numeric score is computed, use `score_method: none` and omit `score`.
 
 Status values:
 

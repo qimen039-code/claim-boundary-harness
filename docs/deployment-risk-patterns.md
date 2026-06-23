@@ -67,7 +67,7 @@ Most adopters should aim for L1 plus L2. Do not try to wrap every tool call unti
 | DEP-025 | Nested claim JSON works in direct tests but fails inside hooks | Multiple shells reinterpret quotes or escapes before the adapter receives JSON | Use a file-based handoff such as `--ClaimFile` or a JSON file path for nested claims | Replay a nested claim payload through the exact hook shell and confirm the parser receives the same JSON |
 | DEP-026 | The agent continues an old conversation without reading the right memory lane | Conversation linking is advisory or the host never asks for a link decision before tools | Add a pre-action gate that blocks continuation, merge, archive, or cross-conversation memory tasks until meta-first lookup resolves the link | Ask to continue the previous conversation; the first protected tool call should block with `conversation_link_decision_required` until the link is selected |
 | DEP-027 | A product-specific guide exists, but the installed client behaves differently | The guide is a reference mapping, not completed validation for that client version | Build a compatibility manifest from the actual client and run local acceptance tests | Do not claim hard enforcement until the installed client blocks a disposable high-risk action before execution |
-| DEP-028 | Memory retrieval returns a plausible paragraph with no metadata | The retrieval backend or memory tool returns text snippets without source, provenance, belief status, or score-method fields | Require returned memories to include `source_tag`, `derived_from`, `belief_status`, `confidence`, and `score_method` before the agent can use them as reusable context | A retrieved snippet without those fields is treated as unbounded context, not validated memory |
+| DEP-028 | Memory retrieval returns a plausible paragraph with no metadata | The retrieval backend or memory tool returns text snippets without source, provenance, belief status, or score-method fields | Require returned memories to include these fields before the agent can use them as reusable context: `source_tag` `derived_from` `belief_status` `confidence` `score_method` | A retrieved snippet without those fields is treated as unbounded context, not validated memory |
 | DEP-029 | A shared memory server improves recall but leaks context across projects | The backend is shared across agents but not lane-scoped before retrieval and writing | Add project, conversation, and global lane IDs at write time; filter by lane before payload retrieval; keep cross-lane reads explicit | A query from project A cannot retrieve project B payloads unless the user explicitly requested cross-project lookup |
 
 ## Deployment Problem Examples And Solution Playbooks
@@ -359,7 +359,7 @@ The agent recalls a useful-looking memory, but the result does not say where it 
 
 Check:
 
-- Does the memory result include `source_tag`, `derived_from`, `belief_status`, `confidence`, and `score_method`?
+- Does the memory result include `source_tag` `derived_from` `belief_status` `confidence` `score_method`?
 - Is `score_method` only ranking relevance, or is it incorrectly used as truth evidence?
 - Was the query filtered by project or conversation lane before payload retrieval?
 

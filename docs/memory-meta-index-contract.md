@@ -109,7 +109,7 @@ Minimum result shape:
 
 Rules:
 
-- `source_tag`, `belief_status`, `confidence`, `derived_from`, and `score_method` are required on returned reusable memories or static knowledge notes.
+- Returned reusable memories or static knowledge notes require these fields: `source_tag` `belief_status` `confidence` `derived_from` `score_method`.
 - If no numeric retrieval score is returned, use `score_method: none` and omit `score`.
 - If `score` is returned, `score_method` must name the method, such as `bm25`, `vector_cosine`, `graph_rank`, `rrf`, or an adopted local method.
 - Retrieval scores rank candidate relevance. They do not replace `belief_status` or `confidence.basis`.

@@ -41,8 +41,8 @@ whiteboard package:
   claim, and runtime-gate needs before opening larger context;
 - project, conversation, common-error, and archive memory lanes with explicit
   cross-lane boundaries;
-- retrieval-result requirements that carry `source_tag`, `derived_from`,
-  `belief_status`, structured `confidence`, and `score_method`;
+- retrieval-result requirements that carry `source_tag` `derived_from`
+  `belief_status` `confidence` `score_method`;
 - an optional static knowledge layer that adapts wiki-style project manuals into
   indexed, source-prior, claim-bounded agent context;
 - selective hard gates that apply only when an adopting runtime actually calls

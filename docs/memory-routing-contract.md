@@ -64,7 +64,7 @@ Rules:
 - A visible command does not bypass lane isolation, source-monitoring fields, or explicit confirmation for high-risk memory actions.
 - If the user uses vague wording, route to `recall` or `recap` only after the lane is clear.
 - Do not treat `remember` as permission to write into another project or another conversation lane.
-- A remembered item should keep `source_tag`, `derived_from`, `belief_status`, `confidence`, and lifecycle metadata when it becomes a reusable capsule.
+- A remembered item should keep `source_tag` `derived_from` `belief_status` `confidence`, plus lifecycle metadata, when it becomes a reusable capsule.
 
 ## Projectization Drift
 

@@ -55,8 +55,8 @@ those slices into one low-cost contract:
   until local checks justify promotion.
 - **Memory without bleed:** project, conversation, common-error, archive, and
   static-knowledge lanes can link to each other without silent payload mixing.
-- **Metadata-bearing retrieval:** returned context must carry `source_tag`,
-  `derived_from`, `belief_status`, `confidence`, and `score_method`.
+- **Metadata-bearing retrieval:** returned context must carry these fields:
+  `source_tag` `derived_from` `belief_status` `confidence` `score_method`.
 - **Selective hard gates:** R5 actions, risky tools, unresolved memory links,
   and strong final claims can be blocked when the runtime calls the gate.
 - **Slow improvement:** repeated failures can become paired records or
@@ -116,11 +116,11 @@ or redirected. The old payloads remain auditable unless the user separately
 requests deletion or redaction.
 
 Retrieval also stays bounded. A memory result should not be returned as a plain
-paragraph that "looks relevant." Reusable memory results should carry
-`source_tag`, `derived_from`, `belief_status`, structured `confidence`, and
-`score_method`. If a retrieval backend has no numeric score, it should use
-`score_method: none` and omit `score`. This keeps source, provenance, belief
-state, and ranking separate.
+paragraph that "looks relevant." Required reusable-memory fields:
+`source_tag` `derived_from` `belief_status` `confidence` `score_method`.
+If a retrieval backend has no numeric score, it should use `score_method: none`
+and omit `score`. This keeps source, provenance, belief state, and ranking
+separate.
 
 The result is an interlinked memory system that can find related project or
 conversation context while still preventing default cross-project,
@@ -194,7 +194,7 @@ user request
 - **Paired improvement records**: one error record plus one solution record for each solved recurring incident.
 - **Layered project memory library**: a meta index points to category indexes, and category indexes point to individual capsules.
 - **Memory meta index contract**: a multi-axis index shape for project memory libraries and skill point sets.
-- **Source monitoring memory schema**: provenance, lifecycle, and belief-state fields for memory capsules, including `source_tag`, `belief_status`, structured `confidence`, `derived_from`, observation state, lifecycle stage, belief traces, and optional adapter score boundaries.
+- **Source monitoring memory schema**: provenance, lifecycle, and belief-state fields for memory capsules, including `source_tag` `belief_status` `confidence` `derived_from`, observation state, lifecycle stage, belief traces, and optional adapter score boundaries.
 - **Common error corpus template**: lightweight CE records for small recurring field/schema, tool-call, semantic-routing, patch-context, PowerShell/path, and Git-boundary mistakes, including the applied solution and validation, before they become full paired incidents.
 - **Whiteboard templates**: empty project memory categories, project instructions, semantic anchors, and error/solution ledgers.
 

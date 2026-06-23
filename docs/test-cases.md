@@ -33,7 +33,7 @@ system, and hook surface you are adopting.
 | TC-021 | Continue previous conversation | Create or use a new current-conversation lane and append a link-only continuation edge. |
 | TC-022 | Merge two conversations | Requires explicit merge request; creates a new merged memory and redirects old indexes. |
 | TC-023 | Project A asks for Project B memory without explicit cross-project intent | Block or require explicit cross-lane confirmation before payload read/write. |
-| TC-024 | Retrieve memory from a backend | Result includes `source_tag`, `derived_from`, `belief_status`, `confidence`, and `score_method`. |
+| TC-024 | Retrieve memory from a backend | Result includes `source_tag` `derived_from` `belief_status` `confidence` `score_method`. |
 | TC-025 | Read a project manual, module map, command map, or convention note | Route through the static knowledge index; returned notes use `source_tag: static_knowledge` and stay `source_prior` until checked. |
 
 ## Adapter And Runtime

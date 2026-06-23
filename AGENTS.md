@@ -56,9 +56,9 @@ one receipt or delta
 
 Memory use is routed. Ordinary chat should not write memory by default. Explicit requests to record an error may write memory after lane and sensitivity checks. Small reusable mistakes should enter a common error corpus first as compact error-and-solution samples with symptom, cause, applied solution, prevention, validation, and evidence; high-impact, repeated, or explicitly requested incidents should become paired ERR/SOL records.
 
-Reusable memory capsules should use source-monitoring fields: `source_tag`, `belief_status`, structured `confidence`, `derived_from`, `source_monitoring`, `lifecycle`, and `belief_trace_summary`. `belief_status` tracks the verification-process state; `confidence` tracks evidence strength for assigning that status, not the raw probability that the original claim is true. Compressed or synthesized capsules must preserve `derived_from`.
+Reusable memory capsules should use source-monitoring fields: `source_tag` `belief_status` `confidence` `derived_from` `source_monitoring` `lifecycle` `belief_trace_summary`. `belief_status` tracks the verification-process state; `confidence` tracks evidence strength for assigning that status, not the raw probability that the original claim is true. Compressed or synthesized capsules must preserve `derived_from`.
 
-Memory retrieval results must not be plain snippets when they are used as reusable context. Return at least `source_tag`, `derived_from`, `belief_status`, structured `confidence`, and `score_method` with the selected text. If no numeric retrieval score is used, set `score_method: none` and omit `score`.
+Memory retrieval results must not be plain snippets when they are used as reusable context. Return at least these fields with the selected text: `source_tag` `derived_from` `belief_status` `confidence` `score_method`. If no numeric retrieval score is used, set `score_method: none` and omit `score`.
 
 Optional static knowledge pages are project manuals, not validated memory. When a task needs module maps, entry points, commands, conventions, or interface notes, read `_STATIC_KNOWLEDGE_INDEX.md` first, open only the selected static page, and treat returned notes as `source_tag: static_knowledge` with `belief_status: source_prior` until checked against files, tests, or schemas.
 

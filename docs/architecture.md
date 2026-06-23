@@ -154,7 +154,7 @@ This prevents the framework from treating every mistake as permanent memory or e
 
 See [memory-routing-contract.md](memory-routing-contract.md) and [common-error-corpus.md](common-error-corpus.md).
 
-Memory retrieval results should preserve provenance. A selected record should return at least `source_tag`, `derived_from`, `belief_status`, structured `confidence`, and `score_method` alongside the snippet. A relevance score can rank candidates, but it does not turn a raw observation or source prior into a validated claim.
+Memory retrieval results should preserve provenance. A selected record should return at least these fields alongside the snippet: `source_tag` `derived_from` `belief_status` `confidence` `score_method`. A relevance score can rank candidates, but it does not turn a raw observation or source prior into a validated claim.
 
 ## Conversation Memory Lane
 

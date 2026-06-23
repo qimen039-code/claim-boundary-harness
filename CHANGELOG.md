@@ -4,6 +4,11 @@ All notable public changes should be recorded here.
 
 This project uses `vMAJOR.MINOR.PATCH` version labels while the framework is still early-stage.
 
+## v0.14.22 - 2026-06-23
+
+- Reworded metadata field lists so GitHub line wrapping does not leave punctuation separated from inline field names.
+- Applied the same field-list wording style across README, adoption-facing docs, templates, and embedded-harness notes.
+
 ## v0.14.21 - 2026-06-23
 
 - Slimmed the README first screen by replacing the long start menu and repeated value sections with a compact overview, fast-path table, and shorter difference summary.
@@ -69,7 +74,7 @@ This project uses `vMAJOR.MINOR.PATCH` version labels while the framework is sti
 
 ## v0.14.11 - 2026-06-22
 
-- Added a source-monitoring memory schema for capsules, covering `source_tag`, `belief_status`, structured `confidence`, `derived_from`, `source_monitoring`, `belief_trace`, and `belief_trace_summary`.
+- Added a source-monitoring memory schema for capsules, covering `source_tag` `belief_status` `confidence` `derived_from` `source_monitoring` `belief_trace` `belief_trace_summary`.
 - Clarified that `belief_status` is a verification-process state and `confidence` is the evidence strength for assigning that state, not a naked probability score.
 - Added conditional capsule rules for `score` / `score_method`, synthesized provenance, correction evidence, rejected capsules, novelty adapter boundaries, and trace compression.
 - Updated project, conversation, global archive, and demo memory templates to expose compact source-monitoring fields through meta-first indexes.
