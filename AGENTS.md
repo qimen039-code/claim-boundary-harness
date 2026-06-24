@@ -12,6 +12,8 @@ This is a generic foundation file. It does not contain project-specific policy, 
 4. Keep memory isolated by project. Cross-project memory use must be explicit.
 5. Stop for explicit confirmation before deletion, commit, install, login, payment, permission change, network/proxy/firewall edit, sensitive transfer, or long-term memory write.
 
+For existing files, default to local patch semantics. Change, update, fix, supplement, optimize, sync, or adapt requests should make the smallest necessary in-file edit. Do not rewrite, regenerate, or replace the whole file unless the user explicitly asks for a full-file rewrite, regeneration, or replacement. Read the current file and nearby anchor context before editing, then review the diff for unrelated churn, encoding changes, reordered content, or unauthorized deletion. This rule applies to existing-file edits; newly requested files may still be created as new files.
+
 ## Mandatory Advisory Control Plane
 
 For every nontrivial task, run this control plane as a required chain. It is mandatory, but it should not wrap every tool call by default:

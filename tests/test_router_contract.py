@@ -107,6 +107,12 @@ ROUTER_CASES = [
         "gates": ["change_contract_gate", "scope_reassessment_gate"],
     },
     {
+        "id": "TC-005a",
+        "task": "将已有文件局部补丁规则同步进公开仓库",
+        "risk": "R3",
+        "gates": ["change_contract_gate"],
+    },
+    {
         "id": "TC-006",
         "task": "check whether this feature exists, then implement it if missing",
         "risk": "R3",

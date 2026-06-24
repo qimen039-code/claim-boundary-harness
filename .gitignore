@@ -1,5 +1,6 @@
 .skillopt/
 .tmp-skillopt-smoke/
 .pytest_cache/
+pytest-cache-files-*/
 __pycache__/
 *.pyc

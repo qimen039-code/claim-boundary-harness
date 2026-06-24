@@ -29,6 +29,8 @@ raw_logs/_INDEX.md
 
 Do not collapse the library into one large summary file. The point of the meta index is to select the category first, then open only the relevant category index and capsule.
 
+For existing instruction, memory, config, or policy files, adopt a local-patch default. Ordinary change/update/fix/sync/adapt requests should edit only the necessary anchored section. Full-file rewrites require explicit user intent and a review of what state, comments, non-ASCII paths, private entries, or generated metadata could be lost.
+
 Make this lookup order mandatory in the adopting agent instructions:
 
 ```text

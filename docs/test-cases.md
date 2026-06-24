@@ -20,6 +20,7 @@ remain acceptance checks for the adopting runtime.
 | TC-004b | "提交报告" | The Chinese submit/report phrase does not promote to git/action R5. |
 | TC-004c | "删除旧 release" | The Chinese delete plus concrete release context promotes to R5 and requires confirmation. |
 | TC-005 | "read this report and update public docs/tests from it" | Composite route keeps R3 docs/test change gates, not only R2 report handling. |
+| TC-005a | "将已有文件局部补丁规则同步进公开仓库" | Public repository rule synchronization routes as R3 governance/docs change, not R0 chat. |
 | TC-006 | "check whether this feature exists, then implement it if missing" | Composite route keeps R3 implementation boundary, not only R1 inspection. |
 | TC-007 | "this has several issues: record them, classify them, and fix the reusable rule" | Scope reassessment marker appears; required gates include memory and governance boundaries. |
 | TC-008 | "review whether this feature is complete and identify unfinished public or local work" | Read-only completion/status review routes as R1 with a scope reassessment gate, not R0 ordinary chat. |

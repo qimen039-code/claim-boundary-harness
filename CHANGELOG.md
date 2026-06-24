@@ -4,6 +4,13 @@ All notable public changes should be recorded here.
 
 This project uses `vMAJOR.MINOR.PATCH` version labels while the framework is still early-stage.
 
+## v0.15.2 - 2026-06-24
+
+- Added a generic existing-file local-patch rule: ordinary change, update, fix, sync, or adapt requests should modify only the necessary anchored section unless the user explicitly asks for a full-file rewrite or replacement.
+- Added adoption guidance for protecting existing instruction, memory, config, and policy files from accidental full-file regeneration.
+- Fixed a narrow router miss where Chinese public-repository rule synchronization phrasing could route as ordinary R0 chat instead of R3 governance/docs change.
+- Added a regression case for public repository rule synchronization routing.
+
 ## v0.15.0 - 2026-06-23
 
 - Hardened PowerShell runtime parity with original task text and explicit risk-level overrides, schema-aware command-tool scanning, policy-backed hard-tool patterns, and safer project-lane path boundary checks.
