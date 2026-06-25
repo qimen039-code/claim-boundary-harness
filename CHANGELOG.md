@@ -12,6 +12,7 @@ This project uses `vMAJOR.MINOR.PATCH` version labels while the framework is sti
 - Clarified the Doubao notes with an operator-provided local hard-constraint test: a destructive delete path was forced through the platform-owned `interaction.warn` confirmation surface, so the adaptation should align with host safety guards without claiming framework-owned hard enforcement.
 - Documented the portability principle that different clients may legitimately provide different enforcement strengths; adapters should map, align, test, and disclose those host-specific surfaces instead of pretending every deployment has identical hard gates.
 - Added a README field-use boundary listing Codex, WorkBuddy, and Doubao as the only currently locally tested adaptation/deployment surfaces, while keeping other clients as unverified reference paths.
+- Added a public common-issues-and-solutions playbook for classified adaptation, CI, memory-ledger, attribution, R5-permit, and shell-startup issue classes.
 
 ## v0.16.0 - 2026-06-25
 

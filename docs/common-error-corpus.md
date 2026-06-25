@@ -2,6 +2,11 @@
 
 The common error corpus stores lightweight execution error-and-solution samples. It is for useful recurring mistakes that are worth preserving as agent training material, including the applied solution and validation, but not severe enough for a full paired `ERR-*` / `SOL-*` incident.
 
+For public, reusable issue classes collected during framework adaptation and
+release work, see [common-issues-and-solutions.md](common-issues-and-solutions.md).
+Keep private local incidents in lane-scoped `CE-*` records instead of publishing
+machine-specific logs or paths.
+
 ## When To Use
 
 Use a `CE-*` common error record when:

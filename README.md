@@ -252,6 +252,7 @@ user request
 |   +-- source-monitoring-memory-schema.md
 |   +-- memory-routing-contract.md
 |   +-- common-error-corpus.md
+|   +-- common-issues-and-solutions.md
 |   +-- conversation-memory-lane.md
 |   +-- conversation-ledger-contract.md
 |   +-- memory-linking-contract.md
@@ -359,6 +360,7 @@ Detailed contracts:
 - [docs/source-monitoring-memory-schema.md](docs/source-monitoring-memory-schema.md)
 - [docs/deployment-risk-patterns.md](docs/deployment-risk-patterns.md)
 - [docs/common-error-corpus.md](docs/common-error-corpus.md)
+- [docs/common-issues-and-solutions.md](docs/common-issues-and-solutions.md)
 
 ## Field Use Note
 
@@ -401,6 +403,7 @@ The package includes synthetic examples that show the intended record shapes wit
 - [docs/source-monitoring-memory-schema.md](docs/source-monitoring-memory-schema.md): source tags, belief-status state, structured confidence, derived provenance, observation state, and belief-trace rules for capsules.
 - [docs/static-knowledge-layer.md](docs/static-knowledge-layer.md): optional wiki-style project manual layer with source-prior retrieval boundaries.
 - [docs/common-error-corpus.md](docs/common-error-corpus.md): lightweight common-error sample format.
+- [docs/common-issues-and-solutions.md](docs/common-issues-and-solutions.md): reusable issue classes and applied solutions from adaptation, release, and CI work.
 - [docs/skillopt-runtime.md](docs/skillopt-runtime.md): optional external SkillOpt-style candidate-edit runner and gate workflow.
 - [docs/influences-and-attribution.md](docs/influences-and-attribution.md): public GitHub and engineering-pattern influences versus project contributions.
 - [docs/test-cases.md](docs/test-cases.md): acceptance cases for adopters to run against their own runtime.
