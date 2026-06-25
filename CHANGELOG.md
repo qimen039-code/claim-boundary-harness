@@ -4,6 +4,10 @@ All notable public changes should be recorded here.
 
 This project uses `vMAJOR.MINOR.PATCH` version labels while the framework is still early-stage.
 
+## Unreleased
+
+- Extended the WorkBuddy adapter manifest and documentation for optional quality-reference, domain source-tier, claim-artifact, and external-model JSON-filler surfaces. These remain default-off, advisory/source-prior, and unverified until a host version tests them.
+
 ## v0.16.0 - 2026-06-25
 
 - Promoted the release line for the conversation-ledger, TOML policy-authoring, and full-lane trigger work into a larger compatibility update.

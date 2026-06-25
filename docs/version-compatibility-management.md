@@ -62,6 +62,9 @@ If a field is not checked, mark it `unverified`. Do not infer compatibility from
 | `payload_safety` | Encoding, sanitation, and logging assumptions. |
 | `media_payloads` | Whether voice or recording input reaches the hook as transcript text instead of raw media only. |
 | `claim_payloads` | How nested claim JSON is passed without shell-quoting loss. |
+| `quality_reference` | Whether optional domain rubrics and source-tier catalogs are supported as advisory/source-prior context. |
+| `claim_artifact_contracts` | Whether structured claim artifacts can be passed with original evidence refs and checked by deterministic scripts. |
+| `external_model_delivery` | Whether an external model can safely act as a structured JSON filler with bounded repair and deterministic render/verify. |
 | `acceptance_tests` | Last result for active routing, denial, payload safety, log writing, and version drift. |
 | `bypass_surfaces` | Tool paths or background actions that are not covered by the adapter. |
 | `drift_policy` | What to do after client updates or adapter changes. |

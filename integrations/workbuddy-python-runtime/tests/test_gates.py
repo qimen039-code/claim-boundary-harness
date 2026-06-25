@@ -83,6 +83,28 @@ class HarnessGateTests(unittest.TestCase):
         self.assertEqual(route["risk_level"], "R5")
         self.assertIn("R5", route["triggered_risks"])
 
+    def test_adapter_manifest_declares_optional_quality_reference_surfaces(self) -> None:
+        manifest_path = ROOT.parents[1] / "templates" / "adapter-contract" / "compatibility.manifest.json"
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+
+        quality = manifest["quality_reference"]
+        self.assertFalse(quality["default_enabled"])
+        self.assertTrue(quality["advisory_only"])
+        self.assertFalse(quality["blocks_execution"])
+        self.assertTrue(quality["records_are_source_prior"])
+        self.assertEqual(quality["domain_aesthetic_rubric_supported"], "unverified")
+        self.assertEqual(quality["domain_source_tier_catalog_supported"], "unverified")
+
+        claim_artifacts = manifest["claim_artifact_contracts"]
+        self.assertFalse(claim_artifacts["default_enabled"])
+        self.assertFalse(claim_artifacts["blocks_ordinary_chat"])
+        self.assertTrue(claim_artifacts["requires_original_evidence_refs"])
+        self.assertTrue(claim_artifacts["summaries_are_not_fact_sources"])
+
+        external_delivery = manifest["external_model_delivery"]
+        self.assertEqual(external_delivery["structured_json_filler_mode_supported"], "unverified")
+        self.assertFalse(external_delivery["advisory_issues_trigger_repair"])
+
     def test_router_detects_plain_commit_and_push_as_r5(self) -> None:
         route = self._route("commit and push the current repository update", policy=self.policy)
         self.assertEqual(route["risk_level"], "R5")

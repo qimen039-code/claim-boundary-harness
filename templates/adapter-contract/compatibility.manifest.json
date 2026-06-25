@@ -104,6 +104,32 @@
     "nested_json_shell_safe": "unverified",
     "recommended_handoff": "claim_file_or_json_file_path"
   },
+  "quality_reference": {
+    "supported": "unverified",
+    "default_enabled": false,
+    "advisory_only": true,
+    "blocks_execution": false,
+    "domain_aesthetic_rubric_supported": "unverified",
+    "domain_source_tier_catalog_supported": "unverified",
+    "records_are_source_prior": true,
+    "recommended_handoff": "meta_index_or_json_file_path"
+  },
+  "claim_artifact_contracts": {
+    "supported": "unverified",
+    "default_enabled": false,
+    "blocks_ordinary_chat": false,
+    "recommended_handoff": "claim_artifact_json_file_path",
+    "requires_original_evidence_refs": true,
+    "summaries_are_not_fact_sources": true,
+    "bounded_repair_loop_supported": "unverified"
+  },
+  "external_model_delivery": {
+    "structured_json_filler_mode_supported": "unverified",
+    "deterministic_render_or_verify_supported": "unverified",
+    "blocking_issues_are_path_scoped": "unverified",
+    "advisory_issues_trigger_repair": false,
+    "max_repair_attempts": "unverified"
+  },
   "minimum_acceptance": {
     "active_routing_before_planning": "unverified",
     "allowed_action_passes": "unverified",

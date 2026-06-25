@@ -125,6 +125,8 @@ The permit must use schema `cbh.r5_human_confirmation_permit.v1`, `scope="single
 
 For conversation-memory continuation or merge tasks, run meta-first lookup and link selection before the first protected tool call. Then pass `conversation_link_resolved=True` to the in-process adapter or `--conversation-link-resolved` to the hook runner. Without that flag, `PreToolUse` blocks with `conversation_link_decision_required`.
 
+Optional quality-reference and claim-artifact surfaces are outside the current hard gate path. A WorkBuddy host may pass `domain_aesthetic_rubric` or `domain_source_tier_catalog` records to its planner as advisory context, but the Python runtime should still treat them as source-prior metadata rather than execution permissions or validated facts. If the host adds a claim-artifact renderer, prefer a JSON file handoff with original evidence refs and a bounded repair loop; do not pass large nested artifacts through shell arguments.
+
 Optional JSONL event logging can write to a specific file with `log_path` or to a directory with `log_dir`. In `log_dir` mode the adapter writes `workbuddy_harness_events.jsonl` inside that directory.
 
 Hook payloads are sanitized before routing and logging. If the host passes stdin JSON containing lone UTF-16 surrogate escapes such as `\udcac` or `\udc80`, the runner replaces them with `<invalid-surrogate>` so malformed payload text does not disable active routing or pre-tool enforcement.

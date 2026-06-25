@@ -189,6 +189,19 @@ confirmation should still be treated as unsafe.
 
 For nested claim payloads, prefer a file-based claim handoff such as `--ClaimFile` in the PowerShell reference scripts or a JSON file path in custom adapters. Passing deeply nested JSON directly through multiple shells is fragile because each shell has different quote and escape rules.
 
+## Optional Quality Reference And Claim Artifacts
+
+The current WorkBuddy Python adapter implements routing, memory isolation, R5/runtime gates, conversation-link blocking, and final claim checks. It does not implement a full quality-reference layer or a claim-artifact renderer.
+
+If an adopting WorkBuddy loop adds those surfaces, keep them separate from hard runtime gates:
+
+- `domain_aesthetic_rubric` records are advisory quality references. They can describe domain-specific output dimensions, bands, examples, and failure modes, but they must not block tool execution by themselves.
+- `domain_source_tier_catalog` records are source-prior evidence metadata. They can tell the agent which source classes are strong, weak, trace-only, or disallowed for a domain, but they are not fact sources.
+- Claim-artifact contracts should pass through file paths or compact JSON objects, not deeply nested shell-escaped JSON. Raw evidence refs, URLs, tool outputs, or artifacts remain the fact sources; summaries and ledgers are navigation.
+- External-model delivery modes should treat the model as a structured JSON filler only when the host has deterministic render or verify scripts. Blocking issues should be path-scoped; advisory issues should not trigger unbounded repair loops.
+
+Record support for these optional surfaces in `templates/adapter-contract/compatibility.manifest.json`. Leave each field `unverified` until the exact WorkBuddy host version, hook payload, and renderer or verifier have been tested.
+
 ## Recording And Transcript Payloads
 
 The adapter does not decode raw audio or read private recording files by itself. Recording support means the hook runner can route text that the host already extracted from a recording payload.
