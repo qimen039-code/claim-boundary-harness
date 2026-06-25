@@ -283,7 +283,7 @@ External research is split into route types so the agent does not treat all outs
 | Source-grounded learning intake | external mechanism, external architecture comparison, learn-from-open-source task | source ledger plus classification labels |
 | Local validation route | local files, scripts, tests, reproduction, smoke checks | local evidence boundary for strong claims |
 
-The learning classifier uses these labels:
+The source-grounded learning intake uses these classification labels:
 
 ```text
 fact

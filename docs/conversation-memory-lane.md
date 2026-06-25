@@ -4,6 +4,19 @@ Conversation Memory Lane covers long-running conversations that have not been as
 
 It closes a common gap: a user may keep working in an ordinary chat until the context becomes too long, but the work is not yet a project and therefore does not benefit from project memory. Conversation memory gives that chat an isolated, meta-first memory lane without polluting project memory or global memory.
 
+Conversation memory is not the raw transcript index. When the host exposes raw
+session logs, use [conversation-ledger-contract.md](conversation-ledger-contract.md)
+between those raw logs and this memory lane:
+
+```text
+raw session JSONL
+-> conversation ledger evidence pointers and segment index
+-> conversation memory decisions, open loops, and rollups
+```
+
+The ledger keeps raw line/path/hash references. This lane keeps durable
+human-readable state.
+
 ## Position In The Memory Model
 
 ```text
@@ -13,6 +26,10 @@ project memory lane
 conversation memory lane
 -> one long-running conversation or thread, isolated by session/thread id
 -> can link to older conversation lanes without writing into them
+
+conversation ledger
+-> derived session/turn/segment/time-anchor index over raw host logs
+-> links raw sessions to conversation or project memory without copying payloads
 
 common error corpus
 -> reusable small error-and-solution samples across work surfaces
@@ -35,6 +52,12 @@ Create or update it only when the router detects one of these:
 - context compression or handoff risk becomes visible;
 - the conversation is projectless but has become a durable workflow;
 - the user asks another conversation to reference this conversation's memory.
+
+The router should prefer structured full-lane trigger groups over a single flat
+keyword count. Current groups are: context compaction or loss, durable
+decisions, open loops or deferred work, and artifact/code-change clusters. The
+old `conversation_memory_threshold` remains a coarse fallback for older
+adapters.
 
 If project signals become strong enough for a real project lane, mark `projectization_decision: emergent_project_candidate` before writing project memory. Until the user chooses a project lane, the conversation memory may hold a checkpoint and references, but it should not silently become project memory.
 
@@ -96,6 +119,8 @@ Recommended receipt additions:
 ```text
 conversation_memory_decision
 conversation_signals
+conversation_full_lane_triggered
+conversation_full_lane_groups
 ```
 
 Recommended values:
@@ -135,6 +160,7 @@ Do not mutate the old memory just because a new conversation continues it. If th
 Use `updated_at` to support "continue the previous conversation" lookups. If the user remembers only vague keywords, search the index-level fields first: title, summary, retrieval terms, semantic anchors, and open loops. Ask the user to choose among candidates when ambiguous before opening payload records.
 
 See [memory-linking-contract.md](memory-linking-contract.md) for the cross-lane link schema.
+See [conversation-ledger-contract.md](conversation-ledger-contract.md) for raw-session ledger schema and compaction-safety rules.
 
 ## Write Policy
 

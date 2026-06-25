@@ -16,6 +16,10 @@ conversation_memory_decision
 link_intent
 ```
 
+Conversation ledger is not a separate memory lane. It is a derived index that
+may be selected by `module_need: conversation_ledger_index` or by local adapter
+policy when raw host sessions must be linked to project or conversation memory.
+
 Meanings:
 
 | Field | Values | Purpose |
@@ -37,6 +41,27 @@ Small but reusable mistakes should go to a common error corpus first as compact 
 Ordinary chat and small corrected mistakes should not create memory records by default.
 
 Long-running projectless conversations may create a `current_conversation` lane when the user explicitly asks for a checkpoint or when durable conversation signals accumulate. This lane is isolated by conversation or thread id, can be read by other conversations only through explicit reference, and cannot write another conversation's memory unless the user explicitly asks.
+
+When raw host session logs are available, first write or update a conversation
+ledger record for the session. Promote to a full conversation memory lane only
+when explicit user intent or full-lane triggers apply. The ledger points to raw
+sessions and artifacts; the memory lane stores decisions, open loops, reusable
+constraints, and rollups.
+
+Full-lane triggers are grouped so one class of durable signal can be acted on
+without inflating the whole trigger list. Context compaction or loss can trigger
+on one hit; durable decisions, open loops, and artifact/code-change clusters
+use group thresholds. A ledger summary is not a fact source for memory: promote
+only records that retain raw references, evidence boundaries, and source
+monitoring.
+
+Conversation memory and ledger maintenance may be semi-automatic only after the
+router or decision layer selects a bounded write/update path. In practice this
+means `auto`/`doctor`/`refresh` can run at task, decision, artifact, stop, or
+final boundaries, but only for the active lane and only after stat or trigger
+checks say the ledger is stale or the conversation has crossed a full-lane
+threshold. This is not permission to auto-write every memory, backfill every raw
+session, or treat a ledger summary as promoted fact.
 
 When a new conversation continues an older one, default to `link_intent: continue_from_latest` or `continue_from_referenced_memory`. Create a new memory lane and append a `continues` link. Do not write into the old lane by default.
 
@@ -92,6 +117,7 @@ This marker does not automatically create a project. It tells the agent to ask, 
 | Projectless long conversation accumulates durable decisions or open loops | `write` or local-policy ask first | `current_conversation` | `conversation_checkpoint` |
 | Projectless work becomes durable | `none` or `read` | `emergent_project_candidate` | `projectization_review` |
 | User asks to continue the previous conversation | `read` then `write` | `current_conversation` | `explicit_conversation_memory_request`; `link_intent: continue_from_latest` |
+| Raw host session needs indexing | `write` or local-policy update | `current_conversation` or `current_project` | `conversation_checkpoint`; write conversation ledger first, full lane only on threshold |
 | User gives vague keywords for an old conversation | `read` | `referenced_conversation` or `global_inbox` | `no_record`; search index fields before payloads |
 | User explicitly asks to merge conversations | `write` | `current_conversation` or selected lane | `explicit_conversation_memory_request`; `link_intent: merge_memories_explicit` |
 | User asks for project maps, entry points, commands, or conventions | `read` | current project static knowledge index | `no_record`; read `_STATIC_KNOWLEDGE_INDEX.md` before selected static pages |
@@ -113,4 +139,5 @@ Memory writing is still subject to:
 - `source_tag: static_knowledge` and `belief_status: source_prior` for static manual notes until local verification exists.
 
 See [memory-linking-contract.md](memory-linking-contract.md) for the link ledger schema and fuzzy retrieval order.
+See [conversation-ledger-contract.md](conversation-ledger-contract.md) for raw-session ledger schema.
 See [static-knowledge-layer.md](static-knowledge-layer.md) for the optional static project manual layer.

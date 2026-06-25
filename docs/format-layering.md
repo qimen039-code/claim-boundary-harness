@@ -25,6 +25,9 @@ docs/*.md
 skills/embedded-harness/embedded_harness_policy.json
   router and gate policy
 
+skills/embedded-harness/embedded_harness_policy.authoring.toml
+  human-maintained high-churn policy sections; compile/check into JSON
+
 templates/**/_META_INDEX.md
   mandatory human-readable retrieval surface
 
@@ -46,6 +49,9 @@ templates/global-memory-archive/**/*.jsonl
 - Prefer stable IDs over row position.
 - Keep human docs as summaries of structured records, not the only source of truth.
 - If a Markdown table is public-facing, consider generating it from JSON/CSV.
+- Keep runtime adapters on JSON unless the runtime has a specific reason to parse
+  another format. TOML can be an authoring layer, but the generated JSON remains
+  the compatibility surface for PowerShell, Bash, Python, and hosted adapters.
 
 ## Memory-Library Rule
 

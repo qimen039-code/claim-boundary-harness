@@ -9,6 +9,9 @@ param(
   [string]$ToolInputJson = "",
   [string]$ConstitutionPath = "",
   [string]$OutputPath = "",
+  [string]$HumanConfirmationPermitPath = "",
+  [string]$HumanConfirmationPermitJson = "",
+  [string]$HumanConfirmationPermitUseLedgerPath = "",
   [switch]$HumanConfirmed,
   [switch]$BoundaryReviewed,
   [switch]$ConversationLinkResolved,
@@ -27,6 +30,9 @@ $argsForGate = @{
   ToolInputJson = $ToolInputJson
   ConstitutionPath = $ConstitutionPath
   OutputPath = $OutputPath
+  HumanConfirmationPermitPath = $HumanConfirmationPermitPath
+  HumanConfirmationPermitJson = $HumanConfirmationPermitJson
+  HumanConfirmationPermitUseLedgerPath = $HumanConfirmationPermitUseLedgerPath
 }
 if ($HumanConfirmed) { $argsForGate.HumanConfirmed = $true }
 if ($BoundaryReviewed) { $argsForGate.BoundaryReviewed = $true }

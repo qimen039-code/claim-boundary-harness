@@ -166,7 +166,7 @@ Before relying on it:
 2. Confirm the adapter loads the intended `embedded_harness_policy.json`.
 3. Run the unit tests.
 4. Wire either the hook runner or the in-process function before action execution.
-5. Test an allowed tool call, an R5 command, a memory-boundary violation, and a strong-claim final check.
+5. Test an allowed tool call, an R5 command, a valid then replayed single-event permit, a memory-boundary violation, and a strong-claim final check.
 
 When wiring a pre-tool hook after a pre-task router, preserve the original task text. Passing only a compact field such as `risk_level` can remove the task evidence that the runtime enforcer needs for routing. The Python adapter accepts `original_task_text` and an explicit `risk_level` override for this case.
 
@@ -175,6 +175,17 @@ If event logging is enabled, pass `log_path` for a concrete JSONL file or `log_d
 The hook runner also stores `workbuddy_hook_state.json` in the log directory so `PreToolUse` can use the original `UserPromptSubmit` text instead of routing from a compact field such as `R5`.
 
 Conversation-memory continuation, merge, archive, and cross-conversation update tasks require a resolved link decision before the first protected tool call. The adapter blocks unresolved cases with `conversation_link_decision_required`; after meta-first lookup and link selection are complete, pass `conversation_link_resolved=True` to the in-process function or `--conversation-link-resolved` to the hook runner.
+
+For R5 or hard-tool confirmation across hook stages, pass
+`human_confirmation_permit_json` / `human_confirmation_permit_path` to the
+in-process function or `--human-confirmation-permit-json` /
+`--human-confirmation-permit-path` to the hook runner. The permit must be a
+`cbh.r5_human_confirmation_permit.v1` object with `scope: single_event`, an
+unexpired timestamp, and task/tool SHA-256 hashes for the exact event. Use
+`human_confirmation_permit_use_ledger_path` or
+`--human-confirmation-permit-use-ledger-path` to pin the replay ledger used to
+block the same permit/task/tool combination after it passes. A broad session
+confirmation should still be treated as unsafe.
 
 For nested claim payloads, prefer a file-based claim handoff such as `--ClaimFile` in the PowerShell reference scripts or a JSON file path in custom adapters. Passing deeply nested JSON directly through multiple shells is fragile because each shell has different quote and escape rules.
 

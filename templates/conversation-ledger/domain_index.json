@@ -1,0 +1,22 @@
+{
+  "ledger_id": "LEDGER_TEMPLATE",
+  "status": "TEMPLATE",
+  "updated_at": "YYYY-MM-DDTHH:MM:SS+00:00",
+  "domains": {
+    "conversation_memory": [],
+    "project_memory": [],
+    "artifact": [],
+    "code_change": [],
+    "test_output": [],
+    "external_research": [],
+    "compaction_boundary": [],
+    "token_pressure": []
+  },
+  "retrieval_order": [
+    "_LEDGER_INDEX.md",
+    "domain_index.json",
+    "segments.jsonl",
+    "evidence_refs.jsonl",
+    "raw session snippet only when needed"
+  ]
+}

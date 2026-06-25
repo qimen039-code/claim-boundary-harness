@@ -1,0 +1,313 @@
+schema_version = "cbh.policy_authoring.v1"
+target_policy = "embedded_harness_policy.json"
+rule = "Human-maintained authoring layer for high-churn policy sections. Runtime adapters still consume embedded_harness_policy.json."
+compiled_sections = [
+  "risk_trigger_rules.R5",
+  "r5_context_decision_rules",
+  "router_decision_contract.conversation_memory_full_lane_triggers",
+  "runtime_enforcement.human_confirmation_permit",
+]
+
+[risk_trigger_rules.R5]
+en = [
+  "delete",
+  "remove",
+  "forget",
+  "forget memory",
+  "Remove-Item",
+  "rm -rf",
+  "rm -fr",
+  "rm -r -f",
+  "rm -f -r",
+  "commit",
+  "push",
+  "git commit",
+  "git push",
+  "install",
+  "uninstall",
+  "login",
+  "permission",
+  "firewall",
+  "proxy",
+  "private value",
+  "sensitive value",
+  "credential-like value",
+  "long-term memory",
+  "write memory",
+  "payment",
+]
+zh = [
+  "删除",
+  "移除",
+  "忘掉",
+  "忘记",
+  "提交",
+  "安装",
+  "登录",
+  "权限",
+  "防火墙",
+  "代理",
+  "敏感",
+  "长期记忆",
+  "写入记忆",
+  "付款",
+]
+
+[r5_context_decision_rules]
+# Terms that are concrete actions by themselves.
+direct_action_terms = [
+  "git commit",
+  "git push",
+  "gh release delete",
+  "Remove-Item",
+  "rm -rf",
+  "rm -fr",
+  "rm -r -f",
+  "rm -f -r",
+  "rmdir",
+  "del ",
+  "npm install",
+  "npm uninstall",
+  "pnpm install",
+  "pnpm uninstall",
+  "yarn install",
+  "yarn uninstall",
+  "pip install",
+  "pip uninstall",
+  "pipx install",
+  "pipx uninstall",
+  "set-executionpolicy",
+  "netsh",
+]
+
+# Terms that need surrounding action/documentation context before promotion.
+context_required_candidate_terms = [
+  "delete",
+  "remove",
+  "commit",
+  "push",
+  "install",
+  "uninstall",
+  "删除",
+  "移除",
+  "提交",
+  "推送",
+  "安装",
+]
+
+# Terms that still require confirmation when action-like, but are less often
+# just documentation examples.
+always_action_candidate_terms = [
+  "login",
+  "payment",
+  "permission",
+  "firewall",
+  "proxy",
+  "private value",
+  "sensitive value",
+  "credential-like value",
+  "long-term memory",
+  "write memory",
+  "登录",
+  "权限",
+  "防火墙",
+  "代理",
+  "敏感",
+  "长期记忆",
+  "写入记忆",
+  "付款",
+]
+
+action_context_terms = [
+  "file",
+  "folder",
+  "directory",
+  "cache",
+  "release",
+  "tag",
+  "branch",
+  "repo",
+  "repository",
+  "GitHub",
+  "code",
+  "changes",
+  "package",
+  "dependency",
+  "plugin",
+  "tool",
+  "memory record",
+  "文件",
+  "目录",
+  "文件夹",
+  "缓存",
+  "旧",
+  "这些",
+  "分支",
+  "仓库",
+  "代码",
+  "变更",
+  "包",
+  "依赖",
+  "插件",
+  "工具",
+  "记忆",
+  "记录",
+]
+
+non_action_context_terms = [
+  "report",
+  "form",
+  "context",
+  "example",
+  "discussion",
+  "trigger",
+  "keyword",
+  "regex",
+  "policy",
+  "rule",
+  "报告",
+  "表单",
+  "上下文",
+  "示例",
+  "讨论",
+  "触发词",
+  "词表",
+  "正则",
+  "策略",
+  "规则",
+]
+
+documentation_context_terms = [
+  "trigger",
+  "keyword",
+  "regex",
+  "word-boundary",
+  "docs",
+  "README",
+  "example",
+  "test case",
+  "non-goal",
+  "distribution",
+  "discussion",
+  "policy",
+  "rule",
+  "触发词",
+  "词表",
+  "正则",
+  "字符串",
+  "文档",
+  "说明",
+  "示例",
+  "测试",
+  "误判",
+  "上下文",
+  "讨论",
+  "需要做吗",
+  "不做",
+  "策略",
+  "规则",
+]
+
+[router_decision_contract.conversation_memory_full_lane_triggers]
+decision_rule = "Create or update the active conversation memory lane when an explicit conversation-memory request is present, or when any threshold group crosses its threshold in a non-read-only task. Keep conversation_memory_threshold as a backward-compatible coarse fallback."
+
+[router_decision_contract.conversation_memory_full_lane_triggers.threshold_groups.compaction_or_context_loss]
+threshold = 1
+triggers = [
+  "context compression",
+  "context compaction",
+  "compressed context",
+  "context loss",
+  "lost context",
+  "token pressure",
+  "token budget",
+  "上下文压缩",
+  "上下文丢失",
+  "上下文缺失",
+  "压缩后",
+  "token消耗",
+  "上下文窗口",
+]
+
+[router_decision_contract.conversation_memory_full_lane_triggers.threshold_groups.durable_decision]
+threshold = 2
+triggers = [
+  "decision",
+  "architecture decision",
+  "policy decision",
+  "should absorb",
+  "should reject",
+  "land this",
+  "落地",
+  "吸纳",
+  "拒绝",
+  "决策",
+  "架构决策",
+  "规则固化",
+  "策略固化",
+]
+
+[router_decision_contract.conversation_memory_full_lane_triggers.threshold_groups.open_loop]
+threshold = 2
+triggers = [
+  "open loop",
+  "open loops",
+  "future deployment",
+  "deferred",
+  "later",
+  "not now",
+  "pending",
+  "TODO",
+  "未来部署",
+  "以后值得做",
+  "未来候选",
+  "暂缓",
+  "待办",
+  "待复核",
+  "后续",
+]
+
+[router_decision_contract.conversation_memory_full_lane_triggers.threshold_groups.artifact_or_code_change]
+threshold = 2
+triggers = [
+  "patch",
+  "test",
+  "docs",
+  "adapter",
+  "policy",
+  "router",
+  "hook",
+  "ledger",
+  "capsule",
+  "memory lane",
+  "补丁",
+  "测试",
+  "文档",
+  "适配器",
+  "路由",
+  "钩子",
+  "账本",
+  "胶囊",
+  "记忆文件",
+]
+
+[runtime_enforcement.human_confirmation_permit]
+enabled = true
+schema = "cbh.r5_human_confirmation_permit.v1"
+required_scope = "single_event"
+required_fields = [
+  "schema",
+  "permit_id",
+  "status",
+  "scope",
+  "risk_level",
+  "confirmed_by",
+  "expires_at_utc",
+  "task_sha256",
+  "tool_sha256",
+]
+consume_on_pass = true
+consume_requires_tool_text = true
+used_ledger_env_var = "CBH_R5_PERMIT_USE_LEDGER"
+used_ledger_record_schema = "cbh.r5_human_confirmation_permit_use.v1"
+rule = "A permit is only a short-lived single-event representation of explicit human confirmation for one exact R5/hard-tool event. When it passes for a concrete tool event, the runtime records a used-ledger entry so the same permit/task/tool combination cannot be replayed before expiry. It must not create a session-wide or project-wide bypass; all other R5 events remain blocked."

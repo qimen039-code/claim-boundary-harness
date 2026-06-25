@@ -30,6 +30,9 @@ jobs:
       - name: Install test dependencies
         run: python -m pip install pytest
 
+      - name: Check TOML policy authoring drift
+        run: python skills/embedded-harness/compile_policy_from_toml.py --check
+
       - name: Run PowerShell harness smoke checks
         shell: pwsh
         run: |

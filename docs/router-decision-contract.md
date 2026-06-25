@@ -46,6 +46,8 @@ Field meanings:
 | `claim_risk` | Decide whether the final answer contains an operational note, a weak claim, or a strong factual claim needing schema evidence. |
 | `projectization_decision` | Decide whether projectless work is still not a project, belongs to a current project, or should be treated as an emergent project candidate. |
 | `conversation_memory_decision` | Decide whether projectless long-chat state should skip memory, create/update current conversation memory, become a checkpoint candidate, read a referenced conversation, or perform an explicit cross-conversation update. |
+| `conversation_full_lane_triggered` | Boolean showing whether grouped full-lane thresholds, not only the legacy flat signal count, crossed a conversation-memory boundary. |
+| `conversation_full_lane_groups` | Compact debug/audit detail for the threshold groups that hit: context loss, durable decision, open loop, or artifact/code-change cluster. |
 | `link_intent` | Decide whether to continue from latest memory, continue from a referenced memory, explicitly merge memories, archive/seal a memory, or create no link. |
 | `receipt_profile` | Decide whether to expose a compact runtime receipt, expanded governance receipt, or debug receipt. |
 | `required_gates` | List the concrete gates to run or honor. |
@@ -91,6 +93,11 @@ L0 microkernel
 -> only matching payload
 ```
 
+When raw host sessions are available and conversation continuity matters,
+`module_need` may include `conversation_ledger_index`. That module reads the
+ledger meta/index before opening selected segment or evidence-ref records. It
+must not load a full raw transcript by default.
+
 If the receipt is obvious from the current request, it can stay implicit. Keep R0-R5 labels internal by default. If the classification changes execution path, cost, permission, memory, external search, or claim wording, expose only that minimal boundary. If the user asks for debug or audit, expose the complete debug receipt.
 
 ## R5 Candidate And Context Rule
@@ -123,6 +130,12 @@ Expected behavior:
 Runtime hard gates should still inspect actual tool commands. A command such as
 `git push` or `Remove-Item` must be blocked without explicit human confirmation
 even if the earlier prompt-level route was ambiguous.
+
+When a host adapter needs to carry that confirmation across hook stages, use a
+`cbh.r5_human_confirmation_permit.v1` object with `scope: single_event`,
+`risk_level: R5`, `confirmed_by: human`, a short expiry, and SHA-256 hashes of
+the exact task text plus exact command-scoped tool text. The permit is not a
+natural-language inference and must not be reused for later actions.
 
 ## Composite Task And Scope Reassessment Rule
 

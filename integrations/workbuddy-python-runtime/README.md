@@ -107,6 +107,22 @@ decision = runtime_enforcer(
 
 The adapter also accepts `risk_level="R5"` as an explicit override when the host already classified the task. Do not pass only `"R5"` as a replacement for the original task text unless you intentionally want a risk-level-only fallback.
 
+For an explicit R5 confirmation, prefer a short-lived single-event permit over a broad boolean flag:
+
+```python
+decision = runtime_enforcer(
+    stage="pre_tool",
+    task_text=user_prompt,
+    tool_name=tool_name,
+    tool_input=tool_input,
+    human_confirmation_permit_json=permit_json,
+    human_confirmation_permit_use_ledger_path=".harness-logs/r5-permit-uses.jsonl",
+    constitution_reviewed=True,
+)
+```
+
+The permit must use schema `cbh.r5_human_confirmation_permit.v1`, `scope="single_event"`, an unexpired timestamp, and hashes for the exact task text plus command-scoped tool text. After a concrete tool event passes, the used-ledger blocks replay of the same permit/task/tool combination.
+
 For conversation-memory continuation or merge tasks, run meta-first lookup and link selection before the first protected tool call. Then pass `conversation_link_resolved=True` to the in-process adapter or `--conversation-link-resolved` to the hook runner. Without that flag, `PreToolUse` blocks with `conversation_link_decision_required`.
 
 Optional JSONL event logging can write to a specific file with `log_path` or to a directory with `log_dir`. In `log_dir` mode the adapter writes `workbuddy_harness_events.jsonl` inside that directory.

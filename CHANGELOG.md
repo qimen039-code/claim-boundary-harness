@@ -4,8 +4,23 @@ All notable public changes should be recorded here.
 
 This project uses `vMAJOR.MINOR.PATCH` version labels while the framework is still early-stage.
 
+## v0.16.0 - 2026-06-25
+
+- Promoted the release line for the conversation-ledger, TOML policy-authoring, and full-lane trigger work into a larger compatibility update.
+- Extended WorkBuddy adapter coverage around prompt routing, command-tool hard gates, Stop/final checks, conversation-link blocking, host-provided transcript extraction, and single-event R5 confirmation permits.
+- Added WorkBuddy hook-runner regression coverage for replayed `cbh.r5_human_confirmation_permit.v1` permits, not only the in-process runtime path.
+- Clarified release-facing WorkBuddy boundaries: local adapter tests and one local hook deployment observation are not a broad WorkBuddy compatibility certification.
+- Updated the adapter compatibility manifest version to match the release line.
+
 ## v0.15.3 - 2026-06-24
 
+- Added a conversation-ledger contract, templates, and Codex JSONL ledger builder that link raw host sessions to project or conversation memory through session, turn, segment, time-anchor, and evidence-ref records.
+- Added low-cost Codex ledger maintenance modes: stat-first `doctor`, stale-only `refresh`, bounded-window `resolve`, and boundary-oriented `auto` checks so stale or missing ledgers can be detected without waiting for the user to name the problem.
+- Preserved the meta-summary and event/domain capsule design by generating `capsules.jsonl` as a derivative classification view over segments and evidence refs.
+- Added structured conversation full-lane trigger groups so context loss, durable decisions, open loops, and artifact/code-change clusters can promote a projectless long chat beyond the old coarse signal-count threshold.
+- Added a short-lived `cbh.r5_human_confirmation_permit.v1` path for one exact R5 or hard-tool event, with task/tool hash matching and `single_event` scope.
+- Added a lightweight TOML policy authoring layer for high-churn R5, full-lane, and permit sections, plus a compiler/checker that keeps the runtime JSON as the adapter-facing source.
+- Added routing support for the `conversation_ledger` target surface and `conversation_ledger_index` module need, with PowerShell and WorkBuddy regression coverage.
 - Fixed the Bash router helper so CI smoke checks no longer hit a Bash nameref self-reference warning during trigger collection.
 - Normalized the `Where It Can Be Used` README list punctuation for consistency.
 

@@ -56,6 +56,14 @@ powershell -ExecutionPolicy Bypass -File <HARNESS_ROOT>\harness_tool_proxy.ps1 `
 
 If the result exits `2`, the caller should stop and ask for explicit human confirmation. Pass `-HumanConfirmed` only after that confirmation exists for the specific action.
 
+When confirmation must be carried across an adapter boundary, pass
+`-HumanConfirmationPermitJson` or `-HumanConfirmationPermitPath` with a
+`cbh.r5_human_confirmation_permit.v1` object. The permit must use
+`scope: single_event`, match the exact task/tool SHA-256 hashes, and expire
+quickly. Pin `-HumanConfirmationPermitUseLedgerPath` or
+`CBH_R5_PERMIT_USE_LEDGER` when the host needs a stable replay ledger. Do not
+use the permit as a broad approval for later commands.
+
 ## Command Wrapper
 
 Use `harness_task_wrapper.ps1` only for command paths that you can actually route through it:

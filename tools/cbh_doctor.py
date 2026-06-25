@@ -27,7 +27,9 @@ REQUIRED_FILES = [
     "docs/deployment-risk-patterns.md",
     "docs/reproduction.md",
     "docs/test-cases.md",
+    "skills/embedded-harness/embedded_harness_policy.authoring.toml",
     "skills/embedded-harness/embedded_harness_policy.json",
+    "skills/embedded-harness/compile_policy_from_toml.py",
     "skills/embedded-harness/harness_intake_router.ps1",
     "skills/embedded-harness/harness_runtime_enforcer.ps1",
     "skills/embedded-harness/harness_tool_proxy.ps1",
@@ -144,6 +146,30 @@ def check_policy_shape(root: Path) -> Check:
         summary="Policy shape contains required routing and R5 context sections." if not issues else "Policy shape is incomplete.",
         evidence={"path": rel(root, policy_path), "missing_or_empty": issues},
         next_step="Run the policy validator and restore missing sections." if issues else "",
+    )
+
+
+def check_policy_authoring(root: Path) -> Check:
+    result = run_command(
+        [sys.executable, "skills/embedded-harness/compile_policy_from_toml.py", "--check"],
+        cwd=root,
+    )
+    payload: dict[str, Any] | None = None
+    try:
+        payload = json.loads(result.stdout)
+    except Exception:
+        pass
+    ok = result.returncode == 0 and payload is not None and payload.get("status") == "pass"
+    return Check(
+        id="doctor.policy_authoring_toml",
+        status="pass" if ok else "fail",
+        summary="TOML policy authoring layer matches runtime JSON." if ok else "TOML policy authoring layer drifted from runtime JSON.",
+        evidence={
+            "returncode": result.returncode,
+            "payload": payload,
+            "stderr": result.stderr[-500:],
+        },
+        next_step="Run compile_policy_from_toml.py, inspect changed_tracked_paths, and update either TOML or JSON deliberately." if not ok else "",
     )
 
 
@@ -385,6 +411,7 @@ def build_report(root: Path) -> dict[str, Any]:
     checks = [
         check_required_files(root),
         check_policy_shape(root),
+        check_policy_authoring(root),
         check_powershell_validator(root, shell),
         check_router_probes(root, shell),
         check_tool_proxy_block(root, shell),

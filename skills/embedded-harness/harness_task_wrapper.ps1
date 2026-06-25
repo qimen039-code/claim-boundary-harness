@@ -4,6 +4,9 @@ param(
   [string[]]$CommandArgs = @(),
   [string]$Cwd = (Get-Location).Path,
   [string]$ConstitutionPath = "",
+  [string]$HumanConfirmationPermitPath = "",
+  [string]$HumanConfirmationPermitJson = "",
+  [string]$HumanConfirmationPermitUseLedgerPath = "",
   [switch]$HumanConfirmed,
   [switch]$BoundaryReviewed,
   [switch]$ConversationLinkResolved,
@@ -30,6 +33,9 @@ $gateArgs = @{
   ToolName = "wrapped_command"
   ToolInputJson = $toolInput
   ConstitutionPath = $ConstitutionPath
+  HumanConfirmationPermitPath = $HumanConfirmationPermitPath
+  HumanConfirmationPermitJson = $HumanConfirmationPermitJson
+  HumanConfirmationPermitUseLedgerPath = $HumanConfirmationPermitUseLedgerPath
 }
 if ($HumanConfirmed) { $gateArgs.HumanConfirmed = $true }
 if ($BoundaryReviewed) { $gateArgs.BoundaryReviewed = $true }

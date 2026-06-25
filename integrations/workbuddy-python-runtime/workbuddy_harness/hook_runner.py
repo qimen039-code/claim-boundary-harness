@@ -516,6 +516,9 @@ def _handle_pre_tool(
         tool_name=_tool_name(payload),
         tool_input=_tool_input(payload),
         human_confirmed=args.human_confirmed,
+        human_confirmation_permit_path=args.human_confirmation_permit_path,
+        human_confirmation_permit_json=args.human_confirmation_permit_json,
+        human_confirmation_permit_use_ledger_path=args.human_confirmation_permit_use_ledger_path,
         boundary_reviewed=args.boundary_reviewed,
         conversation_link_resolved=args.conversation_link_resolved,
         constitution_reviewed=args.constitution_reviewed,
@@ -545,6 +548,9 @@ def _handle_final(
         cwd=cwd,
         final_text=_final_text(payload),
         human_confirmed=args.human_confirmed,
+        human_confirmation_permit_path=args.human_confirmation_permit_path,
+        human_confirmation_permit_json=args.human_confirmation_permit_json,
+        human_confirmation_permit_use_ledger_path=args.human_confirmation_permit_use_ledger_path,
         boundary_reviewed=args.boundary_reviewed,
         conversation_link_resolved=args.conversation_link_resolved,
         constitution_reviewed=args.constitution_reviewed,
@@ -634,6 +640,21 @@ def build_parser() -> argparse.ArgumentParser:
         "--human-confirmed",
         action="store_true",
         help="Mark explicit human confirmation as present for R5 or hard tools.",
+    )
+    parser.add_argument(
+        "--human-confirmation-permit-path",
+        default="",
+        help="Optional cbh.r5_human_confirmation_permit.v1 JSON file for one exact R5 or hard-tool event.",
+    )
+    parser.add_argument(
+        "--human-confirmation-permit-json",
+        default="",
+        help="Inline cbh.r5_human_confirmation_permit.v1 JSON for one exact R5 or hard-tool event.",
+    )
+    parser.add_argument(
+        "--human-confirmation-permit-use-ledger-path",
+        default="",
+        help="Optional JSONL ledger path used to record single-event R5 permit use and block replay.",
     )
     parser.add_argument(
         "--fail-open",

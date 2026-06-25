@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 import io
 import os
@@ -61,6 +62,21 @@ class HarnessGateTests(unittest.TestCase):
         kwargs.setdefault("cwd", str(self.neutral_cwd))
         kwargs.setdefault("policy", self.policy)
         return intake_router(task_text, **kwargs)
+
+    def _permit_json(self, task_text: str, tool_text: str, *, scope: str = "single_event") -> str:
+        payload = {
+            "schema": "cbh.r5_human_confirmation_permit.v1",
+            "permit_id": f"PERMIT-{uuid.uuid4().hex}",
+            "status": "active",
+            "scope": scope,
+            "risk_level": "R5",
+            "confirmed_by": "human",
+            "confirmed_at_utc": "2026-06-25T00:00:00Z",
+            "expires_at_utc": "2099-01-01T00:00:00Z",
+            "task_sha256": hashlib.sha256(task_text.encode("utf-8")).hexdigest(),
+            "tool_sha256": hashlib.sha256(tool_text.encode("utf-8")).hexdigest(),
+        }
+        return json.dumps(payload, ensure_ascii=False, separators=(",", ":"))
 
     def test_router_detects_r5_delete(self) -> None:
         route = self._route("delete stale files after review", policy=self.policy)
@@ -124,6 +140,15 @@ class HarnessGateTests(unittest.TestCase):
         self.assertEqual(route["target_surface"], "public_docs")
         self.assertIn("github_open_source_repository_search", route["external_need"])
 
+    def test_router_requires_external_evidence_for_uncertain_design_discussion(self) -> None:
+        route = self._route("我们不确定这个机制有没有成熟方案，需要外部证据后再决定是否吸纳", policy=self.policy)
+        self.assertTrue(route["needs_external_research"])
+        self.assertIn("external_research", route["matched_risk_triggers"])
+        self.assertIn("external_research_gate", route["module_need"])
+        self.assertTrue(
+            {"general_web_cross_check", "source_grounded_learning_intake"}.intersection(route["external_need"])
+        )
+
     def test_router_receipt_detects_memory_contract_need(self) -> None:
         route = self._route("update routing decision layer and memory meta index contract", policy=self.policy)
         self.assertIn(route["risk_level"], {"R3", "R4"})
@@ -165,6 +190,26 @@ class HarnessGateTests(unittest.TestCase):
         self.assertIn("conversation_link_gate", route["required_gates"])
         self.assertIn("memory_link_ledger", route["module_need"])
 
+    def test_router_detects_continue_previous_and_create_current_memory(self) -> None:
+        route = self._route(
+            "接续上一段对话记忆，创建此对话新记忆文件并链接上一段对话记忆文件",
+            policy=self.policy,
+        )
+        self.assertEqual(route["link_intent"], "continue_from_latest")
+        self.assertEqual(route["conversation_memory_decision"], "create_or_update_current_conversation")
+        self.assertEqual(route["memory_lane"], "current_conversation")
+        self.assertEqual(route["memory_mode"], "write")
+        self.assertEqual(route["record_intent"], "explicit_conversation_memory_request")
+        self.assertIn("conversation_link_gate", route["required_gates"])
+
+    def test_router_detects_conversation_ledger_surface(self) -> None:
+        route = self._route(
+            "为当前对话建立对话账本，链接 raw session JSONL、segments.jsonl、evidence_refs 和当前对话记忆",
+            policy=self.policy,
+        )
+        self.assertEqual(route["target_surface"], "conversation_ledger")
+        self.assertIn("conversation_ledger_index", route["module_need"])
+
     def test_router_detects_explicit_merge_memory_link_intent(self) -> None:
         route = self._route("merge the old conversation memory with this conversation", policy=self.policy)
         self.assertEqual(route["link_intent"], "merge_memories_explicit")
@@ -180,6 +225,8 @@ class HarnessGateTests(unittest.TestCase):
         self.assertEqual(route["conversation_memory_decision"], "checkpoint_candidate")
         self.assertEqual(route["memory_lane"], "current_conversation")
         self.assertEqual(route["record_intent"], "conversation_checkpoint")
+        self.assertTrue(route["conversation_full_lane_triggered"])
+        self.assertIn("compaction_or_context_loss", route["conversation_full_lane_groups"])
 
     def test_router_does_not_create_conversation_memory_for_plain_chat(self) -> None:
         route = self._route("explain why markdown is common", policy=self.policy)
@@ -304,6 +351,73 @@ class HarnessGateTests(unittest.TestCase):
             policy=self.policy,
         )
         self.assertEqual(decision["status"], "pass")
+
+    def test_runtime_allows_exact_single_event_confirmation_permit(self) -> None:
+        with writable_test_dir() as tmp:
+            task_text = "prepare repository update"
+            tool_text = "shell\ngit commit -m update"
+            decision = runtime_enforcer(
+                stage="pre_tool",
+                task_text=task_text,
+                tool_name="shell",
+                tool_input={"command": "git commit -m update"},
+                human_confirmation_permit_json=self._permit_json(task_text, tool_text),
+                human_confirmation_permit_use_ledger_path=str(Path(tmp) / "r5-permit-uses.jsonl"),
+                constitution_reviewed=True,
+                policy=self.policy,
+            )
+        self.assertEqual(decision["status"], "pass")
+        self.assertFalse(decision["human_confirmed"])
+        self.assertTrue(decision["effective_human_confirmed"])
+        self.assertEqual(decision["human_confirmation_permit"]["status"], "pass")
+        self.assertTrue(decision["human_confirmation_permit"]["consumed"])
+
+    def test_runtime_blocks_replayed_single_event_confirmation_permit(self) -> None:
+        with writable_test_dir() as tmp:
+            task_text = "prepare repository update"
+            tool_text = "shell\ngit commit -m update"
+            permit = self._permit_json(task_text, tool_text)
+            ledger_path = str(Path(tmp) / "r5-permit-uses.jsonl")
+            first = runtime_enforcer(
+                stage="pre_tool",
+                task_text=task_text,
+                tool_name="shell",
+                tool_input={"command": "git commit -m update"},
+                human_confirmation_permit_json=permit,
+                human_confirmation_permit_use_ledger_path=ledger_path,
+                constitution_reviewed=True,
+                policy=self.policy,
+            )
+            second = runtime_enforcer(
+                stage="pre_tool",
+                task_text=task_text,
+                tool_name="shell",
+                tool_input={"command": "git commit -m update"},
+                human_confirmation_permit_json=permit,
+                human_confirmation_permit_use_ledger_path=ledger_path,
+                constitution_reviewed=True,
+                policy=self.policy,
+            )
+        self.assertEqual(first["status"], "pass")
+        self.assertEqual(second["status"], "blocked")
+        self.assertIn("permit_already_used", second["human_confirmation_permit"]["issues"])
+        self.assertIn("tool_call_requires_human_confirmation", second["blocked_reasons"])
+
+    def test_runtime_blocks_non_single_event_confirmation_permit(self) -> None:
+        task_text = "prepare repository update"
+        tool_text = "shell\ngit commit -m update"
+        decision = runtime_enforcer(
+            stage="pre_tool",
+            task_text=task_text,
+            tool_name="shell",
+            tool_input={"command": "git commit -m update"},
+            human_confirmation_permit_json=self._permit_json(task_text, tool_text, scope="session"),
+            constitution_reviewed=True,
+            policy=self.policy,
+        )
+        self.assertEqual(decision["status"], "blocked")
+        self.assertIn("permit_not_single_event_scoped", decision["human_confirmation_permit"]["issues"])
+        self.assertIn("tool_call_requires_human_confirmation", decision["blocked_reasons"])
 
     def test_runtime_ignores_non_command_tool_content_for_hard_tool_patterns(self) -> None:
         decision = runtime_enforcer(
@@ -512,6 +626,111 @@ class HarnessGateTests(unittest.TestCase):
             hook_output = output["hookSpecificOutput"]
             self.assertEqual(hook_output["permissionDecision"], "deny")
             self.assertIn("tool_call_requires_human_confirmation", hook_output["permissionDecisionReason"])
+
+    def test_workbuddy_pre_tool_hook_allows_exact_single_event_confirmation_permit(self) -> None:
+        with writable_test_dir() as tmp:
+            task_text = "delete stale build files after review"
+            tool_text = "Bash\nrm -rf build"
+            self._run_hook(
+                {
+                    "hook_event_name": "UserPromptSubmit",
+                    "session_id": "session-permit",
+                    "cwd": tmp,
+                    "prompt": task_text,
+                },
+                "--stage",
+                "user_prompt",
+                log_dir=tmp,
+            )
+            result = self._run_hook(
+                {
+                    "hook_event_name": "PreToolUse",
+                    "session_id": "session-permit",
+                    "cwd": tmp,
+                    "tool_name": "Bash",
+                    "tool_input": {"command": "rm -rf build"},
+                },
+                "--stage",
+                "pre_tool",
+                "--constitution-reviewed",
+                "--human-confirmation-permit-json",
+                self._permit_json(task_text, tool_text),
+                "--human-confirmation-permit-use-ledger-path",
+                str(Path(tmp) / "r5-permit-uses.jsonl"),
+                log_dir=tmp,
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+            output = json.loads(result.stdout)
+            self.assertTrue(output["continue"])
+
+    def test_workbuddy_pre_tool_hook_blocks_replayed_single_event_confirmation_permit(self) -> None:
+        with writable_test_dir() as tmp:
+            task_text = "delete stale build files after review"
+            tool_text = "Bash\nrm -rf build"
+            permit = self._permit_json(task_text, tool_text)
+            ledger_path = str(Path(tmp) / "r5-permit-uses.jsonl")
+            self._run_hook(
+                {
+                    "hook_event_name": "UserPromptSubmit",
+                    "session_id": "session-permit-replay",
+                    "cwd": tmp,
+                    "prompt": task_text,
+                },
+                "--stage",
+                "user_prompt",
+                log_dir=tmp,
+            )
+            first = self._run_hook(
+                {
+                    "hook_event_name": "PreToolUse",
+                    "session_id": "session-permit-replay",
+                    "cwd": tmp,
+                    "tool_name": "Bash",
+                    "tool_input": {"command": "rm -rf build"},
+                },
+                "--stage",
+                "pre_tool",
+                "--constitution-reviewed",
+                "--human-confirmation-permit-json",
+                permit,
+                "--human-confirmation-permit-use-ledger-path",
+                ledger_path,
+                log_dir=tmp,
+            )
+            self.assertEqual(first.returncode, 0, first.stderr)
+
+            second = self._run_hook(
+                {
+                    "hook_event_name": "PreToolUse",
+                    "session_id": "session-permit-replay",
+                    "cwd": tmp,
+                    "tool_name": "Bash",
+                    "tool_input": {"command": "rm -rf build"},
+                },
+                "--stage",
+                "pre_tool",
+                "--constitution-reviewed",
+                "--human-confirmation-permit-json",
+                permit,
+                "--human-confirmation-permit-use-ledger-path",
+                ledger_path,
+                log_dir=tmp,
+            )
+            self.assertEqual(second.returncode, 2, second.stderr)
+            output = json.loads(second.stdout)
+            hook_output = output["hookSpecificOutput"]
+            self.assertEqual(hook_output["permissionDecision"], "deny")
+            self.assertIn("tool_call_requires_human_confirmation", hook_output["permissionDecisionReason"])
+
+            log_path = Path(tmp) / "workbuddy_harness_events.jsonl"
+            events = [json.loads(line) for line in log_path.read_text(encoding="utf-8").splitlines()]
+            replay_events = [
+                event
+                for event in events
+                if event.get("phase") == "runtime_enforcer"
+                and event.get("human_confirmation_permit", {}).get("issues") == ["permit_already_used"]
+            ]
+            self.assertTrue(replay_events)
 
     def test_workbuddy_pre_tool_hook_does_not_block_write_content_examples(self) -> None:
         with writable_test_dir() as tmp:

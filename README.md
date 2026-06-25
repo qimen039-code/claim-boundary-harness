@@ -2,7 +2,7 @@
 
 Stop coding agents from calling weak evidence "validated." Claim Boundary Harness adds meta-first routing, project-scoped memory lanes, R0-R5 risk receipts, and deployment adapters for claim verification.
 
-Current version: `v0.15.3`
+Current version: `v0.16.0`
 
 It is not tied to one agent runtime. It is a neutral starting point that can be mapped into any agent that can read workspace instructions, run local scripts, use command or skill folders, or call hooks before tools.
 
@@ -55,10 +55,15 @@ those slices into one low-cost contract:
   until local checks justify promotion.
 - **Memory without bleed:** project, conversation, common-error, archive, and
   static-knowledge lanes can link to each other without silent payload mixing.
+- **Conversation ledger:** raw host session logs can be indexed into lightweight
+  session, turn, segment, time-anchor, and evidence-ref records before memory
+  rollup.
 - **Metadata-bearing retrieval:** returned context must carry these fields:
   `source_tag` `derived_from` `belief_status` `confidence` `score_method`.
 - **Selective hard gates:** R5 actions, risky tools, unresolved memory links,
   and strong final claims can be blocked when the runtime calls the gate.
+  Single-event R5 permits are hash-bound and recorded in a used-ledger after a
+  concrete tool event passes, so the same permit cannot be replayed.
 - **Slow improvement:** repeated failures can become paired records or
   SkillOpt-style candidate edits without always-on self-rewriting.
 
@@ -111,6 +116,22 @@ old conversation memory meta
 -> append continuation link old -> new
 -> write new durable state only to the new lane
 ```
+
+For raw host logs, the framework adds a conversation-ledger layer:
+
+```text
+raw session JSONL
+-> conversation ledger with lossless-enough evidence pointers
+-> project memory or long-conversation memory rollup
+```
+
+The ledger is a derived index, not another source of truth. Client-compacted
+summaries and segment summaries are navigation only. Exact user wording,
+decisions, code diffs, tests, external-source claims, R5 confirmations, and
+memory links should be recovered through `evidence_refs.jsonl` pointers back to
+raw sessions or artifacts. Meta-summary routing and event/domain capsules are
+preserved as compatible views through `_LEDGER_INDEX.md`, `domain_index.json`,
+and `capsules.jsonl`.
 
 Explicit merges create a new merged memory and mark the old memories as sealed
 or redirected. The old payloads remain auditable unless the user separately
@@ -187,6 +208,9 @@ user request
 - **Additive routing**: if a task matches more than one risk type, it keeps the highest risk label and returns the union of needed gates.
 - **Memory isolation gate**: prevents accidental cross-project memory use unless the user clearly asks for it.
 - **Conversation memory lane**: isolates durable state for long-running ordinary conversations that have no project lane yet.
+- **Conversation ledger contract**: links raw host sessions to project and
+  conversation memory through session, turn, segment, time-anchor, and evidence
+  reference ledgers without loading full transcripts by default.
 - **Memory linking contract**: connects project, conversation, common-error, and archive memory lanes through explicit links, continuation records, merge records, and supersession edges without copying payloads by default.
 - **Static knowledge layer**: optional wiki-style project manual pages for module maps, entry points, commands, conventions, and interfaces. Static notes are routed through an index and stay `source_prior` until locally checked.
 - **Cost control contract**: keeps default execution cheap through receipt profiles, action-relevant fields, delta receipts, and active-context ceilings.
@@ -229,6 +253,7 @@ user request
 |   +-- memory-routing-contract.md
 |   +-- common-error-corpus.md
 |   +-- conversation-memory-lane.md
+|   +-- conversation-ledger-contract.md
 |   +-- memory-linking-contract.md
 |   +-- format-layering.md
 |   +-- cost-control-contract.md
@@ -240,6 +265,7 @@ user request
 |   +-- workbuddy-python-runtime/
 +-- tests/
 |   +-- test_credits.py
+|   +-- test_policy_authoring_toml.py
 |   +-- test_router_contract.py
 +-- examples/
 |   +-- sample-routing.md
@@ -250,10 +276,14 @@ user request
 |   +-- bug-solution-memory/
 |   +-- embedded-harness/
 |   |   +-- bash/
+|   |   +-- embedded_harness_policy.authoring.toml
+|   |   +-- embedded_harness_policy.json
+|   |   +-- compile_policy_from_toml.py
 |   |   +-- validate_policy.ps1
 |   |   +-- harness_runtime_enforcer.ps1
 |   |   +-- harness_task_wrapper.ps1
 |   |   +-- harness_tool_proxy.ps1
+|   |   +-- codex_session_ledger.py
 |   +-- shared-semantic-anchors/
 |   +-- skillopt-training-layer/
 |   +-- troubleshooting-skill-matrix/
@@ -265,6 +295,7 @@ user request
     +-- adapter-contract/
     +-- common-error-corpus/
     +-- conversation-memory/
+    +-- conversation-ledger/
     +-- global-memory-archive/
     +-- skillopt/
     +-- static-knowledge-layer/
@@ -313,7 +344,7 @@ The runtime rules live in `AGENTS.md` and the detailed contracts under `docs/`. 
 
 - **Route first:** nontrivial work starts with a lightweight receipt that decides risk, active lane, memory mode, external-source need, claim risk, and required gates.
 - **Expand only on triggers:** re-evaluate after new evidence, missing files, tool errors, scope changes, user corrections, current/version claims, GitHub/open-source intake, R5 actions, strong claims, or memory writes.
-- **Search as a routed workflow:** current facts, external mechanisms, and repository claims use official/authority search, GitHub inspection, general cross-check, source-grounded intake, or local validation as separate paths.
+- **Search as a routed workflow:** current facts, explicit uncertainty, external mechanisms, and repository claims use official/authority search, GitHub inspection, general cross-check, source-grounded intake, or local validation as separate paths.
 - **Read memory meta-first:** start from `_META_INDEX`, a router manifest, or another meta layer; then open one category index; then open only the selected capsule or paired record.
 - **Keep memory lane-scoped:** project, conversation, common-error, and archive memories should not write into each other unless the user explicitly asks for a cross-lane action.
 - **Bound final claims:** do not turn source-prior notes, retrieved snippets, mocks, partial runs, or single smoke tests into `validated` claims.
@@ -366,6 +397,7 @@ The package includes synthetic examples that show the intended record shapes wit
 - [docs/influences-and-attribution.md](docs/influences-and-attribution.md): public GitHub and engineering-pattern influences versus project contributions.
 - [docs/test-cases.md](docs/test-cases.md): acceptance cases for adopters to run against their own runtime.
 - [docs/conversation-memory-lane.md](docs/conversation-memory-lane.md): isolated memory lane for long-running projectless conversations.
+- [docs/conversation-ledger-contract.md](docs/conversation-ledger-contract.md): derived raw-session ledger with session, turn, segment, time-anchor, evidence-ref, and link records.
 - [docs/memory-linking-contract.md](docs/memory-linking-contract.md): stable memory IDs, timestamps, link-only continuation, explicit merge, and fuzzy lookup rules.
 - [docs/format-layering.md](docs/format-layering.md): when to use Markdown, JSON, JSONL, CSV/TSV, SQLite, or generated Markdown.
 - [docs/cost-control-contract.md](docs/cost-control-contract.md): routing field budgets, delta receipts, active-context ceilings, and action-relevant field rules.
@@ -377,7 +409,7 @@ The package includes synthetic examples that show the intended record shapes wit
 
 1. Copy this package into a new workspace.
 2. Open `AGENTS.md` and keep only the rules that match your workflow.
-3. Edit `skills/embedded-harness/embedded_harness_policy.json`.
+3. Edit `skills/embedded-harness/embedded_harness_policy.authoring.toml` for high-churn trigger sections, then keep `embedded_harness_policy.json` in sync for runtime use.
 4. Replace `EXAMPLE_PROJECT` and `C:\\path\\to\\project` with your project lane and memory roots.
 5. Optionally fill `templates/static-knowledge-layer/` with a project map,
    entry points, conventions, and interface notes.
@@ -391,10 +423,12 @@ powershell -ExecutionPolicy Bypass -File .\skills\embedded-harness\harness_intak
 Validate the policy after editing it:
 
 ```powershell
+python .\skills\embedded-harness\compile_policy_from_toml.py --check
 powershell -ExecutionPolicy Bypass -File .\skills\embedded-harness\validate_policy.ps1
 ```
 
-The validator checks policy shape and, when run from the repository package,
+The TOML check verifies that the human-authored maintenance layer matches the
+JSON file consumed by runtime adapters. The PowerShell validator checks policy shape and, when run from the repository package,
 also checks the memory invariant that `belief_trace_summary.current_status`
 matches `belief_status`.
 
@@ -451,7 +485,7 @@ The whiteboard package was smoke-tested locally with:
 - cbh-doctor adoption diagnostics;
 - pytest contract checks for the automatically verifiable `TC-xxx` route cases and machine-readable credits;
 - optional SkillOpt-style external module self-test;
-- WorkBuddy Python adapter unit tests as a standalone decision layer, including prompt routing, command blocking, Stop/final claim blocking, surrogate-safe payloads, recording transcript extraction, and non-command file-content false-positive guards;
+- WorkBuddy Python adapter unit tests as a standalone decision layer, including prompt routing, command blocking, single-event permit replay blocking, Stop/final claim blocking, surrogate-safe payloads, recording transcript extraction, and non-command file-content false-positive guards;
 - package content scan for local project terms and sensitive field names.
 
 See [docs/reproduction.md](docs/reproduction.md) for commands and expected results.
@@ -461,6 +495,7 @@ See [docs/reproduction.md](docs/reproduction.md) for commands and expected resul
 - Rename `EXAMPLE_PROJECT` to your project lane.
 - Replace placeholder memory roots.
 - Copy `templates/conversation-memory/` only for long-running projectless conversations that need a checkpoint lane.
+- Use `templates/conversation-ledger/` or `python .\skills\embedded-harness\codex_session_ledger.py` when raw host sessions need a cheap, evidence-linked index before memory rollup. The Codex helper supports `build`, `doctor`, `refresh`, `resolve`, and `auto`; `auto` is intended for stat-only boundary checks, not every tool call.
 - Add one project instruction file under `templates/project/`.
 - Keep the error and solution memory files empty until a real solved incident exists.
 - Add only user-confirmed semantic anchors.

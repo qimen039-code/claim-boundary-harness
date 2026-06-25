@@ -10,12 +10,20 @@ Do not add product-specific adapter files to the shared core unless you want to 
 
 ## Step 2: Configure Project Lanes
 
-Edit `skills/embedded-harness/embedded_harness_policy.json`:
+Use two policy editing surfaces:
 
-- replace `EXAMPLE_PROJECT`;
-- replace `C:\\path\\to\\project`;
-- replace memory roots;
-- tune trigger terms.
+- edit `skills/embedded-harness/embedded_harness_policy.authoring.toml` for
+  high-churn trigger, R5 context, full-lane threshold, and permit sections;
+- edit `skills/embedded-harness/embedded_harness_policy.json` directly for
+  project lanes, memory roots, and other sections not yet covered by TOML.
+
+```bash
+python skills/embedded-harness/compile_policy_from_toml.py --check
+```
+
+Use `--output skills/embedded-harness/embedded_harness_policy.json` only when
+you deliberately want to regenerate the runtime JSON from the TOML-maintained
+sections. Runtime adapters should not parse TOML directly.
 
 Then copy `templates/project/memory-library` into the project memory root and keep the layered layout:
 
@@ -44,6 +52,13 @@ If the agent cannot confirm that it read the meta layer first, treat the memory 
 Use [memory-meta-index-contract.md](memory-meta-index-contract.md) as the recommended field shape. The important part is not the exact Markdown formatting; it is the ability to select by lane, scope, category, record type, status, retrieval terms, applicability, linked modules, linked records, and review freshness before opening a payload.
 
 For long-running conversations that are not yet project lanes, use [conversation-memory-lane.md](conversation-memory-lane.md), [memory-linking-contract.md](memory-linking-contract.md), and `templates/conversation-memory/`. Conversation memory is isolated by thread/session, follows the same meta-first rule, and should not silently write into project or global memory. New conversations continue old ones through link-only edges by default; explicit merges create a new merged memory.
+
+When the host exposes raw session logs, add
+[conversation-ledger-contract.md](conversation-ledger-contract.md) and
+`templates/conversation-ledger/` between raw logs and memory lanes. For Codex
+Desktop JSONL, `python .\skills\embedded-harness\codex_session_ledger.py`
+creates the derived session, turn, segment, time-anchor, link, and evidence-ref
+ledgers without modifying the raw logs.
 
 If your project needs a stable manual for agents, copy
 `templates/static-knowledge-layer/` into the project and fill only the pages that
@@ -181,6 +196,13 @@ adoption decision
 ```
 
 Recommended labels are `fact`, `source_prior`, `hypothesis`, `inspiration`, `unverified_implementation_path`, `not_applicable`, and `local_validated`. Reserve `local_validated` for evidence produced in the adopting workspace.
+
+The external evidence boundary is semi-automatic: when the router sees current
+facts, GitHub/open-source mechanisms, "has anyone built this" questions, or
+explicit uncertainty such as "not sure" / "需要外部证据", the host should search
+official, GitHub, or cross-check sources before making a strong claim. If the
+host cannot search, the final answer must mark the claim unverified or source
+limited instead of silently relying on internal discussion.
 
 ## Step 5: Keep The Core Clean
 

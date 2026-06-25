@@ -44,6 +44,11 @@ bash <HARNESS_ROOT>/bash/harness_intake_router.sh \
 
 Do not pass a human-confirmed flag for broad classes of future work. Confirmation should bind to the concrete action in the current turn, such as a specific delete, commit, install, login, permission change, network/proxy/firewall edit, private-value transfer, or long-term memory write.
 
+If the host can pass structured confirmation, prefer
+`cbh.r5_human_confirmation_permit.v1` with `scope: single_event`, a short
+expiry, and hashes for the exact task and command-scoped tool text. A permit is
+not valid for a changed command or a later action.
+
 ## Hook Boundary
 
 If Claude Code can call a pre-tool or command hook in your environment, place `harness_runtime_enforcer.ps1` or `harness_tool_proxy.ps1` before the protected action. If it cannot, keep the harness as a mandatory advisory control plane and state the limitation before strong claims.

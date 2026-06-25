@@ -195,6 +195,60 @@ if ($null -ne $policy) {
     }
   }
 
+  $routerContract = $policy.router_decision_contract
+  if ($null -eq $routerContract) {
+    Add-Issue "router_decision_contract_missing"
+  } else {
+    $fullLaneConfig = Get-ObjectPropertyValue $routerContract "conversation_memory_full_lane_triggers"
+    $thresholdGroups = Get-ObjectPropertyValue $fullLaneConfig "threshold_groups"
+    if ($null -eq $thresholdGroups) {
+      Add-Warning "conversation_memory_full_lane_triggers_missing"
+    } else {
+      foreach ($group in $thresholdGroups.PSObject.Properties) {
+        $threshold = Get-ObjectPropertyValue $group.Value "threshold"
+        $triggers = ConvertTo-Array (Get-ObjectPropertyValue $group.Value "triggers")
+        $thresholdInt = 0
+        try {
+          if ($null -ne $threshold) { $thresholdInt = [int]$threshold }
+        } catch {
+          $thresholdInt = 0
+        }
+        if ($thresholdInt -lt 1) {
+          Add-Issue "conversation_full_lane_group_invalid_threshold:$($group.Name)"
+        }
+        if ($triggers.Count -eq 0) {
+          Add-Issue "conversation_full_lane_group_empty_triggers:$($group.Name)"
+        }
+      }
+    }
+  }
+
+  $runtimeEnforcement = $policy.runtime_enforcement
+  if ($null -eq $runtimeEnforcement) {
+    Add-Issue "runtime_enforcement_missing"
+  } else {
+    $permitConfig = Get-ObjectPropertyValue $runtimeEnforcement "human_confirmation_permit"
+    if ($null -eq $permitConfig) {
+      Add-Warning "human_confirmation_permit_missing"
+    } else {
+      if ((Get-ObjectPropertyValue $permitConfig "schema") -ne "cbh.r5_human_confirmation_permit.v1") {
+        Add-Issue "human_confirmation_permit_schema_invalid"
+      }
+      if ((Get-ObjectPropertyValue $permitConfig "required_scope") -ne "single_event") {
+        Add-Issue "human_confirmation_permit_scope_not_single_event"
+      }
+      if ($false -eq [bool](Get-ObjectPropertyValue $permitConfig "consume_on_pass")) {
+        Add-Issue "human_confirmation_permit_consume_on_pass_disabled"
+      }
+      if ($false -eq [bool](Get-ObjectPropertyValue $permitConfig "consume_requires_tool_text")) {
+        Add-Warning "human_confirmation_permit_can_consume_without_tool_text"
+      }
+      if ([string]::IsNullOrWhiteSpace([string](Get-ObjectPropertyValue $permitConfig "used_ledger_env_var"))) {
+        Add-Issue "human_confirmation_permit_used_ledger_env_var_missing"
+      }
+    }
+  }
+
   $placeholderPaths = @()
   if ($null -ne $policy.project_lanes) {
     foreach ($lane in $policy.project_lanes.PSObject.Properties) {

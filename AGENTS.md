@@ -28,7 +28,7 @@ routing receipt
 
 Routing receipt fields: task type, target surface, audience, active lane, risk level, semantic ambiguity, module need, memory need, memory mode, memory lane, record intent, external need, claim risk, projectization decision, conversation memory decision, link intent, receipt profile, and required gates.
 
-For projectless long-running conversations, also decide `conversation_memory_decision`. Use a conversation memory lane only when the user explicitly asks for a checkpoint or durable long-chat signals accumulate. Conversation memory is isolated by conversation/thread id, is not project memory, and is not global memory.
+For projectless long-running conversations, also decide `conversation_memory_decision`. Use a conversation memory lane only when the user explicitly asks for a checkpoint or durable long-chat signals accumulate. Conversation memory is isolated by conversation/thread id, is not project memory, and is not global memory. If the user explicitly asks a new conversation to continue a previous conversation and create or update current-conversation memory, create or update the current conversation lane and add a continuation link to the previous memory; do not write new payloads back into the old lane unless merge, backfill, or archive is explicitly requested.
 
 Use receipt profiles to keep runtime cost low: risk classification is always internal and silent by default; `compact_runtime` is used only when fields change the next action, `extended_governance` for public/framework/project-boundary work, and `debug_receipt` only for router diagnosis or explicit full-receipt requests.
 
@@ -116,6 +116,8 @@ Hard-stop conditions:
 - High-risk tool call without explicit human confirmation.
 - Long-term memory write without explicit user request.
 - Final strong claim without claim schema evidence boundary.
+
+Explicit confirmation may be represented by a `cbh.r5_human_confirmation_permit.v1` permit only when it is short-lived, `scope: single_event`, `risk_level: R5`, `confirmed_by: human`, and hash-bound to the exact task text plus exact tool text. A permit must not create a session-wide, project-wide, or future-action bypass.
 
 Ordinary tool calls stay under the advisory control plane. This is not a sandbox. It is hard enforcement only for callers that invoke the hook, wrapper, or tool proxy before continuing.
 

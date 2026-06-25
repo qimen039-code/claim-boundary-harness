@@ -13,6 +13,7 @@ Claude Code note: this package has not yet completed a full deployment validatio
 - PowerShell policy, router, memory isolation, external research, runtime, tool-proxy, conversation-memory, and claim-gate smoke checks;
 - Bash policy/router path smoke checks on Ubuntu, including paths with spaces and R5 context disambiguation;
 - `cbh-doctor` read-only adoption diagnostics;
+- TOML policy-authoring drift checks;
 - pytest contract checks for automatically verifiable `TC-xxx` cases and machine-readable credits;
 - SkillOpt-style external module self-test;
 - WorkBuddy Python adapter unit tests.
@@ -52,7 +53,18 @@ Expected highlight:
 - router contract cases keep their `TC-xxx` ids;
 - `CREDITS.toml` parses and includes attribution boundaries.
 
-## 0. Policy Validator
+## 0. Policy Authoring Check
+
+```bash
+python skills/embedded-harness/compile_policy_from_toml.py --check
+```
+
+Expected highlight:
+
+- `status`: `pass`;
+- `changed_tracked_paths`: `[]`.
+
+## 0c. Policy Validator
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\skills\embedded-harness\validate_policy.ps1

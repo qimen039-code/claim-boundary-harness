@@ -11,6 +11,9 @@ param(
   [string]$FinalText = "",
   [string]$ConstitutionPath = "",
   [string]$OutputPath = "",
+  [string]$HumanConfirmationPermitPath = "",
+  [string]$HumanConfirmationPermitJson = "",
+  [string]$HumanConfirmationPermitUseLedgerPath = "",
   [switch]$HumanConfirmed,
   [switch]$BoundaryReviewed,
   [switch]$ConversationLinkResolved,
@@ -27,6 +30,10 @@ function ConvertTo-Array($value) {
 
 function Get-ObjectPropertyValue($Object, [string]$Name) {
   if ($null -eq $Object) { return $null }
+  if ($Object -is [System.Collections.IDictionary]) {
+    if ($Object.Contains($Name)) { return $Object[$Name] }
+    return $null
+  }
   $property = $Object.PSObject.Properties[$Name]
   if ($null -eq $property) { return $null }
   return $property.Value
@@ -34,6 +41,10 @@ function Get-ObjectPropertyValue($Object, [string]$Name) {
 
 function Set-ObjectProperty($Object, [string]$Name, $Value) {
   if ($null -eq $Object) { return }
+  if ($Object -is [System.Collections.IDictionary]) {
+    $Object[$Name] = $Value
+    return
+  }
   if ($Object.PSObject.Properties.Name -contains $Name) {
     $Object.$Name = $Value
   } else {
@@ -215,6 +226,181 @@ function Get-ToolText([string]$name, [string]$jsonText) {
   return ($parts -join "`n")
 }
 
+function Get-Sha256Hex([string]$text) {
+  $bytes = [System.Text.Encoding]::UTF8.GetBytes([string]$text)
+  $sha = [System.Security.Cryptography.SHA256]::Create()
+  try {
+    return (($sha.ComputeHash($bytes) | ForEach-Object { $_.ToString("x2") }) -join "")
+  } finally {
+    $sha.Dispose()
+  }
+}
+
+function Read-HumanConfirmationPermit([string]$path, [string]$jsonText) {
+  if (-not [string]::IsNullOrWhiteSpace($jsonText)) {
+    return $jsonText | ConvertFrom-Json
+  }
+  if (-not [string]::IsNullOrWhiteSpace($path)) {
+    if (-not (Test-Path -LiteralPath $path)) {
+      throw "permit_path_not_found"
+    }
+    return Get-Content -LiteralPath $path -Raw -Encoding UTF8 | ConvertFrom-Json
+  }
+  return $null
+}
+
+function Get-HumanConfirmationPermitUseLedgerPath([string]$path) {
+  if (-not [string]::IsNullOrWhiteSpace($path)) {
+    return $path
+  }
+  if (-not [string]::IsNullOrWhiteSpace($env:CBH_R5_PERMIT_USE_LEDGER)) {
+    return $env:CBH_R5_PERMIT_USE_LEDGER
+  }
+  $base = $env:LOCALAPPDATA
+  if ([string]::IsNullOrWhiteSpace($base)) {
+    $base = $env:TEMP
+  }
+  if ([string]::IsNullOrWhiteSpace($base)) {
+    $base = [System.IO.Path]::GetTempPath()
+  }
+  return (Join-Path (Join-Path $base "codex-embedded-harness") "r5_permit_use_ledger.jsonl")
+}
+
+function Get-HumanConfirmationPermitConsumeKey([string]$permitId, [string]$taskHash, [string]$toolHash) {
+  return Get-Sha256Hex "$permitId`n$taskHash`n$toolHash"
+}
+
+function Test-HumanConfirmationPermitAlreadyUsed([string]$ledgerPath, [string]$consumeKey) {
+  if ([string]::IsNullOrWhiteSpace($ledgerPath) -or [string]::IsNullOrWhiteSpace($consumeKey)) {
+    return $false
+  }
+  if (-not (Test-Path -LiteralPath $ledgerPath)) {
+    return $false
+  }
+  foreach ($line in (Get-Content -LiteralPath $ledgerPath -Encoding UTF8)) {
+    if ([string]::IsNullOrWhiteSpace($line)) { continue }
+    try {
+      $record = $line | ConvertFrom-Json
+      if ([string](Get-ObjectPropertyValue $record "consume_key") -eq $consumeKey) {
+        return $true
+      }
+    } catch {
+      continue
+    }
+  }
+  return $false
+}
+
+function Add-HumanConfirmationPermitUse([string]$ledgerPath, $record) {
+  if ([string]::IsNullOrWhiteSpace($ledgerPath)) {
+    return
+  }
+  $dir = Split-Path -Parent $ledgerPath
+  if (-not [string]::IsNullOrWhiteSpace($dir)) {
+    New-Item -ItemType Directory -Force -Path $dir | Out-Null
+  }
+  $json = $record | ConvertTo-Json -Compress -Depth 10
+  Add-Content -LiteralPath $ledgerPath -Value $json -Encoding UTF8
+}
+
+function Test-HumanConfirmationPermit(
+  [string]$path,
+  [string]$jsonText,
+  [string]$useLedgerPath,
+  [string]$taskText,
+  [string]$toolText,
+  $policy
+) {
+  $expectedTaskHash = Get-Sha256Hex $taskText
+  $expectedToolHash = Get-Sha256Hex $toolText
+  $result = [ordered]@{
+    status = "missing"
+    permit_id = $null
+    issues = @()
+    expected_task_sha256 = $expectedTaskHash
+    expected_tool_sha256 = $expectedToolHash
+    consume_key = $null
+    use_ledger_path = $null
+    consumed = $false
+    pending_consume = $false
+    rule = "short-lived single-event scoped permit only; natural-language approval is not sufficient; a concrete tool-event permit is recorded as used before the caller proceeds"
+  }
+  if ([string]::IsNullOrWhiteSpace($path) -and [string]::IsNullOrWhiteSpace($jsonText)) {
+    return $result
+  }
+
+  $config = Get-ObjectPropertyValue $policy.runtime_enforcement "human_confirmation_permit"
+  if (($null -ne $config) -and ($false -eq [bool](Get-ObjectPropertyValue $config "enabled"))) {
+    $result.status = "blocked"
+    $result.issues = @("permit_disabled_by_policy")
+    return $result
+  }
+
+  $issues = @()
+  $permit = $null
+  try {
+    $permit = Read-HumanConfirmationPermit $path $jsonText
+  } catch {
+    $issues += "permit_parse_failed:$($_.Exception.Message)"
+  }
+  if ($null -eq $permit) {
+    if ($issues.Count -eq 0) { $issues += "permit_missing" }
+  } else {
+    $result.permit_id = Get-ObjectPropertyValue $permit "permit_id"
+    if ([string](Get-ObjectPropertyValue $permit "schema") -ne "cbh.r5_human_confirmation_permit.v1") {
+      $issues += "unsupported_permit_schema"
+    }
+    if ([string](Get-ObjectPropertyValue $permit "status") -ne "active") {
+      $issues += "permit_not_active"
+    }
+    if ([string](Get-ObjectPropertyValue $permit "confirmed_by") -ne "human") {
+      $issues += "permit_not_human_confirmed"
+    }
+    if ([string](Get-ObjectPropertyValue $permit "risk_level") -ne "R5") {
+      $issues += "permit_not_r5_scoped"
+    }
+    if ([string](Get-ObjectPropertyValue $permit "scope") -ne "single_event") {
+      $issues += "permit_not_single_event_scoped"
+    }
+    if ([string](Get-ObjectPropertyValue $permit "task_sha256") -ne $expectedTaskHash) {
+      $issues += "task_hash_mismatch"
+    }
+    if (-not [string]::IsNullOrWhiteSpace($toolText) -and [string](Get-ObjectPropertyValue $permit "tool_sha256") -ne $expectedToolHash) {
+      $issues += "tool_hash_mismatch"
+    }
+    $expiresText = [string](Get-ObjectPropertyValue $permit "expires_at_utc")
+    $expiresAt = [datetimeoffset]::MinValue
+    if ([string]::IsNullOrWhiteSpace($expiresText) -or -not [datetimeoffset]::TryParse($expiresText, [ref]$expiresAt)) {
+      $issues += "permit_expiry_missing_or_invalid"
+    } elseif ($expiresAt.UtcDateTime -lt (Get-Date).ToUniversalTime()) {
+      $issues += "permit_expired"
+    }
+    $consumeOnPass = $true
+    if (($null -ne $config) -and ($false -eq [bool](Get-ObjectPropertyValue $config "consume_on_pass"))) {
+      $consumeOnPass = $false
+    }
+    $consumeRequiresToolText = $true
+    if (($null -ne $config) -and ($false -eq [bool](Get-ObjectPropertyValue $config "consume_requires_tool_text"))) {
+      $consumeRequiresToolText = $false
+    }
+    if (($issues.Count -eq 0) -and $consumeOnPass -and ((-not $consumeRequiresToolText) -or -not [string]::IsNullOrWhiteSpace($toolText))) {
+      $ledgerPath = Get-HumanConfirmationPermitUseLedgerPath $useLedgerPath
+      $permitId = [string](Get-ObjectPropertyValue $permit "permit_id")
+      $consumeKey = Get-HumanConfirmationPermitConsumeKey $permitId $expectedTaskHash $expectedToolHash
+      $result.consume_key = $consumeKey
+      $result.use_ledger_path = $ledgerPath
+      if (Test-HumanConfirmationPermitAlreadyUsed $ledgerPath $consumeKey) {
+        $issues += "permit_already_used"
+      } else {
+        $result.pending_consume = $true
+      }
+    }
+  }
+  $result.issues = @($issues | Select-Object -Unique)
+  $result.status = if ($issues.Count -eq 0) { "pass" } else { "blocked" }
+  return $result
+}
+
 function Get-PatternHits([string]$text, [string[]]$patterns) {
   $hits = @()
   foreach ($pattern in $patterns) {
@@ -281,6 +467,14 @@ $changeToolPatterns = @(
 
 $hardHits = Get-PatternHits -text $toolText -patterns $hardToolPatterns
 $changeHits = Get-PatternHits -text $toolText -patterns $changeToolPatterns
+$permitResult = Test-HumanConfirmationPermit `
+  -path $HumanConfirmationPermitPath `
+  -jsonText $HumanConfirmationPermitJson `
+  -useLedgerPath $HumanConfirmationPermitUseLedgerPath `
+  -taskText $taskTextForRoute `
+  -toolText $toolText `
+  -policy $policy
+$effectiveHumanConfirmed = ([bool]$HumanConfirmed) -or ([string]$permitResult.status -eq "pass")
 
 $homeAgents = ""
 if ($env:USERPROFILE) {
@@ -296,11 +490,11 @@ $resolvedConstitution = Get-FirstExistingPath $constitutionCandidates
 $blocked = @()
 $warnings = @()
 
-if ($route.risk_level -eq "R5" -and -not $HumanConfirmed) {
+if ($route.risk_level -eq "R5" -and -not $effectiveHumanConfirmed) {
   $blocked += "human_confirmation_required_for_R5"
 }
 
-if ($hardHits.Count -gt 0 -and -not $HumanConfirmed) {
+if ($hardHits.Count -gt 0 -and -not $effectiveHumanConfirmed) {
   $blocked += "tool_call_requires_human_confirmation"
 }
 
@@ -345,6 +539,26 @@ if ($changeHits.Count -gt 0 -and $route.risk_level -eq "R0") {
   $warnings += "tool_looks_mutating_but_route_is_R0"
 }
 
+if (($blocked.Count -eq 0) -and ([bool](Get-ObjectPropertyValue $permitResult "pending_consume"))) {
+  try {
+    Add-HumanConfirmationPermitUse ([string](Get-ObjectPropertyValue $permitResult "use_ledger_path")) ([ordered]@{
+      schema = "cbh.r5_human_confirmation_permit_use.v1"
+      permit_id = [string](Get-ObjectPropertyValue $permitResult "permit_id")
+      consume_key = [string](Get-ObjectPropertyValue $permitResult "consume_key")
+      task_sha256 = [string](Get-ObjectPropertyValue $permitResult "expected_task_sha256")
+      tool_sha256 = [string](Get-ObjectPropertyValue $permitResult "expected_tool_sha256")
+      used_at_utc = (Get-Date).ToUniversalTime().ToString("o")
+    })
+    Set-ObjectProperty $permitResult "consumed" $true
+  } catch {
+    $blocked += "human_confirmation_permit_consume_failed"
+    $permitIssues = @((ConvertTo-Array (Get-ObjectPropertyValue $permitResult "issues")) + "permit_use_ledger_write_failed:$($_.Exception.Message)")
+    Set-ObjectProperty $permitResult "issues" @($permitIssues | Select-Object -Unique)
+    Set-ObjectProperty $permitResult "status" "blocked"
+    $effectiveHumanConfirmed = $false
+  }
+}
+
 $status = "pass"
 if ($blocked.Count -gt 0) {
   $status = "blocked"
@@ -362,6 +576,9 @@ $result = [ordered]@{
   tool_name = $ToolName
   tool_hard_hits = @($hardHits)
   tool_change_hits = @($changeHits)
+  human_confirmed = [bool]$HumanConfirmed
+  effective_human_confirmed = [bool]$effectiveHumanConfirmed
+  human_confirmation_permit = $permitResult
   conversation_link_required = ($linkRequiredIntents -contains $linkIntent)
   conversation_link_resolved = [bool]$ConversationLinkResolved
   constitution_path = $resolvedConstitution

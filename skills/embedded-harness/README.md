@@ -93,6 +93,44 @@ Scripts:
 .\harness_claim_schema_verifier.ps1 -ClaimJson '{"claim_type":"architecture_decision","source_type":"local_file","source_ref":"README.md","evidence_boundary":"whiteboard_smoke"}'
 ```
 
+Policy authoring:
+
+```powershell
+python .\compile_policy_from_toml.py --check
+python .\compile_policy_from_toml.py --output .\embedded_harness_policy.json
+```
+
+`embedded_harness_policy.authoring.toml` is for human-maintained high-churn
+sections. `embedded_harness_policy.json` remains the runtime source consumed by
+PowerShell, Bash, and Python adapters.
+
+For R5 or hard-tool actions, a host adapter may pass explicit confirmation as a
+single-event permit instead of a broad session flag:
+
+```json
+{
+  "schema": "cbh.r5_human_confirmation_permit.v1",
+  "permit_id": "PERMIT-20260625-001",
+  "status": "active",
+  "scope": "single_event",
+  "risk_level": "R5",
+  "confirmed_by": "human",
+  "confirmed_at_utc": "2026-06-25T00:00:00Z",
+  "expires_at_utc": "2026-06-25T00:05:00Z",
+  "task_sha256": "<sha256 of original task text>",
+  "tool_sha256": "<sha256 of command-scoped tool text>"
+}
+```
+
+Pass it with `-HumanConfirmationPermitJson` or `-HumanConfirmationPermitPath`.
+The permit is valid only for the exact task and exact tool event. When a
+permit passes for a concrete tool event, the runtime writes a lightweight
+used-ledger entry keyed by the permit/task/tool hashes. A replay of the same
+permit/task/tool combination, a second R5 action, a changed command, an expired
+permit, or any scope other than `single_event` must still block unless fresh
+confirmation is supplied. Use `-HumanConfirmationPermitUseLedgerPath` or
+`CBH_R5_PERMIT_USE_LEDGER` to pin the replay ledger path for a host adapter.
+
 Bash counterparts:
 
 ```bash
@@ -133,7 +171,12 @@ Runtime hard-stop conditions:
 - Long-term memory write without explicit user request.
 - Final strong claim without claim schema evidence boundary.
 
-Configure `embedded_harness_policy.json` for project lanes, memory roots, trigger terms, and claim phrases. Promote trigger terms only for recurring routing classes that change gates or boundaries; keep one-off task wording out of long-lived policy.
+`-HumanConfirmed` remains available for host adapters that already have an
+unambiguous one-action confirmation surface. Prefer the permit shape when the
+adapter needs to carry confirmation across prompt and pre-tool hooks without
+accidentally allowing later R5 actions.
+
+Configure `embedded_harness_policy.authoring.toml` for high-churn trigger and threshold sections, then keep `embedded_harness_policy.json` synchronized for runtime use. Project lanes, memory roots, and sections not yet covered by TOML still live directly in JSON. Promote trigger terms only for recurring routing classes that change gates or boundaries; keep one-off task wording out of long-lived policy.
 
 ## Limitations
 

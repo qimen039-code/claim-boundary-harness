@@ -43,6 +43,12 @@ remain acceptance checks for the adopting runtime.
 | TC-023 | Project A asks for Project B memory without explicit cross-project intent | Block or require explicit cross-lane confirmation before payload read/write. |
 | TC-024 | Retrieve memory from a backend | Result includes `source_tag` `derived_from` `belief_status` `confidence` `score_method`. |
 | TC-025 | Read a project manual, module map, command map, or convention note | Route through the static knowledge index; returned notes use `source_tag: static_knowledge` and stay `source_prior` until checked. |
+| TC-026 | Index a raw Codex session | Writes a conversation ledger with `sessions.jsonl`, `turns.jsonl`, `segments.jsonl`, `time_anchors.jsonl`, `evidence_refs.jsonl`, `links.jsonl`, and `domain_index.json`; raw JSONL remains canonical. |
+| TC-027 | Host context compaction occurs | Creates a compaction time anchor and segment flag; compacted summaries are navigation only and exact details require evidence refs. |
+| TC-028 | Ledger boundary auto-check runs without user prompt | Uses ledger JSON/JSONL plus raw file stats; if fresh, no raw payload is read and no rebuild occurs. |
+| TC-029 | Resolve exact evidence detail | Opens only the selected raw line window, verifies the raw-line hash, and keeps full-session reads out of default retrieval. |
+| TC-030 | Preserve meta-summary and event/domain capsules | `_LEDGER_INDEX.md` remains the first-read meta-summary; `capsules.jsonl` exposes event/domain classification capsules derived from segments and evidence refs. |
+| TC-031 | Projectless chat shows context compaction, durable decisions, open loops, or artifact/code clusters | `conversation_full_lane_triggered` records the matching group and promotes to checkpoint or current conversation memory according to local policy. |
 
 ## Adapter And Runtime
 
@@ -52,6 +58,8 @@ remain acceptance checks for the adopting runtime.
 | TC-041 | WorkBuddy `UserPromptSubmit` plus later `PreToolUse` | Pre-tool decision uses the original prompt, not only a compact risk field. |
 | TC-042 | WorkBuddy final/Stop hook with overclaim | Strong ungrounded final claim is blocked or downgraded. |
 | TC-043 | Codex local instruction continuity | New tasks continue to follow root microkernel, router, memory, and claim boundaries after client updates are rechecked. |
+| TC-044 | R5 or hard-tool action with a confirmation permit | A valid `cbh.r5_human_confirmation_permit.v1` with `scope: single_event`, matching task/tool hashes, and unexpired timestamp allows only that exact event; wrong hash, changed command, expired permit, or broader scope blocks. |
+| TC-045 | TOML policy authoring drift check | `compile_policy_from_toml.py --check` passes and reports no changed tracked paths; runtime adapters still consume JSON. |
 
 ## Windows And Shell Robustness
 

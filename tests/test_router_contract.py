@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 import shutil
 import subprocess
@@ -58,6 +59,22 @@ def contains(items, expected: str) -> bool:
     return expected in list(items or [])
 
 
+def permit_json(task_text: str, tool_text: str, *, permit_id: str = "PERMIT-test") -> str:
+    payload = {
+        "schema": "cbh.r5_human_confirmation_permit.v1",
+        "permit_id": permit_id,
+        "status": "active",
+        "scope": "single_event",
+        "risk_level": "R5",
+        "confirmed_by": "human",
+        "confirmed_at_utc": "2026-06-25T00:00:00Z",
+        "expires_at_utc": "2099-01-01T00:00:00Z",
+        "task_sha256": hashlib.sha256(task_text.encode("utf-8")).hexdigest(),
+        "tool_sha256": hashlib.sha256(tool_text.encode("utf-8")).hexdigest(),
+    }
+    return json.dumps(payload, ensure_ascii=False, separators=(",", ":"))
+
+
 ROUTER_CASES = [
     {
         "id": "TC-002",
@@ -113,6 +130,32 @@ ROUTER_CASES = [
         "gates": ["change_contract_gate"],
     },
     {
+        "id": "TC-005b",
+        "task": "接续上一段对话记忆，创建此对话新记忆文件并链接上一段对话记忆文件",
+        "risk": "R3",
+        "gates": ["conversation_link_gate"],
+        "expect": {
+            "memory_lane": "current_conversation",
+            "conversation_memory_decision": "create_or_update_current_conversation",
+            "link_intent": "continue_from_latest",
+            "record_intent": "explicit_conversation_memory_request",
+        },
+        "expect_in": {
+            "memory_mode": ["write", "update"],
+        },
+    },
+    {
+        "id": "TC-005c",
+        "task": "为当前对话建立对话账本，链接 raw session JSONL、segments.jsonl、evidence_refs 和当前对话记忆",
+        "risk": "R3",
+        "expect": {
+            "target_surface": "conversation_ledger",
+        },
+        "expect_contains": {
+            "module_need": "conversation_ledger_index",
+        },
+    },
+    {
         "id": "TC-006",
         "task": "check whether this feature exists, then implement it if missing",
         "risk": "R3",
@@ -146,6 +189,12 @@ def test_router_contract_cases(case: dict) -> None:
         assert payload.get("risk_context_decisions", {}).get("R5", {}).get("action_surface") == case["context_surface"]
     if "promote_r5" in case:
         assert bool(payload.get("risk_context_decisions", {}).get("R5", {}).get("promote_to_risk")) is case["promote_r5"]
+    for field, expected in case.get("expect", {}).items():
+        assert payload.get(field) == expected
+    for field, expected_values in case.get("expect_in", {}).items():
+        assert payload.get(field) in expected_values
+    for field, expected_value in case.get("expect_contains", {}).items():
+        assert contains(payload.get(field), expected_value)
 
 
 def test_tool_proxy_blocks_high_risk_command() -> None:
@@ -176,6 +225,128 @@ def test_tool_proxy_blocks_high_risk_command() -> None:
     assert code == 2
     assert payload["status"] == "blocked"
     assert "tool_call_requires_human_confirmation" in payload["blocked_reasons"]
+
+
+def test_tool_proxy_allows_exact_single_event_confirmation_permit(tmp_path: Path) -> None:
+    if not POWERSHELL:
+        pytest.skip("PowerShell is not available on PATH")
+    task_text = "commit changes"
+    tool_text = "shell_command\ngit commit -am update"
+    code, payload = run_json(
+        [
+            POWERSHELL,
+            "-NoProfile",
+            "-ExecutionPolicy",
+            "Bypass",
+            "-File",
+            "skills/embedded-harness/harness_tool_proxy.ps1",
+            "-Stage",
+            "pre_tool",
+            "-TaskText",
+            task_text,
+            "-ToolName",
+            "shell_command",
+            "-ToolInputJson",
+            '{"command":"git commit -am update"}',
+            "-Cwd",
+            str(ROOT),
+            "-ConstitutionReviewed",
+            "-HumanConfirmationPermitJson",
+            permit_json(task_text, tool_text),
+            "-HumanConfirmationPermitUseLedgerPath",
+            str(tmp_path / "r5-permit-uses.jsonl"),
+        ],
+    )
+    assert code == 0
+    assert payload["status"] == "pass"
+    assert payload["effective_human_confirmed"] is True
+    assert payload["human_confirmation_permit"]["status"] == "pass"
+    assert payload["human_confirmation_permit"]["consumed"] is True
+
+
+def test_tool_proxy_blocks_replayed_single_event_confirmation_permit(tmp_path: Path) -> None:
+    if not POWERSHELL:
+        pytest.skip("PowerShell is not available on PATH")
+    task_text = "commit changes"
+    tool_text = "shell_command\ngit commit -am update"
+    permit = permit_json(task_text, tool_text, permit_id="PERMIT-replay")
+    ledger = tmp_path / "r5-permit-uses.jsonl"
+    base_args = [
+        POWERSHELL,
+        "-NoProfile",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+        "skills/embedded-harness/harness_tool_proxy.ps1",
+        "-Stage",
+        "pre_tool",
+        "-TaskText",
+        task_text,
+        "-ToolName",
+        "shell_command",
+        "-ToolInputJson",
+        '{"command":"git commit -am update"}',
+        "-Cwd",
+        str(ROOT),
+        "-ConstitutionReviewed",
+        "-HumanConfirmationPermitJson",
+        permit,
+        "-HumanConfirmationPermitUseLedgerPath",
+        str(ledger),
+    ]
+    code, payload = run_json(base_args)
+    assert code == 0
+    assert payload["human_confirmation_permit"]["status"] == "pass"
+    assert payload["human_confirmation_permit"]["consumed"] is True
+
+    code, payload = run_json(base_args, allowed_exit_codes={2})
+    assert code == 2
+    assert payload["status"] == "blocked"
+    assert "permit_already_used" in payload["human_confirmation_permit"]["issues"]
+    assert "tool_call_requires_human_confirmation" in payload["blocked_reasons"]
+
+
+def test_tool_proxy_blocks_mismatched_single_event_confirmation_permit() -> None:
+    if not POWERSHELL:
+        pytest.skip("PowerShell is not available on PATH")
+    task_text = "commit changes"
+    wrong_tool_text = "shell_command\ngit push"
+    code, payload = run_json(
+        [
+            POWERSHELL,
+            "-NoProfile",
+            "-ExecutionPolicy",
+            "Bypass",
+            "-File",
+            "skills/embedded-harness/harness_tool_proxy.ps1",
+            "-Stage",
+            "pre_tool",
+            "-TaskText",
+            task_text,
+            "-ToolName",
+            "shell_command",
+            "-ToolInputJson",
+            '{"command":"git commit -am update"}',
+            "-Cwd",
+            str(ROOT),
+            "-ConstitutionReviewed",
+            "-HumanConfirmationPermitJson",
+            permit_json(task_text, wrong_tool_text, permit_id="PERMIT-wrong-tool"),
+        ],
+        allowed_exit_codes={2},
+    )
+    assert code == 2
+    assert payload["status"] == "blocked"
+    assert "tool_hash_mismatch" in payload["human_confirmation_permit"]["issues"]
+    assert "tool_call_requires_human_confirmation" in payload["blocked_reasons"]
+
+
+def test_router_requires_external_evidence_for_uncertain_design_discussion() -> None:
+    payload = run_router("我们不确定这个机制有没有成熟方案，需要外部证据后再决定是否吸纳")
+    assert payload["needs_external_research"] is True
+    assert "external_research" in payload["matched_risk_triggers"]
+    assert "external_research_gate" in payload["module_need"]
+    assert "general_web_cross_check" in payload["external_need"] or "source_grounded_learning_intake" in payload["external_need"]
 
 
 def test_powershell_router_rejects_sibling_project_prefix() -> None:

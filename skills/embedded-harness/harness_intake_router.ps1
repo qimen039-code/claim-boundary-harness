@@ -255,7 +255,7 @@ function Get-R5ContextDecision {
 function Get-TargetSurface() {
   $rules = $policy.router_decision_contract.target_surface_trigger_rules
   if ($null -ne $rules) {
-    foreach ($name in @("git_action", "tool_call", "adapter", "public_docs", "conversation_memory", "private_rule", "local_harness", "skill_matrix", "project_memory")) {
+    foreach ($name in @("git_action", "tool_call", "adapter", "public_docs", "conversation_ledger", "conversation_memory", "private_rule", "local_harness", "skill_matrix", "project_memory")) {
       $triggers = Get-ObjectPropertyValue $rules $name
       if ((Get-MatchedTriggers $triggers).Count -gt 0) {
         return $name
@@ -266,6 +266,7 @@ function Get-TargetSurface() {
   if (Test-TaskContainsAny @("tool proxy", "tool call", "shell_command", "command")) { return "tool_call" }
   if (Test-TaskContainsAny @("WorkBuddy", "Claude Code", "adapter", "client update")) { return "adapter" }
   if (Test-TaskContainsAny @("public", "README", "GitHub", "open source", "repo", "repository", "whiteboard")) { return "public_docs" }
+  if (Test-TaskContainsAny @("conversation ledger", "session ledger", "raw session", "raw session JSONL", "evidence_refs", "time_anchors", "segments.jsonl", "turns.jsonl", "sessions.jsonl", "对话账本", "会话账本", "原始对话日志", "证据指针", "时间锚点")) { return "conversation_ledger" }
   if (Test-TaskContainsAny @("internal", "private", "local maintainer", "local-only")) { return "private_rule" }
   if (Test-TaskContainsAny @("memory", "history", "_META_INDEX", "capsule", "ERR-", "SOL-")) { return "project_memory" }
   if (Test-TaskContainsAny @("skill", "semantic anchor", "skill matrix")) { return "skill_matrix" }
@@ -553,6 +554,31 @@ $conversationThreshold = 5
 if ($null -ne $policy.router_decision_contract.conversation_memory_threshold) {
   $conversationThreshold = [int]$policy.router_decision_contract.conversation_memory_threshold
 }
+$conversationFullLaneGroups = [ordered]@{}
+$conversationFullLaneTriggered = $false
+$conversationFullLaneConfig = Get-ObjectPropertyValue $policy.router_decision_contract "conversation_memory_full_lane_triggers"
+$conversationThresholdGroups = Get-ObjectPropertyValue $conversationFullLaneConfig "threshold_groups"
+if ($null -ne $conversationThresholdGroups) {
+  foreach ($group in $conversationThresholdGroups.PSObject.Properties) {
+    $groupThreshold = 1
+    $configuredThreshold = Get-ObjectPropertyValue $group.Value "threshold"
+    if ($null -ne $configuredThreshold) {
+      $groupThreshold = [int]$configuredThreshold
+    }
+    $groupHits = Get-MatchedTriggers (Get-ObjectPropertyValue $group.Value "triggers")
+    if ($groupHits.Count -gt 0) {
+      $groupTriggered = ($groupHits.Count -ge $groupThreshold)
+      $conversationFullLaneGroups[$group.Name] = [ordered]@{
+        threshold = $groupThreshold
+        hits = @($groupHits)
+        triggered = [bool]$groupTriggered
+      }
+      if ($groupTriggered) {
+        $conversationFullLaneTriggered = $true
+      }
+    }
+  }
+}
 
 $projectizationDecision = "not_project"
 if ($projectLane -ne "PROJECTLESS") {
@@ -587,6 +613,7 @@ $activeConversationMemoryDurableSignal = (
   $hasActiveConversationMemoryLane -and
   (-not $readOnlyMemoryAuditIntent) -and (
     $activeConversationWriteIntent -or
+    $conversationFullLaneTriggered -or
     ($conversationSignals.Count -ge $conversationThreshold) -or
     ($projectizationSignals.Count -ge $projectizationThreshold) -or
     ($risk -in @("R4", "R5"))
@@ -597,7 +624,7 @@ if ($projectLane -eq "PROJECTLESS") {
     $conversationMemoryDecision = "create_or_update_current_conversation"
   } elseif ($activeConversationMemoryDurableSignal) {
     $conversationMemoryDecision = "create_or_update_current_conversation"
-  } elseif ((-not $readOnlyMemoryAuditIntent) -and ($projectizationDecision -eq "not_project") -and ($conversationSignals.Count -ge $conversationThreshold)) {
+  } elseif ((-not $readOnlyMemoryAuditIntent) -and ($projectizationDecision -eq "not_project") -and (($conversationSignals.Count -ge $conversationThreshold) -or $conversationFullLaneTriggered)) {
     $conversationMemoryDecision = "checkpoint_candidate"
   }
 }
@@ -616,7 +643,17 @@ if ($null -ne $linkContract) {
   }
 }
 if ($linkIntent -ne "none") {
-  $conversationMemoryDecision = "read_referenced_conversation"
+  $linkShouldCreateCurrentConversation = (
+    ($linkIntent -in @("continue_from_latest", "continue_from_referenced_memory")) -and
+    (($conversationExplicitHits.Count -gt 0) -or $activeConversationWriteIntent)
+  )
+  if ($linkShouldCreateCurrentConversation) {
+    $conversationMemoryDecision = "create_or_update_current_conversation"
+  } else {
+    $conversationMemoryDecision = "read_referenced_conversation"
+  }
+} else {
+  $linkShouldCreateCurrentConversation = $false
 }
 
 if ($commonErrorHits.Count -gt 0) {
@@ -646,7 +683,9 @@ if ($commonErrorHits.Count -gt 0) {
   $recordIntent = "conversation_link_review"
 }
 
-if (($linkIntent -ne "none") -and ($memoryNeed -eq "none")) {
+if (($linkIntent -ne "none") -and $linkShouldCreateCurrentConversation -and ($memoryNeed -eq "none")) {
+  $memoryNeed = "conversation_state"
+} elseif (($linkIntent -ne "none") -and ($memoryNeed -eq "none")) {
   $memoryNeed = "index_only"
 } elseif (($conversationMemoryDecision -ne "none") -and ($memoryNeed -eq "none")) {
   $memoryNeed = "conversation_state"
@@ -660,6 +699,8 @@ if ($commonErrorHits.Count -gt 0) {
   $memoryLane = "common_error_corpus"
 } elseif ($projectLane -ne "PROJECTLESS") {
   $memoryLane = "current_project"
+} elseif (($linkIntent -ne "none") -and $linkShouldCreateCurrentConversation) {
+  $memoryLane = "current_conversation"
 } elseif ($linkIntent -ne "none") {
   $memoryLane = "referenced_conversation"
 } elseif (($conversationMemoryDecision -ne "none") -and ($hasActiveConversationMemoryLane -or ($conversationExplicitHits.Count -gt 0))) {
@@ -683,6 +724,28 @@ if (($recordIntent -eq "explicit_user_request") -or ($recordIntent -eq "inferred
   $memoryMode = "read"
 }
 
+if (
+  (($conversationMemoryDecision -eq "create_or_update_current_conversation") -and ($memoryMode -in @("write", "update"))) -or
+  (($linkIntent -ne "none") -and ($memoryLane -eq "current_conversation"))
+) {
+  if ($risk -notin @("R5", "R4", "R3")) {
+    $risk = "R3"
+  }
+  if ($triggeredRisks -notcontains "R3") {
+    $triggeredRisks += "R3"
+  }
+  $r3Matches = @()
+  if ($matchedRiskTriggers.Contains("R3")) {
+    $r3Matches = @($matchedRiskTriggers["R3"])
+  }
+  $mergedR3Matches = @($r3Matches + "conversation_memory_write_or_link")
+  $matchedRiskTriggers["R3"] = @($mergedR3Matches | Select-Object -Unique)
+  $r3Gates = Get-ObjectPropertyValue $policy.risk_gate_rules "R3"
+  foreach ($gate in (ConvertTo-Array $r3Gates)) {
+    $requiredGates += [string]$gate
+  }
+}
+
 if (($selfReflectionRecordHits.Count -gt 0) -or ($commonErrorHits.Count -gt 0)) {
   $requiredSkills += "troubleshooting-skill-matrix"
 }
@@ -702,6 +765,7 @@ if ($requiredSkills.Count -gt 0) { $moduleNeed += "skill_matrix" }
 if ($semanticAmbiguity.Count -gt 0) { $moduleNeed += "semantic_anchors" }
 if ($memoryNeed -ne "none") { $moduleNeed += "memory_meta_index" }
 if ($staticKnowledgeHits.Count -gt 0) { $moduleNeed += "static_knowledge_index" }
+if ($targetSurface -eq "conversation_ledger") { $moduleNeed += "conversation_ledger_index" }
 if ($conversationMemoryDecision -ne "none") { $moduleNeed += "conversation_memory_index" }
 if ($linkIntent -ne "none") { $moduleNeed += "memory_link_ledger" }
 if (($externalNeed.Count -gt 0) -and ($externalNeed[0] -ne "none")) { $moduleNeed += "external_research_gate" }
@@ -718,7 +782,7 @@ if ($debugHits.Count -gt 0) {
   $receiptProfile = "debug_receipt"
   $profileReason += "debug_requested"
 } else {
-  if ($targetSurface -in @("public_docs", "local_harness", "project_memory", "skill_matrix", "adapter", "private_rule")) {
+  if ($targetSurface -in @("public_docs", "local_harness", "project_memory", "conversation_ledger", "skill_matrix", "adapter", "private_rule")) {
     $profileReason += "governance_surface"
   }
   if ($audience -in @("public_user", "local_maintainer")) {
@@ -766,6 +830,8 @@ $routingReceipt = [ordered]@{
   receipt_profile = $receiptProfile
   projectization_signals = @($projectizationSignals)
   conversation_signals = @(@($conversationExplicitHits) + @($conversationSignals) | Select-Object -Unique)
+  conversation_full_lane_triggered = [bool]$conversationFullLaneTriggered
+  conversation_full_lane_groups = $conversationFullLaneGroups
   required_gates = @($requiredGates | Select-Object -Unique)
 }
 
@@ -776,6 +842,7 @@ $compactReceipt = [ordered]@{
   memory_mode = $memoryMode
   memory_lane = $memoryLane
   conversation_memory_decision = $conversationMemoryDecision
+  conversation_full_lane_triggered = [bool]$conversationFullLaneTriggered
   link_intent = $linkIntent
   external_need = @($externalNeed)
   claim_risk = $claimRisk
@@ -808,6 +875,8 @@ $result = [ordered]@{
   link_intent = $linkIntent
   projectization_signals = @($projectizationSignals)
   conversation_signals = @(@($conversationExplicitHits) + @($conversationSignals) | Select-Object -Unique)
+  conversation_full_lane_triggered = [bool]$conversationFullLaneTriggered
+  conversation_full_lane_groups = $conversationFullLaneGroups
   triggered_risks = @($triggeredRisks | Select-Object -Unique)
   matched_risk_triggers = $matchedRiskTriggers
   negated_risk_triggers = $negatedRiskTriggers

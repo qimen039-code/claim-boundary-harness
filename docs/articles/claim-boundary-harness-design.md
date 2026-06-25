@@ -185,7 +185,7 @@ The public package currently carries lightweight checks, not a full production t
 
 Recent local checks for the reference package included:
 
-- WorkBuddy-oriented Python adapter tests: `41 tests OK`;
+- WorkBuddy-oriented Python adapter unittest suite passes locally;
 - embedded harness policy validation: `status: pass`;
 - JSON/JSONL parse checks for repository examples;
 - `git diff --check`;

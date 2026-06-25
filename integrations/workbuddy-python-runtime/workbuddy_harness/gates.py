@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import json
+import hashlib
 import os
 import re
+import tempfile
 from copy import deepcopy
 from datetime import datetime, timezone
 from pathlib import Path
@@ -81,6 +83,10 @@ def sanitize_json_value(value: Any) -> Any:
 
 def _now() -> str:
     return datetime.now(timezone.utc).astimezone().isoformat()
+
+
+def _sha256_hex(text: str) -> str:
+    return hashlib.sha256(str(text).encode("utf-8", errors="replace")).hexdigest()
 
 
 def _as_list(value: Any) -> list[Any]:
@@ -170,6 +176,35 @@ def _first_matching_rule(source: str, rules: dict[str, Any], order: list[str]) -
 
 def _matching_triggers(source: str, triggers: Any) -> list[str]:
     return _trigger_matches(source, triggers)["positive"]
+
+
+def _conversation_full_lane_groups(task_text: str, contract: dict[str, Any]) -> tuple[dict[str, dict[str, Any]], bool]:
+    config = contract.get("conversation_memory_full_lane_triggers", {})
+    groups = config.get("threshold_groups", {}) if isinstance(config, dict) else {}
+    if not isinstance(groups, dict):
+        return {}, False
+
+    result: dict[str, dict[str, Any]] = {}
+    triggered = False
+    for group_name, settings in groups.items():
+        if not isinstance(settings, dict):
+            continue
+        try:
+            threshold = int(settings.get("threshold", 1) or 1)
+        except (TypeError, ValueError):
+            threshold = 1
+        threshold = max(1, threshold)
+        hits = _matching_triggers(task_text, settings.get("triggers", []))
+        if not hits:
+            continue
+        group_triggered = len(hits) >= threshold
+        result[str(group_name)] = {
+            "threshold": threshold,
+            "hits": hits,
+            "triggered": group_triggered,
+        }
+        triggered = triggered or group_triggered
+    return result, triggered
 
 
 def _unique(items: list[str]) -> list[str]:
@@ -345,6 +380,139 @@ def _pattern_hits(text: str, patterns: list[str]) -> list[str]:
     return sorted({pattern for pattern in patterns if re.search(pattern, text)})
 
 
+def _read_confirmation_permit(*, permit_path: str = "", permit_json: str = "") -> dict[str, Any] | None:
+    if permit_json:
+        loaded = json.loads(permit_json)
+        return loaded if isinstance(loaded, dict) else None
+    if permit_path:
+        loaded = json.loads(Path(permit_path).read_text(encoding="utf-8"))
+        return loaded if isinstance(loaded, dict) else None
+    return None
+
+
+def _permit_use_ledger_path(path: str = "") -> Path:
+    if path:
+        return Path(path)
+    env_path = os.environ.get("CBH_R5_PERMIT_USE_LEDGER")
+    if env_path:
+        return Path(env_path)
+    base = os.environ.get("LOCALAPPDATA") or os.environ.get("XDG_STATE_HOME")
+    if base:
+        return Path(base) / "codex-embedded-harness" / "r5_permit_use_ledger.jsonl"
+    return Path(tempfile.gettempdir()) / "codex-embedded-harness" / "r5_permit_use_ledger.jsonl"
+
+
+def _permit_consume_key(*, permit_id: str, task_hash: str, tool_hash: str) -> str:
+    return _sha256_hex("\n".join([permit_id, task_hash, tool_hash]))
+
+
+def _permit_already_used(path: Path, consume_key: str) -> bool:
+    if not consume_key or not path.exists():
+        return False
+    try:
+        for line in path.read_text(encoding="utf-8").splitlines():
+            if not line.strip():
+                continue
+            try:
+                record = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            if isinstance(record, dict) and record.get("consume_key") == consume_key:
+                return True
+    except OSError:
+        return False
+    return False
+
+
+def _append_permit_use(path: Path, record: dict[str, Any]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("a", encoding="utf-8") as handle:
+        handle.write(json.dumps(record, ensure_ascii=False, separators=(",", ":")) + "\n")
+
+
+def _confirmation_permit_result(
+    *,
+    task_text: str,
+    tool_text: str,
+    permit_path: str = "",
+    permit_json: str = "",
+    permit_use_ledger_path: str = "",
+    policy: dict[str, Any],
+) -> dict[str, Any]:
+    expected_task_hash = _sha256_hex(task_text)
+    expected_tool_hash = _sha256_hex(tool_text)
+    result: dict[str, Any] = {
+        "status": "missing",
+        "permit_id": None,
+        "issues": [],
+        "expected_task_sha256": expected_task_hash,
+        "expected_tool_sha256": expected_tool_hash,
+        "consume_key": None,
+        "use_ledger_path": None,
+        "consumed": False,
+        "pending_consume": False,
+        "rule": "short-lived single-event scoped permit only; natural-language approval is not sufficient; a concrete tool-event permit is recorded as used before the caller proceeds",
+    }
+    if not permit_path and not permit_json:
+        return result
+    config = policy.get("runtime_enforcement", {}).get("human_confirmation_permit", {})
+    if config and config.get("enabled") is False:
+        result["status"] = "blocked"
+        result["issues"] = ["permit_disabled_by_policy"]
+        return result
+
+    issues: list[str] = []
+    permit: dict[str, Any] | None = None
+    try:
+        permit = _read_confirmation_permit(permit_path=permit_path, permit_json=permit_json)
+    except Exception as exc:
+        issues.append(f"permit_parse_failed:{exc}")
+    if not permit:
+        if not issues:
+            issues.append("permit_missing")
+    else:
+        result["permit_id"] = permit.get("permit_id")
+        if permit.get("schema") != "cbh.r5_human_confirmation_permit.v1":
+            issues.append("unsupported_permit_schema")
+        if permit.get("status") != "active":
+            issues.append("permit_not_active")
+        if permit.get("confirmed_by") != "human":
+            issues.append("permit_not_human_confirmed")
+        if permit.get("risk_level") != "R5":
+            issues.append("permit_not_r5_scoped")
+        if permit.get("scope") != "single_event":
+            issues.append("permit_not_single_event_scoped")
+        if permit.get("task_sha256") != expected_task_hash:
+            issues.append("task_hash_mismatch")
+        if tool_text and permit.get("tool_sha256") != expected_tool_hash:
+            issues.append("tool_hash_mismatch")
+        expires_text = str(permit.get("expires_at_utc") or "")
+        try:
+            expires_at = datetime.fromisoformat(expires_text.replace("Z", "+00:00"))
+            if expires_at.astimezone(timezone.utc) < datetime.now(timezone.utc):
+                issues.append("permit_expired")
+        except ValueError:
+            issues.append("permit_expiry_missing_or_invalid")
+        consume_on_pass = config.get("consume_on_pass", True) is not False
+        consume_requires_tool_text = config.get("consume_requires_tool_text", True) is not False
+        if not issues and consume_on_pass and (tool_text or not consume_requires_tool_text):
+            ledger_path = _permit_use_ledger_path(permit_use_ledger_path)
+            consume_key = _permit_consume_key(
+                permit_id=str(permit.get("permit_id") or ""),
+                task_hash=expected_task_hash,
+                tool_hash=expected_tool_hash,
+            )
+            result["consume_key"] = consume_key
+            result["use_ledger_path"] = str(ledger_path)
+            if _permit_already_used(ledger_path, consume_key):
+                issues.append("permit_already_used")
+            else:
+                result["pending_consume"] = True
+    result["issues"] = sorted(set(issues))
+    result["status"] = "pass" if not issues else "blocked"
+    return result
+
+
 def _apply_risk_override(route: dict[str, Any], risk_level: str, policy: dict[str, Any]) -> dict[str, Any]:
     risk = _extract_risk_label(risk_level)
     if not risk:
@@ -483,7 +651,7 @@ def intake_router(task_text: str = "", cwd: str | None = None, policy: dict[str,
     target_surface = _first_matching_rule(
         task_text,
         contract.get("target_surface_trigger_rules", {}),
-        ["git_action", "tool_call", "adapter", "public_docs", "conversation_memory", "private_rule", "local_harness", "skill_matrix", "project_memory"],
+        ["git_action", "tool_call", "adapter", "public_docs", "conversation_ledger", "conversation_memory", "private_rule", "local_harness", "skill_matrix", "project_memory"],
     ) or "current_chat"
     if target_surface == "current_chat" and "R3" in triggered_risks:
         target_surface = "local_harness"
@@ -543,6 +711,7 @@ def intake_router(task_text: str = "", cwd: str | None = None, policy: dict[str,
     conversation_signals = _matching_triggers(task_text, contract.get("conversation_memory_signals", []))
     self_reflection_record_hits = [] if conversation_explicit_hits else explicit_record_hits
     conversation_threshold = int(contract.get("conversation_memory_threshold", 5))
+    conversation_full_lane_groups, conversation_full_lane_triggered = _conversation_full_lane_groups(task_text, contract)
     conversation_memory_decision = "none"
     read_only_audit_hits = _matching_triggers(task_text, contract.get("read_only_memory_audit_triggers", []))
     active_conversation_write_intent_hits = _matching_triggers(task_text, contract.get("active_conversation_write_intent_triggers", []))
@@ -554,6 +723,7 @@ def intake_router(task_text: str = "", cwd: str | None = None, policy: dict[str,
     )
     active_conversation_memory_durable_signal = has_active_conversation_memory_lane and not read_only_memory_audit_intent and (
         active_conversation_write_intent
+        or conversation_full_lane_triggered
         or len(conversation_signals) >= conversation_threshold
         or len(projectization_signals) >= projectization_threshold
         or risk_level in {"R4", "R5"}
@@ -563,13 +733,22 @@ def intake_router(task_text: str = "", cwd: str | None = None, policy: dict[str,
             conversation_memory_decision = "create_or_update_current_conversation"
         elif active_conversation_memory_durable_signal:
             conversation_memory_decision = "create_or_update_current_conversation"
-        elif len(conversation_signals) >= conversation_threshold:
+        elif len(conversation_signals) >= conversation_threshold or conversation_full_lane_triggered:
             if projectization_decision == "not_project" and not read_only_memory_audit_intent:
                 conversation_memory_decision = "checkpoint_candidate"
 
     link_intent = _conversation_link_intent(task_text, policy)
     if link_intent != "none":
-        conversation_memory_decision = "read_referenced_conversation"
+        link_should_create_current_conversation = link_intent in {
+            "continue_from_latest",
+            "continue_from_referenced_memory",
+        } and bool(conversation_explicit_hits or active_conversation_write_intent)
+        if link_should_create_current_conversation:
+            conversation_memory_decision = "create_or_update_current_conversation"
+        else:
+            conversation_memory_decision = "read_referenced_conversation"
+    else:
+        link_should_create_current_conversation = False
 
     if common_error_hits:
         memory_need = "common_error_corpus"
@@ -596,7 +775,9 @@ def intake_router(task_text: str = "", cwd: str | None = None, policy: dict[str,
     else:
         record_intent = "no_record"
 
-    if link_intent != "none" and memory_need == "none":
+    if link_intent != "none" and link_should_create_current_conversation and memory_need == "none":
+        memory_need = "conversation_state"
+    elif link_intent != "none" and memory_need == "none":
         memory_need = "index_only"
     elif conversation_memory_decision != "none" and memory_need == "none":
         memory_need = "conversation_state"
@@ -607,6 +788,8 @@ def intake_router(task_text: str = "", cwd: str | None = None, policy: dict[str,
         memory_lane = "common_error_corpus"
     elif lane != "PROJECTLESS":
         memory_lane = "current_project"
+    elif link_intent != "none" and link_should_create_current_conversation:
+        memory_lane = "current_conversation"
     elif link_intent != "none":
         memory_lane = "referenced_conversation"
     elif conversation_memory_decision != "none" and (has_active_conversation_memory_lane or conversation_explicit_hits):
@@ -636,6 +819,18 @@ def intake_router(task_text: str = "", cwd: str | None = None, policy: dict[str,
     else:
         memory_mode = "none"
 
+    if (
+        conversation_memory_decision == "create_or_update_current_conversation"
+        and memory_mode in {"write", "update"}
+    ) or (link_intent != "none" and memory_lane == "current_conversation"):
+        risk_level = _higher_risk(risk_level, "R3", policy)
+        if "R3" not in triggered_risks:
+            triggered_risks.append("R3")
+        matched_risk_triggers["R3"] = _unique(
+            _as_list(matched_risk_triggers.get("R3")) + ["conversation_memory_write_or_link"]
+        )
+        required_gates.extend(str(gate) for gate in _as_list(policy.get("risk_gate_rules", {}).get("R3")))
+
     if self_reflection_record_hits or common_error_hits:
         required_skills.append("troubleshooting-skill-matrix")
 
@@ -658,6 +853,8 @@ def intake_router(task_text: str = "", cwd: str | None = None, policy: dict[str,
         module_need.append("memory_meta_index")
     if static_knowledge_hits:
         module_need.append("static_knowledge_index")
+    if target_surface == "conversation_ledger":
+        module_need.append("conversation_ledger_index")
     if conversation_memory_decision != "none":
         module_need.append("conversation_memory_index")
     if link_intent != "none":
@@ -679,7 +876,7 @@ def intake_router(task_text: str = "", cwd: str | None = None, policy: dict[str,
         receipt_profile = "debug_receipt"
         profile_reason.append("debug_requested")
     else:
-        if target_surface in {"public_docs", "local_harness", "project_memory", "skill_matrix", "adapter", "private_rule"}:
+        if target_surface in {"public_docs", "local_harness", "project_memory", "conversation_ledger", "skill_matrix", "adapter", "private_rule"}:
             profile_reason.append("governance_surface")
         if audience in {"public_user", "local_maintainer"}:
             profile_reason.append("audience_boundary")
@@ -717,6 +914,8 @@ def intake_router(task_text: str = "", cwd: str | None = None, policy: dict[str,
         "conversation_memory_decision": conversation_memory_decision,
         "link_intent": link_intent,
         "conversation_signals": _unique(conversation_explicit_hits + conversation_signals),
+        "conversation_full_lane_triggered": conversation_full_lane_triggered,
+        "conversation_full_lane_groups": conversation_full_lane_groups,
         "receipt_profile": receipt_profile,
         "projectization_signals": projectization_signals,
         "required_gates": required_gates_out,
@@ -728,6 +927,7 @@ def intake_router(task_text: str = "", cwd: str | None = None, policy: dict[str,
         "memory_mode": memory_mode,
         "memory_lane": memory_lane,
         "conversation_memory_decision": conversation_memory_decision,
+        "conversation_full_lane_triggered": conversation_full_lane_triggered,
         "link_intent": link_intent,
         "external_need": external_need,
         "claim_risk": claim_risk,
@@ -760,6 +960,8 @@ def intake_router(task_text: str = "", cwd: str | None = None, policy: dict[str,
         "link_intent": link_intent,
         "projectization_signals": projectization_signals,
         "conversation_signals": _unique(conversation_explicit_hits + conversation_signals),
+        "conversation_full_lane_triggered": conversation_full_lane_triggered,
+        "conversation_full_lane_groups": conversation_full_lane_groups,
         "triggered_risks": sorted(set(triggered_risks), key=triggered_risks.index),
         "matched_risk_triggers": matched_risk_triggers,
         "negated_risk_triggers": negated_risk_triggers,
@@ -888,6 +1090,9 @@ def runtime_enforcer(
     claim_json: str | list[dict[str, Any]] | dict[str, Any] | None = None,
     final_text: str = "",
     human_confirmed: bool = False,
+    human_confirmation_permit_path: str = "",
+    human_confirmation_permit_json: str = "",
+    human_confirmation_permit_use_ledger_path: str = "",
     boundary_reviewed: bool = False,
     conversation_link_resolved: bool = False,
     constitution_reviewed: bool = False,
@@ -910,13 +1115,22 @@ def runtime_enforcer(
     hard_hits = _pattern_hits(tool_text, hard_patterns)
     change_hits = _pattern_hits(tool_text, CHANGE_TOOL_PATTERNS)
     conversation_link_required = _conversation_link_required(route, policy)
+    permit_result = _confirmation_permit_result(
+        task_text=task_text_for_route,
+        tool_text=tool_text,
+        permit_path=human_confirmation_permit_path,
+        permit_json=human_confirmation_permit_json,
+        permit_use_ledger_path=human_confirmation_permit_use_ledger_path,
+        policy=policy,
+    )
+    effective_human_confirmed = bool(human_confirmed) or permit_result.get("status") == "pass"
 
     blocked: list[str] = []
     warnings: list[str] = []
 
-    if route["risk_level"] == "R5" and not human_confirmed:
+    if route["risk_level"] == "R5" and not effective_human_confirmed:
         blocked.append("human_confirmation_required_for_R5")
-    if hard_hits and not human_confirmed:
+    if hard_hits and not effective_human_confirmed:
         blocked.append("tool_call_requires_human_confirmation")
     if route["fallback_model_judgment_recommended"] and not boundary_reviewed:
         blocked.append("boundary_review_required_for_low_confidence_route")
@@ -942,6 +1156,26 @@ def runtime_enforcer(
     if change_hits and route["risk_level"] == "R0":
         warnings.append("tool_looks_mutating_but_route_is_R0")
 
+    if not blocked and permit_result.get("pending_consume"):
+        try:
+            _append_permit_use(
+                Path(str(permit_result["use_ledger_path"])),
+                {
+                    "schema": "cbh.r5_human_confirmation_permit_use.v1",
+                    "permit_id": permit_result.get("permit_id"),
+                    "consume_key": permit_result.get("consume_key"),
+                    "task_sha256": permit_result.get("expected_task_sha256"),
+                    "tool_sha256": permit_result.get("expected_tool_sha256"),
+                    "used_at_utc": _now(),
+                },
+            )
+            permit_result["consumed"] = True
+        except OSError as exc:
+            blocked.append("human_confirmation_permit_consume_failed")
+            permit_result["issues"] = sorted(set([*permit_result.get("issues", []), f"permit_use_ledger_write_failed:{exc}"]))
+            permit_result["status"] = "blocked"
+            effective_human_confirmed = False
+
     result = {
         "ts": _now(),
         "phase": "runtime_enforcer",
@@ -955,6 +1189,9 @@ def runtime_enforcer(
         "tool_text_scope": "command_fields_only_for_command_tools",
         "tool_hard_hits": hard_hits,
         "tool_change_hits": change_hits,
+        "human_confirmed": bool(human_confirmed),
+        "effective_human_confirmed": bool(effective_human_confirmed),
+        "human_confirmation_permit": permit_result,
         "conversation_link_required": conversation_link_required,
         "conversation_link_resolved": conversation_link_resolved,
         "constitution_path": resolved_constitution,
