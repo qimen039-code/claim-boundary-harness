@@ -73,6 +73,7 @@ remain acceptance checks for the adopting runtime.
 | TC-043 | Codex local instruction continuity | New tasks continue to follow root microkernel, router, memory, and claim boundaries after client updates are rechecked. |
 | TC-044 | R5 or hard-tool action with a confirmation permit | A valid `cbh.r5_human_confirmation_permit.v1` with `scope: single_event`, matching task/tool hashes, and unexpired timestamp allows only that exact event; wrong hash, changed command, expired permit, or broader scope blocks. |
 | TC-045 | TOML policy authoring drift check | `compile_policy_from_toml.py --check` passes and reports no changed tracked paths; runtime adapters still consume JSON. |
+| TC-046 | Skill phase ends or later reactivates | Route exposes `skill_lifecycle_profile`, writes `skill_release_receipt`, and resumes by rereading current skill source files instead of stale compressed fragments. |
 
 ## Windows And Shell Robustness
 

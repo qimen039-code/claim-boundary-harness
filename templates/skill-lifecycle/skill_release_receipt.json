@@ -1,0 +1,18 @@
+{
+  "schema": "cbh.skill_release_receipt.v1",
+  "skill_id": "example-skill",
+  "skill_version_or_hash": "optional-source-hash",
+  "status": "released",
+  "completed_steps": [
+    "selected skill lifecycle profile",
+    "loaded only needed SKILL.md sections and support files",
+    "completed current skill phase"
+  ],
+  "current_stage": "example stage",
+  "artifact_paths": [],
+  "evidence_refs": [],
+  "open_loops": [],
+  "resume_entry": "Read this skill's SKILL.md entrypoint, then reopen only the listed support file or artifact needed for the next step.",
+  "last_used_at": "YYYY-MM-DDTHH:MM:SS+00:00",
+  "ttl_policy": "release after phase ends unless the next turn needs the same skill"
+}

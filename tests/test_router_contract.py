@@ -167,6 +167,18 @@ ROUTER_CASES = [
         },
     },
     {
+        "id": "TC-005e",
+        "task": "skill 调用周期结束后释放大正文并保留 skill release receipt，下次从恢复入口重新激活",
+        "risk": "R3",
+        "expect": {
+            "target_surface": "skill_matrix",
+            "skill_lifecycle_profile": "reactivate_from_receipt",
+        },
+        "expect_contains": {
+            "module_need": "skill_matrix",
+        },
+    },
+    {
         "id": "TC-006",
         "task": "check whether this feature exists, then implement it if missing",
         "risk": "R3",

@@ -30,6 +30,8 @@ REQUIRED_FILES = [
     "docs/memory-write-granularity-contract.md",
     "docs/hybrid-memory-retrieval-contract.md",
     "docs/content-reading-contract.md",
+    "docs/skill-lifecycle-contract.md",
+    "templates/skill-lifecycle/skill_release_receipt.json",
     "skills/embedded-harness/embedded_harness_policy.authoring.toml",
     "skills/embedded-harness/embedded_harness_policy.json",
     "skills/embedded-harness/compile_policy_from_toml.py",

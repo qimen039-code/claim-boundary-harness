@@ -240,6 +240,15 @@ class HarnessGateTests(unittest.TestCase):
         self.assertEqual(route["hybrid_retrieval_profile"], "meta_first_hybrid_enhancement")
         self.assertEqual(route["memory_write_profile"], "none")
 
+    def test_router_detects_skill_lifecycle_release_and_reactivation(self) -> None:
+        route = self._route(
+            "skill 调用周期结束后释放大正文并保留 skill release receipt，下次从恢复入口重新激活",
+            policy=self.policy,
+        )
+        self.assertEqual(route["target_surface"], "skill_matrix")
+        self.assertIn("skill_matrix", route["module_need"])
+        self.assertEqual(route["skill_lifecycle_profile"], "reactivate_from_receipt")
+
     def test_router_detects_explicit_merge_memory_link_intent(self) -> None:
         route = self._route("merge the old conversation memory with this conversation", policy=self.policy)
         self.assertEqual(route["link_intent"], "merge_memories_explicit")

@@ -79,6 +79,21 @@
     "durable_writes_require_context_complete_content": true,
     "strict_capsules_reject_orphan_fragments": true
   },
+  "skill_lifecycle": {
+    "skill_lifecycle_profile_supported": "unverified",
+    "skill_lifecycle_profile_values": [
+      "none",
+      "listing_only",
+      "active_frame_required",
+      "release_receipt_required",
+      "reactivate_from_receipt"
+    ],
+    "skill_release_receipt_supported": "unverified",
+    "host_context_gc_supported": "unverified",
+    "release_large_skill_body_when_supported": true,
+    "reactivation_reads_current_source_files": true,
+    "receipt_schema": "cbh.skill_release_receipt.v1"
+  },
   "wrappers": {
     "python": {
       "path": "unverified",

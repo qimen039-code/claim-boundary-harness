@@ -35,6 +35,7 @@ Expose the smallest necessary explanation only when the classification changes o
 - execution path or required gate;
 - cost or context expansion;
 - permission or human confirmation;
+- skill activation, release, or reactivation behavior;
 - memory read/write/link/merge/archive behavior;
 - hybrid retrieval or memory write granularity profile;
 - external search or current-fact verification;
@@ -117,6 +118,25 @@ root microkernel
 ```
 
 Broader scans require an explicit audit, migration, cleanup, or debug reason.
+
+## Skill Lifecycle Budget
+
+Skill lifecycle control follows the same budget rule:
+
+```text
+skill listing / meta-summary
+-> selected active frame
+-> only needed SKILL.md sections and support files
+-> compact skill_release_receipt
+-> release large body when the host supports context GC
+-> reactivate by rereading current source files
+```
+
+For one-shot skill work, release after the skill phase ends. For tight loops,
+keep the active frame until the loop closes, then release once. For ordinary
+discussion after a skill task, retain only the receipt. This keeps long
+contexts from carrying stale rendered skill bodies while preserving recovery
+state and auditability.
 
 Hybrid retrieval does not add a new broad scan by itself. It may only run after
 the selected meta/index layer has bounded the lane and category. The profile

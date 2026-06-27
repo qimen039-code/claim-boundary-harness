@@ -53,11 +53,13 @@ It keeps ordinary low-risk classification silent and injects only minimal bounda
 It also blocks continuation, merge, archive, or cross-conversation memory tasks until the adapter marks the conversation-link decision as resolved.
 `Stop` can block or downgrade final answers that contain strong validation claims without claim-schema evidence.
 
-Route output also includes `hybrid_retrieval_profile` and
-`memory_write_profile`. These fields let a host loop strengthen memory lookup
-inside the existing meta-first path and enforce context-complete write shape
-when a durable memory write/update has already been selected. They are advisory
-unless the host owns the relevant memory read/write execution path.
+Route output also includes `skill_lifecycle_profile`,
+`hybrid_retrieval_profile`, and `memory_write_profile`. These fields let a host
+loop keep idle skills listing-only, open selected active frames, write
+`skill_release_receipt` records, strengthen memory lookup inside the existing
+meta-first path, and enforce context-complete write shape when a durable memory
+write/update has already been selected. They are advisory unless the host owns
+the relevant skill context or memory read/write execution path.
 
 Prefer a command-tool matcher such as `Bash|PowerShell` for the first hard `PreToolUse` deployment. A broad `*` matcher can route Write/Edit file content through the command-risk gate and create false positives when a document merely mentions high-risk words. Gate file tools with a separate schema-aware file policy if you need hard file-write enforcement.
 

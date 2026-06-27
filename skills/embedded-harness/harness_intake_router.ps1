@@ -766,6 +766,24 @@ if (($selfReflectionRecordHits.Count -gt 0) -or ($commonErrorHits.Count -gt 0)) 
   $requiredSkills += "troubleshooting-skill-matrix"
 }
 
+$skillLifecycleProfile = "none"
+$skillListingTriggers = @("skill listing", "skill list", "available skills", "skills list", "skill 清单", "技能清单")
+$skillActiveFrameTriggers = @("skill", "SKILL.md", "skill matrix", "semantic anchor", "技能", "技能矩阵", "语义锚点")
+$skillReleaseReceiptTriggers = @("skill release receipt", "release receipt", "skill ttl", "active frame ttl", "release skill", "clear skill body", "调用周期", "释放回执", "激活帧", "用完释放", "清理大正文")
+$skillReactivateTriggers = @("reactivate skill", "reactivate from receipt", "resume skill", "resume from skill receipt", "重新激活", "恢复入口", "从回执恢复")
+if ((Get-MatchedTriggers $skillListingTriggers).Count -gt 0) {
+  $skillLifecycleProfile = "listing_only"
+}
+if (($targetSurface -eq "skill_matrix") -or ($requiredSkills.Count -gt 0) -or ((Get-MatchedTriggers $skillActiveFrameTriggers).Count -gt 0)) {
+  $skillLifecycleProfile = "active_frame_required"
+}
+if ((Get-MatchedTriggers $skillReleaseReceiptTriggers).Count -gt 0) {
+  $skillLifecycleProfile = "release_receipt_required"
+}
+if ((Get-MatchedTriggers $skillReactivateTriggers).Count -gt 0) {
+  $skillLifecycleProfile = "reactivate_from_receipt"
+}
+
 $strongClaimTerms = Get-MatchedTriggers $policy.blocked_claim_phrases_without_schema
 if ($strongClaimTerms.Count -gt 0) {
   $claimRisk = "strong_claim_needs_schema"
@@ -777,7 +795,7 @@ if ($strongClaimTerms.Count -gt 0) {
 
 $moduleNeed = @()
 if ($projectLane -ne "PROJECTLESS") { $moduleNeed += "project_router" }
-if ($requiredSkills.Count -gt 0) { $moduleNeed += "skill_matrix" }
+if (($requiredSkills.Count -gt 0) -or ($targetSurface -eq "skill_matrix") -or ($skillLifecycleProfile -ne "none")) { $moduleNeed += "skill_matrix" }
 if ($semanticAmbiguity.Count -gt 0) { $moduleNeed += "semantic_anchors" }
 if ($memoryNeed -ne "none") { $moduleNeed += "memory_meta_index" }
 if ($staticKnowledgeHits.Count -gt 0) { $moduleNeed += "static_knowledge_index" }
@@ -807,6 +825,9 @@ if ($debugHits.Count -gt 0) {
   if ($semanticAmbiguity.Count -gt 0) {
     $profileReason += "semantic_ambiguity"
   }
+  if ($skillLifecycleProfile -ne "none") {
+    $profileReason += "skill_lifecycle"
+  }
   if (($memoryMode -eq "write") -or ($memoryMode -eq "update") -or ($recordIntent -ne "no_record")) {
     $profileReason += "memory_write_or_record"
   }
@@ -834,6 +855,7 @@ $routingReceipt = [ordered]@{
   risk_level = $risk
   semantic_ambiguity = @($semanticAmbiguity)
   module_need = @($moduleNeed)
+  skill_lifecycle_profile = $skillLifecycleProfile
   memory_need = $memoryNeed
   hybrid_retrieval_profile = $hybridRetrievalProfile
   memory_mode = $memoryMode
@@ -857,6 +879,7 @@ $compactReceipt = [ordered]@{
   task_type = $risk
   risk_level = $risk
   required_gates = @($requiredGates | Select-Object -Unique)
+  skill_lifecycle_profile = $skillLifecycleProfile
   memory_mode = $memoryMode
   hybrid_retrieval_profile = $hybridRetrievalProfile
   memory_write_profile = $memoryWriteProfile
@@ -884,6 +907,7 @@ $result = [ordered]@{
   risk_level = $risk
   semantic_ambiguity = @($semanticAmbiguity)
   module_need = @($moduleNeed)
+  skill_lifecycle_profile = $skillLifecycleProfile
   memory_need = $memoryNeed
   hybrid_retrieval_profile = $hybridRetrievalProfile
   memory_mode = $memoryMode
@@ -921,4 +945,3 @@ if ($OutputPath) {
   Set-Content -LiteralPath $OutputPath -Value $json -Encoding UTF8
 }
 $json
-

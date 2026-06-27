@@ -67,6 +67,7 @@ project_lane
 risk_level
 semantic_ambiguity
 module_need
+skill_lifecycle_profile
 memory_need
 hybrid_retrieval_profile
 memory_mode
@@ -181,6 +182,26 @@ source, or multi-hop evidence chain requires it.
 See [memory-write-granularity-contract.md](memory-write-granularity-contract.md),
 [hybrid-memory-retrieval-contract.md](hybrid-memory-retrieval-contract.md), and
 [content-reading-contract.md](content-reading-contract.md).
+
+## Skill Lifecycle Contract
+
+Skill work is also routed. Idle skills should stay at name, description,
+meta-summary, route tags, and activation-condition level. When a selected skill
+is needed, the route exposes `skill_lifecycle_profile:
+active_frame_required` and the runtime should load `SKILL.md` plus only the
+needed support files.
+
+After the skill phase ends, the route can require
+`skill_lifecycle_profile: release_receipt_required`. The adopting runtime should
+release the large rendered skill body where its host supports context garbage
+collection, and must preserve a compact `skill_release_receipt` with
+`skill_id`, completed steps, current stage, artifact paths, evidence refs, open
+loops, and `resume_entry`.
+
+Later work reactivates from the receipt by rereading current source files. Do
+not rely on long-lived compressed skill fragments as the authority.
+
+See [skill-lifecycle-contract.md](skill-lifecycle-contract.md).
 
 ## Conversation Memory Lane
 

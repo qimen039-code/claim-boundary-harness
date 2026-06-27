@@ -85,8 +85,7 @@
         "official",
         "price",
         "policy",
-        "law",
-        "release"
+        "law"
       ],
       "zh": [
         "实验",
@@ -131,6 +130,10 @@
         "runtime module",
         "external module",
         "executable module",
+        "skill lifecycle",
+        "skill active frame",
+        "skill release receipt",
+        "skill ttl",
         "test case",
         "test cases",
         "build conversation ledger",
@@ -175,6 +178,10 @@
         "落地",
         "功能模块",
         "可执行模块",
+        "skill 生命周期",
+        "skill 调用周期",
+        "skill 释放回执",
+        "skill 激活帧",
         "测试案例",
         "建立对话账本",
         "创建对话账本",
@@ -497,6 +504,7 @@
       "risk_level",
       "semantic_ambiguity",
       "module_need",
+      "skill_lifecycle_profile",
       "memory_need",
       "hybrid_retrieval_profile",
       "memory_mode",
@@ -542,6 +550,14 @@
       "runtime_gate",
       "memory_link_ledger"
     ],
+    "skill_lifecycle_profile_values": [
+      "none",
+      "listing_only",
+      "active_frame_required",
+      "release_receipt_required",
+      "reactivate_from_receipt"
+    ],
+    "skill_lifecycle_rule": "Skill lifecycle is mandatory for skill-layer work. Keep idle skills at listing/meta-summary level; load SKILL.md and needed support files only during an active frame; after a skill phase ends, release large skill body content where the host supports context GC and retain a compact skill_release_receipt with skill_id, completed_steps, current_stage, artifact_paths, evidence_refs, open_loops, and resume_entry.",
     "memory_need_values": [
       "none",
       "meta_only",
@@ -730,7 +746,15 @@
         "skill",
         "semantic anchor",
         "skill matrix",
+        "skill lifecycle",
+        "skill active frame",
+        "skill release receipt",
+        "skill ttl",
         "skill矩阵",
+        "skill 生命周期",
+        "skill 调用周期",
+        "skill 释放回执",
+        "skill 激活帧",
         "语义锚点"
       ],
       "local_harness": [
@@ -1255,6 +1279,7 @@
         "task_type",
         "risk_level",
         "required_gates",
+        "skill_lifecycle_profile",
         "memory_mode",
         "hybrid_retrieval_profile",
         "memory_write_profile",
@@ -1283,6 +1308,7 @@
         "risk_level",
         "semantic_ambiguity",
         "module_need",
+        "skill_lifecycle_profile",
         "memory_need",
         "hybrid_retrieval_profile",
         "memory_mode",
@@ -1477,6 +1503,7 @@
       "plugin_need",
       "external_need",
       "external_research_need",
+      "skill_lifecycle_profile",
       "memory_need",
       "hybrid_retrieval_profile",
       "memory_mode",
@@ -1599,6 +1626,7 @@
       "risk_level",
       "semantic_ambiguity",
       "module_need",
+      "skill_lifecycle_profile",
       "memory_need",
       "hybrid_retrieval_profile",
       "memory_mode",
@@ -1645,7 +1673,7 @@
           "current",
           "latest",
           "version",
-          "release"
+          "release date"
         ],
         "boundary": "Use official or authority sources first for drift-prone public facts; cross-check when practical."
       },
@@ -1655,7 +1683,7 @@
           "repo",
           "repository",
           "open source",
-          "release",
+          "GitHub release",
           "changelog",
           "issue",
           "license"
@@ -1839,7 +1867,6 @@
     "latest",
     "current",
     "version",
-    "release",
     "GitHub",
     "repo",
     "repository",
@@ -1886,13 +1913,21 @@
   ],
   "skill_matrix_triggers": [
     "skill matrix",
+    "skill lifecycle",
+    "skill active frame",
+    "skill release receipt",
+    "skill ttl",
     "semantic anchor",
     "reflection",
     "self-improvement",
     "Computer Use",
     "Chrome",
     "network failure",
-    "plugin"
+    "plugin",
+    "skill 生命周期",
+    "skill 调用周期",
+    "skill 释放回执",
+    "skill 激活帧"
   ],
   "blocked_claim_phrases_without_schema": [
     "validated",

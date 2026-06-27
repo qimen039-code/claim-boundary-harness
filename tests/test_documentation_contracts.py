@@ -16,6 +16,7 @@ def test_new_memory_and_reading_contracts_are_indexed() -> None:
         "docs/memory-write-granularity-contract.md",
         "docs/hybrid-memory-retrieval-contract.md",
         "docs/content-reading-contract.md",
+        "docs/skill-lifecycle-contract.md",
     ]
     for relative in required_docs:
         assert (ROOT / relative).is_file(), relative
@@ -64,8 +65,16 @@ def test_memory_profiles_are_routed_and_template_visible() -> None:
     manifest = json.loads(read_text("templates/adapter-contract/compatibility.manifest.json"))
 
     receipt_fields = policy["router_decision_contract"]["receipt_fields"]
+    assert "skill_lifecycle_profile" in receipt_fields
     assert "hybrid_retrieval_profile" in receipt_fields
     assert "memory_write_profile" in receipt_fields
+    assert policy["router_decision_contract"]["skill_lifecycle_profile_values"] == [
+        "none",
+        "listing_only",
+        "active_frame_required",
+        "release_receipt_required",
+        "reactivate_from_receipt",
+    ]
     assert policy["router_decision_contract"]["hybrid_retrieval_profile_values"] == [
         "none",
         "meta_first_hybrid_enhancement",
@@ -79,5 +88,27 @@ def test_memory_profiles_are_routed_and_template_visible() -> None:
 
     assert conversation_index["hybrid_retrieval_profile_default"] == "meta_first_hybrid_required"
     assert conversation_index["content_plane"]["memory_write_profile_default"] == "context_complete_required"
+    assert manifest["skill_lifecycle"]["receipt_schema"] == "cbh.skill_release_receipt.v1"
+    assert manifest["skill_lifecycle"]["reactivation_reads_current_source_files"] is True
     assert manifest["memory_retrieval_result"]["hybrid_retrieval_is_meta_first_enhancement"] is True
     assert manifest["memory_write_granularity"]["strict_capsules_reject_orphan_fragments"] is True
+
+
+def test_skill_release_receipt_template_is_reactivation_ready() -> None:
+    receipt = json.loads(read_text("templates/skill-lifecycle/skill_release_receipt.json"))
+
+    assert receipt["schema"] == "cbh.skill_release_receipt.v1"
+    for field in [
+        "skill_id",
+        "status",
+        "completed_steps",
+        "current_stage",
+        "artifact_paths",
+        "evidence_refs",
+        "open_loops",
+        "resume_entry",
+        "last_used_at",
+        "ttl_policy",
+    ]:
+        assert field in receipt
+    assert "SKILL.md" in receipt["resume_entry"]

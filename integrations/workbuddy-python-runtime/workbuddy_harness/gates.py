@@ -850,6 +850,44 @@ def intake_router(task_text: str = "", cwd: str | None = None, policy: dict[str,
     if self_reflection_record_hits or common_error_hits:
         required_skills.append("troubleshooting-skill-matrix")
 
+    skill_lifecycle_profile = "none"
+    skill_listing_hits = _matching_triggers(
+        task_text,
+        ["skill listing", "skill list", "available skills", "skills list", "skill 清单", "技能清单"],
+    )
+    skill_active_frame_hits = _matching_triggers(
+        task_text,
+        ["skill", "SKILL.md", "skill matrix", "semantic anchor", "技能", "技能矩阵", "语义锚点"],
+    )
+    skill_release_receipt_hits = _matching_triggers(
+        task_text,
+        [
+            "skill release receipt",
+            "release receipt",
+            "skill ttl",
+            "active frame ttl",
+            "release skill",
+            "clear skill body",
+            "调用周期",
+            "释放回执",
+            "激活帧",
+            "用完释放",
+            "清理大正文",
+        ],
+    )
+    skill_reactivate_hits = _matching_triggers(
+        task_text,
+        ["reactivate skill", "reactivate from receipt", "resume skill", "resume from skill receipt", "重新激活", "恢复入口", "从回执恢复"],
+    )
+    if skill_listing_hits:
+        skill_lifecycle_profile = "listing_only"
+    if target_surface == "skill_matrix" or required_skills or skill_active_frame_hits:
+        skill_lifecycle_profile = "active_frame_required"
+    if skill_release_receipt_hits:
+        skill_lifecycle_profile = "release_receipt_required"
+    if skill_reactivate_hits:
+        skill_lifecycle_profile = "reactivate_from_receipt"
+
     strong_claim_hits = _matching_triggers(task_text, policy.get("blocked_claim_phrases_without_schema", []))
     if strong_claim_hits:
         claim_risk = "strong_claim_needs_schema"
@@ -861,7 +899,7 @@ def intake_router(task_text: str = "", cwd: str | None = None, policy: dict[str,
     module_need: list[str] = []
     if lane != "PROJECTLESS":
         module_need.append("project_router")
-    if required_skills:
+    if required_skills or target_surface == "skill_matrix" or skill_lifecycle_profile != "none":
         module_need.append("skill_matrix")
     if semantic_ambiguity:
         module_need.append("semantic_anchors")
@@ -898,6 +936,8 @@ def intake_router(task_text: str = "", cwd: str | None = None, policy: dict[str,
             profile_reason.append("audience_boundary")
         if semantic_ambiguity:
             profile_reason.append("semantic_ambiguity")
+        if skill_lifecycle_profile != "none":
+            profile_reason.append("skill_lifecycle")
         if memory_mode in {"write", "update"} or record_intent != "no_record":
             profile_reason.append("memory_write_or_record")
         if projectization_decision == "emergent_project_candidate":
@@ -920,6 +960,7 @@ def intake_router(task_text: str = "", cwd: str | None = None, policy: dict[str,
         "risk_level": risk_level,
         "semantic_ambiguity": semantic_ambiguity,
         "module_need": module_need,
+        "skill_lifecycle_profile": skill_lifecycle_profile,
         "memory_need": memory_need,
         "hybrid_retrieval_profile": hybrid_retrieval_profile,
         "memory_mode": memory_mode,
@@ -942,6 +983,7 @@ def intake_router(task_text: str = "", cwd: str | None = None, policy: dict[str,
         "task_type": risk_level,
         "risk_level": risk_level,
         "required_gates": required_gates_out,
+        "skill_lifecycle_profile": skill_lifecycle_profile,
         "memory_mode": memory_mode,
         "hybrid_retrieval_profile": hybrid_retrieval_profile,
         "memory_write_profile": memory_write_profile,
@@ -969,6 +1011,7 @@ def intake_router(task_text: str = "", cwd: str | None = None, policy: dict[str,
         "risk_level": risk_level,
         "semantic_ambiguity": semantic_ambiguity,
         "module_need": module_need,
+        "skill_lifecycle_profile": skill_lifecycle_profile,
         "memory_need": memory_need,
         "hybrid_retrieval_profile": hybrid_retrieval_profile,
         "memory_mode": memory_mode,

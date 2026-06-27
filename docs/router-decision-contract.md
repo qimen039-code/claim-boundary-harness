@@ -14,6 +14,7 @@ project_lane
 risk_level
 semantic_ambiguity
 module_need
+skill_lifecycle_profile
 memory_need
 hybrid_retrieval_profile
 memory_mode
@@ -40,6 +41,7 @@ Field meanings:
 | `risk_level` | Use additive R0-R5 routing; keep the highest risk and union of gates. |
 | `semantic_ambiguity` | Mark terms that could mean multiple actions, such as update, record, publish, call, route, memory, or skill. |
 | `module_need` | Decide whether to use no module, project router, semantic anchors, skill matrix, memory meta index, conversation memory index, static knowledge index, external research gate, claim verifier, or runtime hard gate. |
+| `skill_lifecycle_profile` | Decide whether selected skill work stays listing-only, opens an active frame, requires a release receipt, or reactivates from a previous receipt. |
 | `memory_need` | Decide whether memory is unnecessary, meta-only, index-only, capsule-level, paired ERR/SOL retrieval, common error corpus, or conversation state. |
 | `hybrid_retrieval_profile` | Decide whether memory lookup stays unused, uses the normal meta-first surface, or must add the hybrid lexical/original-language enhancement over the already bounded candidate set. |
 | `memory_mode` | Decide whether memory should be skipped, read, written, or updated. |
@@ -67,6 +69,24 @@ The router should compute the full decision internally, then expose the smallest
 | `debug_receipt` | Router debugging, misroute analysis, or user asks for full receipt. | Full receipt plus matched/negated triggers, confidence, and profile reasons. |
 
 This keeps Codex-style, Claude-style, WorkBuddy-style, and custom local adapters cheap while preserving the full whiteboard schema for migration, audits, and public framework work.
+
+## Skill Lifecycle Profile
+
+`skill_lifecycle_profile` is mandatory for skill-layer work and subordinate to
+the route. It does not itself authorize tools, memory writes, or claim
+promotion.
+
+Allowed values:
+
+| Value | Meaning |
+| --- | --- |
+| `none` | No skill body should be loaded. |
+| `listing_only` | Use skill name, meta-summary, route tags, and activation condition only. |
+| `active_frame_required` | Load `SKILL.md` and only the support files needed for the current skill phase. |
+| `release_receipt_required` | The skill phase should end by writing a compact `skill_release_receipt` and releasing large rendered skill body content where the host supports context GC. |
+| `reactivate_from_receipt` | Resume by rereading current skill source files from the receipt's `resume_entry`, not by trusting stale compressed fragments. |
+
+See [skill-lifecycle-contract.md](skill-lifecycle-contract.md).
 
 ## Memory Retrieval And Write Profiles
 

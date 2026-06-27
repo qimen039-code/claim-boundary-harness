@@ -6,7 +6,7 @@ This project uses `vMAJOR.MINOR.PATCH` version labels while the framework is sti
 
 ## Unreleased
 
-- No public changes yet.
+- Added a skill lifecycle contract with `skill_lifecycle_profile`, active-frame loading, release-receipt handoff, and reactivation from current source files instead of stale compressed skill fragments.
 
 ## v0.17.0 - 2026-06-27
 

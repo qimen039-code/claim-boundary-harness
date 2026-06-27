@@ -86,6 +86,7 @@ enforcement and what has actually been tested.
 | R0-R5 router receipt | Mode and risk-routing rules in the prompt/docs | Partially substituted |
 | Final claim gate | `lint_claims.py` post-check over selected output files | Downgraded to post-run validation |
 | Project/conversation memory lanes | `facts.json` and `hypotheses.json` stores | Partial; no automatic lane router or raw-session ledger |
+| Skill lifecycle profile | Instruction/script convention for listing-only, active-frame, release-receipt, and reactivation behavior | Partial; large rendered skill cleanup depends on host context management support |
 | Hybrid retrieval profile | Instruction/script convention that can require meta-first plus bounded original-language matching before reading facts or hypotheses | Partial; no tested automatic route field unless the local adapter adds it |
 | Memory write granularity profile | Schema/lint convention requiring context-complete facts and hypotheses before durable reuse | Partial; post-run or workflow-level unless wired before memory writes |
 | Raw session ledger | Not implemented in the reviewed demo | Missing |
@@ -136,18 +137,22 @@ unsupported certainty language.
 4. Generate derived facts from raw facts only. Do not hand-edit derived values.
 5. Keep repair mechanical. A repair script may add missing fields or normalize
    schema shape; it must not invent evidence or fill unknown data.
-6. If the client has a memory workflow, add route-visible fields equivalent to
+6. If the client has a skill or command workflow, add a route-visible field
+   equivalent to `skill_lifecycle_profile`: listing-only while idle, active
+   frame while executing, release receipt after the phase, and reactivation
+   from current source files.
+7. If the client has a memory workflow, add route-visible fields equivalent to
    `hybrid_retrieval_profile` and `memory_write_profile`. Treat them as
    meta-first retrieval and write-shape selectors, not as proof that claims are
    true.
-7. Run lint after important outputs and before publishing strong claims. Treat
+8. Run lint after important outputs and before publishing strong claims. Treat
    warnings as review debt, not as a validated pass.
-8. Test the host's own hard guard with a harmless disposable file before relying
+9. Test the host's own hard guard with a harmless disposable file before relying
    on it. Record whether the client requires `interaction.warn`, whether user
    refusal stops execution, and which command classes are covered.
-9. Record unsupported or host-owned hard-gate surfaces in the compatibility
+10. Record unsupported or host-owned hard-gate surfaces in the compatibility
    manifest as advisory, partial, host-owned, or unverified.
-10. Keep attribution and source boundaries explicit when the adaptation was
+11. Keep attribution and source boundaries explicit when the adaptation was
    inspired by local client artifacts or other non-GitHub sources.
 
 ## Acceptance Checklist

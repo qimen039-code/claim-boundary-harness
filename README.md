@@ -75,6 +75,10 @@ those slices into one low-cost contract:
   source shape, read the smallest useful evidence window, add a source context
   header, use middle-safe evidence layout only when routed, and report unread
   zones or verification debt.
+- **Skill lifecycle control:** idle skills stay at name/meta-summary level;
+  active skill phases load only needed bodies and support files; completed
+  phases leave a compact `skill_release_receipt` for audit and reactivation
+  instead of relying on long-lived rendered skill text.
 - **Selective hard gates:** R5 actions, risky tools, unresolved memory links,
   and strong final claims can be blocked when the runtime calls the gate.
   Single-event R5 permits are hash-bound and recorded in a used-ledger after a
@@ -283,6 +287,7 @@ user request
 |   +-- memory-routing-contract.md
 |   +-- hybrid-memory-retrieval-contract.md
 |   +-- content-reading-contract.md
+|   +-- skill-lifecycle-contract.md
 |   +-- common-error-corpus.md
 |   +-- common-issues-and-solutions.md
 |   +-- conversation-memory-lane.md
@@ -332,6 +337,7 @@ user request
     +-- conversation-memory/
     +-- conversation-ledger/
     +-- global-memory-archive/
+    +-- skill-lifecycle/
     +-- skillopt/
     +-- static-knowledge-layer/
     +-- project/
@@ -373,6 +379,12 @@ small root rules
 ```
 
 New skills should be created only when they remove real repeated work and have a clear scope, owner, retrieval surface, and non-applicable boundary. Routine facts, solved incidents, examples, and reference notes can live in memory capsules or knowledge packs without becoming new active skills.
+
+Skill calls also have a lifecycle. The route should keep unselected skills in
+`listing_only` form, open an `active_frame_required` only for the selected
+phase, and then write a compact `skill_release_receipt` when the phase ends.
+That receipt carries the recovery pointers; the framework should not depend on
+stale compressed skill bodies for long-running work.
 
 ## Core Rules Summary
 
@@ -438,6 +450,7 @@ The package includes synthetic examples that show the intended record shapes wit
 - [docs/memory-write-granularity-contract.md](docs/memory-write-granularity-contract.md): context-complete memory write rules and original-language content preservation.
 - [docs/hybrid-memory-retrieval-contract.md](docs/hybrid-memory-retrieval-contract.md): meta-first, no-dependency hybrid retrieval with optional lexical ranking boundaries.
 - [docs/content-reading-contract.md](docs/content-reading-contract.md): source-shape identification, structure-map fallback, source context headers, bounded evidence windows, and verification-debt notes.
+- [docs/skill-lifecycle-contract.md](docs/skill-lifecycle-contract.md): active-frame, TTL, release-receipt, and reactivation rules for skill contexts.
 - [docs/static-knowledge-layer.md](docs/static-knowledge-layer.md): optional wiki-style project manual layer with source-prior retrieval boundaries.
 - [docs/common-error-corpus.md](docs/common-error-corpus.md): lightweight common-error sample format.
 - [docs/common-issues-and-solutions.md](docs/common-issues-and-solutions.md): reusable issue classes and applied solutions from adaptation, release, and CI work.

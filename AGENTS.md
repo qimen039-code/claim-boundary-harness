@@ -47,6 +47,17 @@ level and the union of required gates. Scope markers such as "also", "plus",
 
 Do not load all skills, all memory, all history, or wrap every tool call just because this layer is active. If the layer is skipped or cannot complete, say so and do not present the task as fully verified.
 
+Skill lifecycle is routed and mandatory for skill-layer work. Keep idle skills
+at `listing_only` level: name, short meta-summary, route tags, and activation
+condition. When a selected skill is needed, use `active_frame_required`: load
+`SKILL.md` and only the support files required for the current phase. When the
+skill phase ends, use `release_receipt_required`: preserve a compact
+`skill_release_receipt` with `skill_id`, completed steps, current stage,
+artifact paths, evidence refs, open loops, and `resume_entry`, then release
+large rendered skill body content where the host supports context garbage
+collection. Later reactivation should use `reactivate_from_receipt` and reread
+current source files rather than relying on stale compressed skill fragments.
+
 Active context ceiling by default:
 
 ```text

@@ -191,10 +191,11 @@ For nested claim payloads, prefer a file-based claim handoff such as `--ClaimFil
 
 ## Optional Quality Reference And Claim Artifacts
 
-The current WorkBuddy Python adapter implements routing, memory isolation,
-hybrid retrieval profile output, memory write granularity profile output,
-R5/runtime gates, conversation-link blocking, and final claim checks. It does
-not implement a full quality-reference layer or a claim-artifact renderer.
+The current WorkBuddy Python adapter implements routing, skill lifecycle
+profile output, memory isolation, hybrid retrieval profile output, memory write
+granularity profile output, R5/runtime gates, conversation-link blocking, and
+final claim checks. It does not implement a full quality-reference layer or a
+claim-artifact renderer.
 
 `hybrid_retrieval_profile` and `memory_write_profile` are decision fields, not
 new host-owned hard gates. A WorkBuddy-compatible loop can use them to choose
@@ -202,6 +203,13 @@ meta-first hybrid lookup and context-complete write shape before opening memory
 payloads or writing capsules. If the host only injects route context but does
 not own memory reads/writes, record those fields as advisory in the compatibility
 manifest.
+
+`skill_lifecycle_profile` is also a decision field. A WorkBuddy-compatible loop
+can use it to keep idle skills listing-only, open an active frame for selected
+skill phases, and write a `skill_release_receipt` when the phase ends. Releasing
+large rendered skill text requires host context management support; without
+that support, keep the profile advisory and preserve the receipt for compaction
+and reactivation.
 
 The optional surfaces below were informed in part by the non-GitHub client artifact reference recorded in [Influences And Attribution](../influences-and-attribution.md): Doubao built-in finance and market-analysis skills inspected locally on 2026-06-25. That reference is source-prior only; this repository does not copy Doubao code, prompts, templates, proprietary schemas, or finance-domain rules.
 
