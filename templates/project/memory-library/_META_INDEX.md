@@ -20,7 +20,7 @@ Do not open category payloads before this file has selected the category. If thi
 | external_references | `external_references/` | Source notes, outside mechanisms, citations, and adoption boundaries. | TEMPLATE | Keep source boundary separate from local validation. |
 | raw_logs | `raw_logs/` | Raw or near-raw observations that should not be treated as final memory. | TEMPLATE | Promote into another category only after review. |
 
-For reusable memory capsules, use the source-monitoring schema fields: `source_tag` `belief_status` `confidence` `derived_from` `source_monitoring` `lifecycle` `belief_trace_summary`. Keep only compact routing fields in category indexes and open full payloads only when selected.
+For reusable memory capsules, use the source-monitoring schema fields: `source_tag` `belief_status` `confidence` `derived_from` `source_monitoring` `lifecycle` `belief_trace_summary`. Add optional `feedback_loop` only for records that should predict and check future behavior. Keep only compact routing fields in category indexes and open full payloads only when selected.
 
 Retrieval outputs that leave this memory library should include these fields with the selected text: `source_tag` `derived_from` `belief_status` `confidence` `score_method`. If no numeric score is computed, use `score_method: none` and omit `score`.
 
@@ -56,6 +56,11 @@ synthesis, adjacent evidence clusters, key evidence reminders near strong
 claims, and `position_risk` markers. If head/tail anchors are insufficient for
 a strong claim, reread bounded middle windows around structural anchors before
 promoting the claim.
+
+When a selected record includes `feedback_loop`, treat its prediction as a
+hypothesis until verified by later evidence. Index rows may expose only compact
+states such as `feedback_loop: pending`, `matched`, or `failed`; calibration
+details belong in the payload.
 
 Status values:
 

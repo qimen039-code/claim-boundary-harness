@@ -16,6 +16,7 @@ Use it for project memory capsules, conversation memory capsules, source-grounde
 | `lifecycle` | Recommended | Memory lifecycle metadata for retrieval priority and retention policy. |
 | `belief_trace` | Recommended | Append-only status transition events while the capsule is active. |
 | `belief_trace_summary` | Recommended for compressed capsules | Compact trace summary after memory compression. |
+| `feedback_loop` | Optional for reusable rules | Lightweight memory -> prediction -> verification -> calibration loop for records meant to prevent future mistakes. |
 
 Keep the active capsule small. Raw transcripts, long traces, test logs, and source excerpts belong in raw logs, source ledgers, or archive payloads.
 
@@ -236,6 +237,57 @@ Recommended compressed summary:
 
 Invariant: `belief_trace_summary.current_status` must always equal `belief_status`.
 
+## `feedback_loop`
+
+`feedback_loop` is a lightweight trial field for memories that are expected to
+change future behavior. It should not appear on every capsule.
+
+Recommended shape:
+
+```json
+{
+  "prediction": {
+    "statement": "What this memory predicts or should cause next time.",
+    "trigger": "When the prediction applies.",
+    "expected_behavior": "What the agent or workflow should do.",
+    "belief_status": "hypothesis"
+  },
+  "verification": {
+    "status": "pending",
+    "evidence_ref": null,
+    "result_summary": null
+  },
+  "calibration": {
+    "action": "How to update the record if verification succeeds or fails.",
+    "confidence_delta": "unchanged",
+    "updated_boundary": null
+  }
+}
+```
+
+Recommended verification status values:
+
+```text
+pending
+matched
+failed
+partial
+not_applicable
+```
+
+Rules:
+
+- Treat `prediction` as `hypothesis` unless later evidence verifies it.
+- Use the loop only for reusable, repeated, high-impact, or user-requested
+  learning records.
+- Do not create a separate task-consumption ledger just to support the loop.
+- `verification.evidence_ref` should point to raw session records, tool output,
+  tests, diffs, or reviewed artifacts. A derived summary alone is not enough.
+- Calibration changes future applicability or confidence boundaries. It does
+  not overwrite the original event.
+
+See [memory-feedback-loop-trial.md](memory-feedback-loop-trial.md).
+
 ## `lifecycle`
 
 `lifecycle` describes how the record should be used by retrieval and retention policies. It does not change the truth value of the capsule.
@@ -349,6 +401,24 @@ If used, the score should be converted into `confidence.label + confidence.basis
     "current_status": "bounded_claim",
     "intermediate_steps_count": 1,
     "archived_trace_ref": "raw_logs/TRACE-DEMO-001"
+  },
+  "feedback_loop": {
+    "prediction": {
+      "statement": "Future adapter claims should state which execution path invoked and honored the gate.",
+      "trigger": "A later task asks whether the adapter hard-enforces a boundary.",
+      "expected_behavior": "Return a bounded claim unless the exact host path was locally tested.",
+      "belief_status": "hypothesis"
+    },
+    "verification": {
+      "status": "pending",
+      "evidence_ref": null,
+      "result_summary": null
+    },
+    "calibration": {
+      "action": "If a later task overclaims hard enforcement again, supersede this capsule or add an ERR/SOL pair.",
+      "confidence_delta": "unchanged",
+      "updated_boundary": null
+    }
   }
 }
 ```

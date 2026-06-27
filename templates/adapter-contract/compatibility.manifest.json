@@ -79,6 +79,21 @@
     "durable_writes_require_context_complete_content": true,
     "strict_capsules_reject_orphan_fragments": true
   },
+  "memory_feedback_loop": {
+    "supported": "unverified",
+    "default_enabled": false,
+    "advisory_only": true,
+    "field_name": "feedback_loop",
+    "prediction_is_hypothesis_until_verified": true,
+    "requires_evidence_ref_for_verification": true,
+    "does_not_create_task_cost_ledger": true,
+    "recommended_for": [
+      "reusable_memory_capsules",
+      "common_error_records",
+      "paired_err_sol_records",
+      "decision_records"
+    ]
+  },
   "skill_lifecycle": {
     "skill_lifecycle_profile_supported": "unverified",
     "skill_lifecycle_profile_values": [

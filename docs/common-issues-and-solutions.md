@@ -23,6 +23,15 @@ requested as a full incident.
 | `CE-PUBLIC-2026-06-25-08` | `powershell_encoding_path_error` | Local commands print shell-profile or version-manager startup errors while the requested command still exits successfully. | A user shell profile or tool manager failed during process startup; the repository command itself did not fail. | Separate shell startup noise from command exit status. Use `-NoProfile` for automation when appropriate, and repair the profile outside the repository only with explicit local-environment approval. | The affected GitHub, git, and test commands completed with exit code `0`; no repository patch was required. |
 | `CE-PUBLIC-2026-06-25-09` | `field_schema_error` | A quality score or linter prefers a less careful response over a claim-boundary response. | The checker measures surface format or style, not truth, provenance, or validation strength. | Treat advisory scores as schema or style smoke only. Never use them as the fact source for a final claim. | Final claim promotion still requires claim schema, source boundary, and local validation evidence. |
 | `CE-PUBLIC-2026-06-26-01` | `semantic_routing_error` | Release-preparation wording such as "prepare release", "发布前", "发布准备", or "发布整理" routes too low as read-only review while nearby submit/commit wording is only a non-promoted R5 candidate. | The router treated ambiguous release wording as semantic ambiguity or read-only inspection instead of governance/docs readiness work, and relied on later human/model reassessment to recover the R3 boundary. | Add release-preparation and release-audit phrases to R3 routing triggers; keep submit/commit/push as R5 candidates unless an actual git/release action is requested; add a regression case for release prep with submit/push explicitly not executed. | `TC-005d` covers release-preparation audit as R3 with non-promoted submit/push R5 candidate. |
+| `CE-PUBLIC-2026-06-27-01` | `git_repo_action_error` | A question about "previously published PRs" is answered by checking only the current repository, missing PRs opened from the same account in external repositories. | The lookup scope was silently narrowed to the active repository instead of resolving whether the user meant current-repo PRs, author-owned PRs, or cross-repository publication PRs. | For ambiguous PR/publication questions, check current repository PRs first, then author-scoped open and closed PRs across GitHub when the wording refers to prior publication. State the searched scope explicitly. | `gh pr list` on the current repository returned no PRs, while author-scoped `gh search prs` found two open external publication PRs. |
+| `CE-PUBLIC-2026-06-27-02` | `function_tool_call_error` | GitHub CLI or REST checks fail before returning useful data because flags or methods are assumed incorrectly, such as using `gh api` form fields with the wrong request method or `gh search prs --state all`. | CLI subcommands have different accepted state values and `gh api -f` can alter request behavior unless the HTTP method is explicit. | Prefer command-specific help or known-good patterns for non-routine GitHub queries. Use `gh api -X GET` for read-only REST calls with form parameters, and split PR search into `--state open` and `--state closed` when `all` is unsupported. | The corrected `gh api -X GET .../pulls -f state=all` returned successfully, and split `gh search prs --state open/closed` found the expected PR state. |
+
+## Feedback Loop Trial Entries
+
+The first public CE feedback-loop trial applies to the 2026-06-27 records above:
+
+- `CE-PUBLIC-2026-06-27-01`: prediction is that future publication-PR checks should state lookup scope and include author-scoped open/closed PR lookup when current-repo lookup is insufficient. Verification starts as `pending`.
+- `CE-PUBLIC-2026-06-27-02`: prediction is that future non-routine GitHub CLI/API queries should use read-only method checks and split unsupported `all` states into accepted state queries. Verification starts as `pending`.
 
 ## Retrieval Terms
 
@@ -39,6 +48,8 @@ single-event R5 permit replay denial
 shell profile startup noise no-profile
 advisory score linter not fact source
 release prep publish preparation 发布前 发布准备 发布整理 route R3 submit push not executed
+github pr scope current repository author scoped cross repository publication prs
+gh api get method state all gh search prs open closed cli flag mismatch
 ```
 
 ## Upgrade Boundary

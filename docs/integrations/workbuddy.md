@@ -204,6 +204,14 @@ payloads or writing capsules. If the host only injects route context but does
 not own memory reads/writes, record those fields as advisory in the compatibility
 manifest.
 
+`feedback_loop` is a memory payload convention, not a runtime gate. If a
+WorkBuddy-compatible loop writes CE records, memory capsules, paired incidents,
+or decision records, it can preserve optional memory -> prediction ->
+verification -> calibration fields. Predictions remain hypotheses until later
+evidence verifies them, and failed predictions should calibrate the record or
+promote it to a paired incident. Do not create a per-task token or consumption
+ledger only to support this field.
+
 `skill_lifecycle_profile` is also a decision field. A WorkBuddy-compatible loop
 can use it to keep idle skills listing-only, open an active frame for selected
 skill phases, and write a `skill_release_receipt` when the phase ends. Releasing

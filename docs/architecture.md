@@ -172,6 +172,12 @@ recall inside the existing meta-first path without replacing it. Durable memory
 writes expose `memory_write_profile` so the selected write shape is
 context-complete or strict-capsule as needed.
 
+Reusable records that are meant to prevent repeated mistakes can optionally
+carry a lightweight feedback loop: memory -> prediction -> verification ->
+calibration. This is a trial field inside existing capsules, CE records,
+ERR/SOL pairs, or decision records. It is not a per-task token ledger and does
+not promote predictions into validated facts.
+
 Reading is a separate routed step after retrieval. The route or decision layer
 chooses `baseline`, `evidence_window`, `middle_safe`, or `full_audit` reading.
 This keeps ordinary reads cheap while still enabling source context headers,
@@ -180,7 +186,8 @@ when a strong claim, memory promotion, release note, R4/R5 decision, long
 source, or multi-hop evidence chain requires it.
 
 See [memory-write-granularity-contract.md](memory-write-granularity-contract.md),
-[hybrid-memory-retrieval-contract.md](hybrid-memory-retrieval-contract.md), and
+[hybrid-memory-retrieval-contract.md](hybrid-memory-retrieval-contract.md),
+[memory-feedback-loop-trial.md](memory-feedback-loop-trial.md), and
 [content-reading-contract.md](content-reading-contract.md).
 
 ## Skill Lifecycle Contract
@@ -393,6 +400,11 @@ Recommended status values:
 - `TEMPLATE`: example or placeholder only.
 
 When a new capsule replaces an old one, update both sides: the old row should point to `SUPERSEDED_BY:<ID>`, and the new row should declare `Supersedes`. This keeps long-horizon memory auditable without forcing the agent to reread old records on every task.
+
+If a capsule or CE record has a feedback loop, keep the full loop in the
+payload and expose only a compact index hint such as `feedback_loop: pending`
+or `feedback_loop: matched`. A failed prediction should trigger calibration and
+may promote the record to a paired incident or a router regression.
 
 See [../examples/memory-library-demo/_META_INDEX.md](../examples/memory-library-demo/_META_INDEX.md) for a synthetic end-to-end example.
 

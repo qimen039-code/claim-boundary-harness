@@ -61,6 +61,12 @@ meta-first path, and enforce context-complete write shape when a durable memory
 write/update has already been selected. They are advisory unless the host owns
 the relevant skill context or memory read/write execution path.
 
+When the host writes memory payloads, it may preserve optional `feedback_loop`
+fields from the memory feedback-loop trial. The Python adapter does not verify
+that loop by itself. Treat `prediction` as a hypothesis, require a later
+evidence reference before `verification` becomes matched, and keep this separate
+from any per-task token or consumption ledger.
+
 Prefer a command-tool matcher such as `Bash|PowerShell` for the first hard `PreToolUse` deployment. A broad `*` matcher can route Write/Edit file content through the command-risk gate and create false positives when a document merely mentions high-risk words. Gate file tools with a separate schema-aware file policy if you need hard file-write enforcement.
 
 If your WorkBuddy build runs command hooks through a Bash-compatible shell, call `scripts/workbuddy-hook.sh` with `bash` as shown above. If your build runs native commands another way, call the Python module directly:

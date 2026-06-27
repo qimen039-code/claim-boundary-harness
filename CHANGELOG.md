@@ -7,6 +7,9 @@ This project uses `vMAJOR.MINOR.PATCH` version labels while the framework is sti
 ## Unreleased
 
 - Added a skill lifecycle contract with `skill_lifecycle_profile`, active-frame loading, release-receipt handoff, and reactivation from current source files instead of stale compressed skill fragments.
+- Added common-issue records for ambiguous PR lookup scope and GitHub CLI/API query flag mistakes.
+- Added a lightweight memory feedback-loop trial for optional memory -> prediction -> verification -> calibration fields on reusable capsules, CE records, paired incidents, and decision records.
+- Synchronized the memory feedback-loop trial into the WorkBuddy and Doubao adaptation notes plus the adapter compatibility manifest.
 
 ## v0.17.0 - 2026-06-27
 

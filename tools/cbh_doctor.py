@@ -27,6 +27,7 @@ REQUIRED_FILES = [
     "docs/deployment-risk-patterns.md",
     "docs/reproduction.md",
     "docs/test-cases.md",
+    "docs/memory-feedback-loop-trial.md",
     "docs/memory-write-granularity-contract.md",
     "docs/hybrid-memory-retrieval-contract.md",
     "docs/content-reading-contract.md",

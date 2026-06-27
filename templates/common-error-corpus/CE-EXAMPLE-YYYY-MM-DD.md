@@ -33,3 +33,25 @@ When this lightweight sample should become a full paired incident.
 ## Evidence
 
 Synthetic or adopter-owned evidence only. Do not include private records in the public template.
+
+## Feedback Loop
+
+Optional. Use only when this CE record should predict and check future
+behavior.
+
+```yaml
+feedback_loop:
+  prediction:
+    statement: "What should happen differently next time."
+    trigger: "When this prediction applies."
+    expected_behavior: "Small action or routing behavior expected next time."
+    belief_status: hypothesis
+  verification:
+    status: pending
+    evidence_ref: null
+    result_summary: null
+  calibration:
+    action: "What to change if the prediction succeeds or fails."
+    confidence_delta: unchanged
+    updated_boundary: null
+```

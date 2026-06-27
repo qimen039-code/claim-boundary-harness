@@ -39,8 +39,35 @@ prevention:
 validation:
 upgrade_to_err_sol_when:
 evidence:
+feedback_loop:
 last_reviewed:
 ```
+
+`feedback_loop` is optional. Use it only when the CE record should actively
+predict and check future behavior. For example, a tool-call mistake can predict
+that the next similar command should use a corrected flag pattern. If the
+mistake recurs after recording, calibrate the record and consider upgrading it
+to a paired `ERR-*` / `SOL-*` incident.
+
+Minimal feedback-loop shape:
+
+```text
+prediction:
+  statement:
+  trigger:
+  expected_behavior:
+  belief_status: hypothesis
+verification:
+  status: pending | matched | failed | partial | not_applicable
+  evidence_ref:
+  result_summary:
+calibration:
+  action:
+  confidence_delta: up | down | unchanged | conflicted
+  updated_boundary:
+```
+
+See [memory-feedback-loop-trial.md](memory-feedback-loop-trial.md).
 
 Recommended classes:
 

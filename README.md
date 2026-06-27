@@ -255,6 +255,7 @@ user request
 - **Layered project memory library**: a meta index points to category indexes, and category indexes point to individual capsules.
 - **Memory meta index contract**: a multi-axis index shape for project memory libraries and skill point sets.
 - **Source monitoring memory schema**: provenance, lifecycle, and belief-state fields for memory capsules, including `source_tag` `belief_status` `confidence` `derived_from`, observation state, lifecycle stage, belief traces, and optional adapter score boundaries.
+- **Memory feedback-loop trial**: optional memory -> prediction -> verification -> calibration fields for reusable records that should prevent repeated mistakes, without adding a per-task consumption ledger.
 - **Common error corpus template**: lightweight CE records for small recurring field/schema, tool-call, semantic-routing, patch-context, PowerShell/path, and Git-boundary mistakes, including the applied solution and validation, before they become full paired incidents.
 - **Whiteboard templates**: empty project memory categories, project instructions, semantic anchors, and error/solution ledgers.
 
@@ -447,6 +448,7 @@ The package includes synthetic examples that show the intended record shapes wit
 - [docs/memory-routing-contract.md](docs/memory-routing-contract.md): memory mode, memory lane, record intent, and projectization drift contract.
 - [docs/memory-meta-index-contract.md](docs/memory-meta-index-contract.md): multi-axis meta index contract for memory libraries.
 - [docs/source-monitoring-memory-schema.md](docs/source-monitoring-memory-schema.md): source tags, belief-status state, structured confidence, derived provenance, observation state, and belief-trace rules for capsules.
+- [docs/memory-feedback-loop-trial.md](docs/memory-feedback-loop-trial.md): optional memory -> prediction -> verification -> calibration fields for reusable learning records.
 - [docs/memory-write-granularity-contract.md](docs/memory-write-granularity-contract.md): context-complete memory write rules and original-language content preservation.
 - [docs/hybrid-memory-retrieval-contract.md](docs/hybrid-memory-retrieval-contract.md): meta-first, no-dependency hybrid retrieval with optional lexical ranking boundaries.
 - [docs/content-reading-contract.md](docs/content-reading-contract.md): source-shape identification, structure-map fallback, source context headers, bounded evidence windows, and verification-debt notes.
