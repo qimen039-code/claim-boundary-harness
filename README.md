@@ -226,9 +226,9 @@ Modern coding agents often fail in the same places:
 - They load too much history, or the wrong project history.
 - They mix memories from unrelated projects.
 - They overstate partial runs as proven results.
-- They skip current source checks for versioned or fast-changing facts.
+- They keep detouring when their internal knowledge or current context cannot solve the problem efficiently, instead of proactively searching or checking external sources.
 - They repeat old mistakes because solved incidents are not stored in a reusable shape.
-- Their instruction files, skills, and local checks are not connected into one clear path.
+- Their `AGENTS.md`, skills, memory lanes, hooks, and related governance surfaces are not connected into one closed loop.
 
 This project gives those pieces a simple shared structure.
 
@@ -272,7 +272,7 @@ user request
 - **Memory linking contract**: connects project, conversation, common-error, and archive memory lanes through explicit links, continuation records, merge records, and supersession edges without copying payloads by default.
 - **Static knowledge layer**: optional wiki-style project manual pages for module maps, entry points, commands, conventions, and interfaces. Static notes are routed through an index and stay `source_prior` until locally checked.
 - **Cost control contract**: keeps default execution cheap through receipt profiles, action-relevant fields, delta receipts, and active-context ceilings.
-- **External research gate**: detects currentness signals such as latest, current, version, release, GitHub, and official sources.
+- **External research gate**: detects currentness, repository/open-source, explicit-uncertainty, and source-check signals so the agent does not keep detouring when internal context is insufficient.
 - **Claim schema verifier**: blocks strong claims unless the claim has enough source and evidence boundary metadata.
 - **Skill tree router**: routes semantic anchors, paired incident records, and project router manifests.
 - **SkillOpt-style external module**: a default-off executable module for periodic candidate skill/router edits, validation-gate reports, rejected-edit records, and slow-update proposals while leaving runtime routing authority with the existing matrix. It is independently implemented and inspired by public SkillOpt mechanisms; it does not vendor upstream SkillOpt code.
