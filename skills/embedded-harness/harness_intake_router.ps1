@@ -288,11 +288,24 @@ function Get-R5ContextDecision {
 
   $contextRules = $policy.r5_context_decision_rules
   $directActionHits = Get-SourceMatchedTerms -source $sourceText -terms $contextRules.direct_action_terms
+  $explicitActionPhraseHits = Get-SourceMatchedTerms -source $sourceText -terms (Get-ObjectPropertyValue $contextRules "explicit_action_phrases")
+  $explicitActionNegationHits = Get-SourceMatchedTerms -source $sourceText -terms (Get-ObjectPropertyValue $contextRules "explicit_action_negation_phrases")
   $actionContextHits = Get-SourceMatchedTerms -source $sourceText -terms $contextRules.action_context_terms
   $documentationContextHits = Get-SourceMatchedTerms -source $sourceText -terms $contextRules.documentation_context_terms
   $nonActionContextHits = Get-SourceMatchedTerms -source $sourceText -terms $contextRules.non_action_context_terms
   $contextRequiredCandidateHits = Get-TermIntersection -leftTerms $candidateTerms -rightTerms $contextRules.context_required_candidate_terms
   $alwaysActionCandidateHits = Get-TermIntersection -leftTerms $candidateTerms -rightTerms $contextRules.always_action_candidate_terms
+
+  if (($explicitActionPhraseHits.Count -gt 0) -and ($explicitActionNegationHits.Count -eq 0)) {
+    return [pscustomobject]@{
+      decision = "requires_confirmation"
+      action_surface = "actionable_R5"
+      promote_to_risk = $true
+      candidate_terms = @($candidateTerms)
+      negated_terms = @($negatedTerms)
+      reason = "explicit_action_phrase_detected"
+    }
+  }
 
   if (($directActionHits.Count -gt 0) -or (($alwaysActionCandidateHits.Count -gt 0) -and ($documentationContextHits.Count -eq 0)) -or (($contextRequiredCandidateHits.Count -gt 0) -and ($actionContextHits.Count -gt 0) -and ($nonActionContextHits.Count -eq 0))) {
     return [pscustomobject]@{

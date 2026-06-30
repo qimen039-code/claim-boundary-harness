@@ -148,6 +148,20 @@ ROUTER_CASES = [
         "candidate_r5": "长期记忆",
     },
     {
+        "id": "TC-004e",
+        "task": "fix README wording, then commit and push",
+        "risk": "R5",
+        "context_surface": "actionable_R5",
+        "promote_r5": True,
+    },
+    {
+        "id": "TC-004f",
+        "task": "修复 README 后进行提交推送",
+        "risk": "R5",
+        "context_surface": "actionable_R5",
+        "promote_r5": True,
+    },
+    {
         "id": "TC-005",
         "task": "read this report and update public docs/tests from it",
         "risk": "R3",
@@ -219,6 +233,18 @@ ROUTER_CASES = [
         "task": "review whether this feature is complete and identify unfinished public or local work",
         "risk": "R1",
         "gates": ["read_only_context_gate", "scope_reassessment_gate"],
+    },
+    {
+        "id": "TC-008a",
+        "task": "self-check README/docs wording for similar boundary errors",
+        "risk": "R1",
+        "gates": ["read_only_context_gate"],
+    },
+    {
+        "id": "TC-008b",
+        "task": "self-check README/docs wording for similar boundary errors; if a fix is needed, update README",
+        "risk": "R3",
+        "gates": ["change_contract_gate", "scope_reassessment_gate"],
     },
     {
         "id": "TC-009",

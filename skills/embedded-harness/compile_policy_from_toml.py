@@ -22,6 +22,8 @@ DEFAULT_POLICY = SCRIPT_DIR / "embedded_harness_policy.json"
 
 R5_CONTEXT_FIELDS = [
     "direct_action_terms",
+    "explicit_action_phrases",
+    "explicit_action_negation_phrases",
     "context_required_candidate_terms",
     "always_action_candidate_terms",
     "action_context_terms",

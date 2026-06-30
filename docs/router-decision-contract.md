@@ -273,6 +273,8 @@ Examples:
 | "Read this report and update public docs/tests from it." | R3 governance/docs route plus artifact and claim gates. |
 | "Check whether a feature exists." | R1 read-only inspection. |
 | "Check whether it exists, then implement it if missing." | R3 implementation route; do not stop at R1. |
+| "Self-check README/docs wording for boundary errors." | R1 read-only inspection until an edit is selected. |
+| "Self-check README/docs wording; if needed, update README." | R3 governance/docs route because the task contains a possible edit path. |
 | "Discuss an external project and absorb useful mechanisms." | External source intake plus R3 candidate integration route. |
 | "Record these issues and classify them." | Memory record route plus lane/sensitivity checks. |
 
@@ -282,6 +284,12 @@ or "多个问题" should set a scope-reassessment marker. This marker does not m
 the task expensive by itself; it tells the agent to avoid under-routing and to
 re-evaluate before editing, writing memory, searching externally, or making a
 strong claim.
+
+Read-only self-checks are allowed to start as R1. If the self-check discovers a
+needed public docs, README, policy, router, adapter, test, or framework-behavior
+change, the next action must be reclassified as R3 before editing. Do not solve
+this by promoting every self-check to R3; the promotion is tied to the selected
+edit path.
 
 ## Trigger Promotion Gate
 
