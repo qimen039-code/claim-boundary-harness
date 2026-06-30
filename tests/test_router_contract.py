@@ -553,6 +553,23 @@ def test_router_requires_external_evidence_for_uncertain_design_discussion() -> 
     assert "general_web_cross_check" in payload["external_need"] or "source_grounded_learning_intake" in payload["external_need"]
 
 
+def test_router_records_route_issue_and_requires_external_evidence_for_linked_current_mechanism() -> None:
+    payload = run_router("路由问题，进行记录，改进：用户给了外链且涉及 Claude 现势机制和第三方 XTrace 口径，不能当官方事实")
+    assert payload["risk_level"] == "R4"
+    assert payload["record_intent"] == "inferred_reusable_error"
+    assert payload["memory_need"] == "common_error_corpus"
+    assert payload["memory_mode"] == "write"
+    assert payload["memory_lane"] == "common_error_corpus"
+    assert payload["conversation_memory_decision"] == "none"
+    assert payload["needs_external_research"] is True
+    assert "external_research" in payload["matched_risk_triggers"]
+    assert "external_research_gate" in payload["module_need"]
+    assert "feedback_loop_gate" in payload["required_gates"]
+    assert "official_authority_source_search" in payload["external_need"]
+    assert "general_web_cross_check" in payload["external_need"]
+    assert "source_grounded_learning_intake" in payload["external_need"]
+
+
 def test_powershell_router_rejects_sibling_project_prefix() -> None:
     if not POWERSHELL:
         pytest.skip("PowerShell is not available on PATH")

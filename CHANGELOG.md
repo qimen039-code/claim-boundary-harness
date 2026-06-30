@@ -6,7 +6,9 @@ This project uses `vMAJOR.MINOR.PATCH` version labels while the framework is sti
 
 ## Unreleased
 
-No entries yet.
+- Added memory integrity rules for conflict resolution, source-validity dependency cascade, and frozen/read-only lane states.
+- Fixed routing for route-issue records that cite external links, third-party sources, Claude/Anthropic product behavior, current mechanisms, or official-fact wording.
+- Added common-issue coverage and regression tests for the external-evidence route miss.
 
 ## v0.18.0 - 2026-06-29
 

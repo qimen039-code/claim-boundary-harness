@@ -88,6 +88,19 @@ conversation-memory, or cross-conversation writes should use
 `strict_capsule_required`. These profiles decide the shape of the selected
 write; they do not by themselves grant permission to write memory.
 
+Before reading or writing a lane, check its `lane_state` when the meta index
+exposes one:
+
+- `active`: normal routed retrieval and gated writes may proceed.
+- `frozen_readonly`: skip default retrieval injection and block writes. Allow
+  reads only for explicit audit, A/B/C comparison, migration review, or user
+  requested inspection, and label the result as frozen-lane evidence.
+- `cleared`: do not use as active memory. Treat any remaining index as an
+  audit marker unless an archive link is explicitly selected.
+
+This state check is a lane-level contamination guard. It does not change the
+truth of any capsule and it does not replace source-validity cascade checks.
+
 ## Explicit Memory Command Semantics
 
 Adopting agents may expose slash commands, UI commands, or natural-language equivalents. The framework does not require a CLI, but it should route these intents consistently:

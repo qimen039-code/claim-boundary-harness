@@ -8,6 +8,7 @@ This is the first file an agent must read before using this conversation memory 
 memory_id: CONVERSATION_TEMPLATE
 memory_type: conversation
 lane: CONVERSATION_TEMPLATE
+lane_state: active
 scope: one isolated long-running conversation or thread
 status: TEMPLATE
 owner: adopting workspace
@@ -24,9 +25,15 @@ redirect_read_to: null
 
 ```text
 read this _META_INDEX.md
+-> check lane_state
 -> choose conversation_state.md, index.json, memory_links.jsonl, or one JSONL record family
 -> open only matching records
 ```
+
+If `lane_state` is `frozen_readonly`, do not inject this conversation as active
+memory and do not write to it. Read it only for explicit audit, migration, or
+A/B/C comparison. If `lane_state` is `cleared`, use only the audit marker or an
+explicit archive link.
 
 ## Capsule Schema
 
@@ -38,6 +45,7 @@ source_tag
 belief_status
 confidence
 derived_from
+source_validity_dependency
 source_monitoring
 lifecycle
 belief_trace_summary
@@ -46,6 +54,12 @@ belief_trace_summary
 Conversation-derived claims normally start as `source_prior` or `bounded_claim`; promote them to `local_validated` only with local evidence.
 
 When returning selected conversation memory to an agent, include these fields with the selected text: `source_tag` `derived_from` `belief_status` `confidence` `score_method`. Use `score_method: none` when no numeric retrieval score is computed.
+
+If conversation-derived capsules conflict, resolve them by scope and confidence
+tier, not by timestamp alone. Same/higher-confidence corrected records can
+supersede older ones; lower-confidence contradictions remain conflicted and
+audit-required. If a required source reference is invalidated, retracted, or
+deleted, cascade the source-validity dependency before reusable retrieval.
 
 Memory content should preserve the original language. Keep structure fields in
 English, but do not translate Chinese or English source content only for

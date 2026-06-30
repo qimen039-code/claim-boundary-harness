@@ -12,6 +12,7 @@ Use it for project memory capsules, conversation memory capsules, source-grounde
 | `belief_status` | Yes | Verification-process state for the claim or memory content. |
 | `confidence` | Yes | Evidence strength for assigning the current `belief_status`, not the probability that the claim content is true. |
 | `derived_from` | Conditional | Provenance records and relationship boundaries. Required for compressed, synthesized, or memory-derived capsules. |
+| `source_validity_dependency` | Conditional | Source-validity pointers for derived capsules whose belief state depends on upstream evidence still being valid. |
 | `source_monitoring` | Recommended | Current observation or audit state and why the capsule was placed there. |
 | `lifecycle` | Recommended | Memory lifecycle metadata for retrieval priority and retention policy. |
 | `belief_trace` | Recommended | Append-only status transition events while the capsule is active. |
@@ -124,6 +125,38 @@ Rules:
 - Do not write `score: 0` or `score: null` to mean unknown.
 - Prefer `label + basis` over naked numeric precision.
 
+## Conflict Resolution Policy
+
+Timestamps are required context for memory comparison, but recency is not a
+truth signal by itself. When two capsules make incompatible claims over the
+same scope, compare evidence strength first and use time only after source
+validity, scope, and confidence boundaries are explicit.
+
+Recommended confidence order for replacement decisions:
+
+```text
+unverified < low < medium < high < verified
+```
+
+`conflicted` is a stop/review label, not a stronger tier.
+
+Rules:
+
+- If a newer contradicting capsule has the same or a higher confidence tier
+  and carries explicit evidence or correction provenance, mark the older
+  capsule as superseded in index/lifecycle metadata and keep a trace event.
+- If the newer contradicting capsule has a lower confidence tier, keep both
+  records, mark the contradiction through `relationship: contradicts`, and set
+  `source_monitoring.observation_state: audit_required`. Do not silently
+  overwrite the older higher-confidence record.
+- If the scopes are not identical, narrow both claims to their valid scope
+  before deciding whether they actually conflict.
+- Equal-confidence replacement still needs a reason such as direct source
+  update, explicit user correction, or local verification. Date alone is only a
+  tie-breaker for retrieval priority.
+- Active retrieval should not inject a conflicted pair as settled guidance
+  unless the response also carries the conflict boundary.
+
 ## `derived_from`
 
 Recommended item shape:
@@ -167,6 +200,68 @@ Conditional rules:
 - `relationship: corrects` requires `correction_evidence_ref`.
 - `relationship: corrects` is the only common relationship where the new capsule may exceed the upstream confidence boundary, and only because correction evidence is explicit.
 - `relationship: contradicts` should normally move the capsule toward `belief_status: conflicted` or require a trace event explaining why it was rejected or bounded instead.
+
+## `source_validity_dependency`
+
+Use this field when a capsule is compressed, synthesized, or promoted from
+evidence that may later be deleted, invalidated, retracted, or made stale. It
+prevents derived memory from outliving its source boundary.
+
+Recommended item shape:
+
+```json
+{
+  "source_ref": "EVID-DEMO-001",
+  "dependency_type": "required",
+  "source_status": "valid",
+  "last_checked": "2026-06-30T00:00:00Z",
+  "cascade_action": "none"
+}
+```
+
+Recommended `dependency_type` values:
+
+```text
+required
+supporting
+context
+```
+
+Recommended `source_status` values:
+
+```text
+valid
+stale
+invalid
+retracted
+deleted
+unavailable
+unknown
+```
+
+Recommended `cascade_action` values:
+
+```text
+none
+downgrade_to_source_invalidated
+mark_audit_required
+exclude_from_validated_retrieval
+```
+
+Rules:
+
+- If a required source becomes `invalid`, `retracted`, or `deleted`, a derived
+  capsule must not remain `local_validated`. Downgrade it to the narrowest
+  supportable status, normally `source_prior`, `conflicted`, or `rejected`.
+- Source invalidation should preserve audit history by default. It should
+  downgrade, seal, or exclude records from validated retrieval rather than
+  deleting them unless a separate privacy or deletion policy requires deletion.
+- If a supporting source becomes stale or unavailable, keep the capsule only
+  inside its remaining evidence boundary and mark audit debt.
+- `unknown` or `unavailable` source status blocks promotion but does not by
+  itself prove the capsule false.
+- Cascade checks should follow `derived_from` and `source_validity_dependency`
+  links before final claim promotion and before reusable memory retrieval.
 
 ## `source_monitoring`
 

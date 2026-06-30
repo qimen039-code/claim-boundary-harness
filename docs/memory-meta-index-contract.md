@@ -31,6 +31,7 @@ Every project, conversation, or skill memory library should expose a compact met
 | `category` | Governance, memory hierarchy, external references, raw logs, semantic anchors, ERR points, SOL points, or another local category. |
 | `record_type` | Capsule, decision, error point, solution point, source ledger, progress state, rule, or template. |
 | `status` | Active, superseded, deprecated, template, draft, or blocked. |
+| `lane_state` | Optional lane availability state: active, frozen_readonly, or cleared. |
 | `retrieval_terms` | Short bilingual or domain-specific terms that should route here. |
 | `domain_tags` | Optional domain or event labels used before opening payloads. |
 | `content_language` | Optional original content language, such as `zh-CN`, `en`, or `mixed`; do not infer truth from this field. |
@@ -82,6 +83,30 @@ Important boundaries:
   page.
 - Reusable memory content should be context-complete and preserve the original
   source language. See [memory-write-granularity-contract.md](memory-write-granularity-contract.md).
+
+## Lane Availability States
+
+`lane_state` controls whether a memory lane can participate in ordinary
+retrieval or writes. It is separate from capsule `belief_status`, from record
+`status`, and from deletion policy.
+
+Recommended values:
+
+| Value | Meaning | Default behavior |
+| --- | --- | --- |
+| `active` | Normal lane. | Eligible for routed retrieval and permitted writes after memory gates. |
+| `frozen_readonly` | Baseline or experiment lane retained for audit. | Excluded from default retrieval injection and all writes; readable only for explicit audit or comparison. |
+| `cleared` | Lane intentionally reset or emptied. | Do not retrieve as active memory; retain only the index/audit marker unless a separate archive exists. |
+
+Rules:
+
+- Freezing is not deletion. A frozen lane preserves the baseline for later
+  comparison while preventing contamination during an experiment or migration.
+- Clearing is not proof that source evidence was false. If source deletion is
+  requested, handle it as a separate high-risk memory action.
+- If a route selects memory from a frozen lane, the final response or artifact
+  should state that it was an explicit audit/comparison read, not normal
+  reusable context.
 
 ## Retrieval Result Minimum
 

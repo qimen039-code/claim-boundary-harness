@@ -6,12 +6,22 @@ Mandatory retrieval rule:
 
 ```text
 read this meta index
+-> check lane_state
 -> choose one category
 -> read that category index
 -> open only the matching capsule
 ```
 
 Do not open category payloads before this file has selected the category. If this file is missing in an adopted project, treat that as an adaptation gap.
+
+```text
+lane_state: active
+```
+
+If `lane_state` is `frozen_readonly`, do not inject this library as active
+memory and do not write to it. Read it only for explicit audit, migration, or
+A/B/C comparison. If `lane_state` is `cleared`, use only the audit marker or an
+explicit archive link.
 
 | Category | Root | Purpose | Status | Notes |
 | --- | --- | --- | --- | --- |
@@ -20,7 +30,7 @@ Do not open category payloads before this file has selected the category. If thi
 | external_references | `external_references/` | Source notes, outside mechanisms, citations, and adoption boundaries. | TEMPLATE | Keep source boundary separate from local validation. |
 | raw_logs | `raw_logs/` | Raw or near-raw observations that should not be treated as final memory. | TEMPLATE | Promote into another category only after review. |
 
-For reusable memory capsules, use the source-monitoring schema fields: `source_tag` `belief_status` `confidence` `derived_from` `source_monitoring` `lifecycle` `belief_trace_summary`. Add optional `feedback_loop` only for records that should predict and check future behavior. Keep only compact routing fields in category indexes and open full payloads only when selected.
+For reusable memory capsules, use the source-monitoring schema fields: `source_tag` `belief_status` `confidence` `derived_from` `source_validity_dependency` `source_monitoring` `lifecycle` `belief_trace_summary`. Add optional `feedback_loop` only for records that should predict and check future behavior. Keep only compact routing fields in category indexes and open full payloads only when selected.
 
 Retrieval outputs that leave this memory library should include these fields with the selected text: `source_tag` `derived_from` `belief_status` `confidence` `score_method`. If no numeric score is computed, use `score_method: none` and omit `score`.
 
@@ -62,6 +72,12 @@ memory reuse without waiting for the operator to ask for prediction, and treat
 its prediction as a hypothesis until verified by later evidence. Index rows may
 expose only compact states such as `feedback_loop: pending`, `matched`, or
 `failed`; calibration details belong in the payload.
+
+If two selected records conflict, use the source-monitoring conflict policy:
+same/higher confidence plus explicit evidence may supersede; lower-confidence
+contradictions coexist as conflicted/audit-required records. If an upstream
+required source becomes invalid, retracted, or deleted, cascade the dependency
+before treating the derived capsule as reusable guidance.
 
 Status values:
 

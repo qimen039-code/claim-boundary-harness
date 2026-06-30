@@ -2,6 +2,16 @@
   "memory_id": "CONVERSATION_TEMPLATE",
   "memory_type": "conversation",
   "lane": "CONVERSATION_TEMPLATE",
+  "lane_state": "active",
+  "lane_state_policy": {
+    "allowed_values": [
+      "active",
+      "frozen_readonly",
+      "cleared"
+    ],
+    "frozen_readonly_behavior": "exclude_from_default_retrieval_and_writes_allow_explicit_audit_or_comparison",
+    "cleared_behavior": "do_not_use_as_active_memory_keep_audit_marker_or_archive_link_only"
+  },
   "status": "TEMPLATE",
   "capsule_schema": "source-monitoring-memory-schema",
   "capsule_schema_fields": [
@@ -9,10 +19,24 @@
     "belief_status",
     "confidence",
     "derived_from",
+    "source_validity_dependency",
     "source_monitoring",
     "lifecycle",
     "belief_trace_summary"
   ],
+  "memory_integrity_policy": {
+    "conflict_resolution": "scope_and_confidence_before_recency",
+    "confidence_tier_order": [
+      "unverified",
+      "low",
+      "medium",
+      "high",
+      "verified"
+    ],
+    "lower_confidence_contradiction_action": "mark_conflicted_and_audit_required",
+    "source_invalidity_cascade": "downgrade_or_exclude_from_validated_retrieval_before_reuse",
+    "recency_is_context_not_truth": true
+  },
   "content_plane": {
     "structure_language": "en",
     "content_language_policy": "preserve_original_language",
@@ -100,6 +124,7 @@
   },
   "retrieval_order": [
     "_META_INDEX.md",
+    "lane_state check",
     "conversation_state.md or index.json",
     "lane/domain/time/source/status filters",
     "retrieval_terms/exact phrase/original-language keyword matching",

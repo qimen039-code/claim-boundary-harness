@@ -184,6 +184,13 @@ ERR/SOL pairs, or decision records, and it becomes a decision-layer requirement
 when such a reusable record is selected for recurrence prevention. It is not a
 per-task token ledger and does not promote predictions into validated facts.
 
+Memory integrity checks keep long-lived records from silently drifting:
+contradicting capsules are resolved by scope plus evidence strength rather than
+recency alone; source invalidation follows `derived_from` and
+`source_validity_dependency` links before reusable retrieval or strong claim
+promotion; and frozen lanes remain available for audit or A/B/C comparison
+without participating in normal retrieval or writes.
+
 Reading is a separate routed step after retrieval. The route or decision layer
 chooses `baseline`, `evidence_window`, `middle_safe`, or `full_audit` reading.
 This keeps ordinary reads cheap while still enabling source context headers,
@@ -194,7 +201,11 @@ source, or multi-hop evidence chain requires it.
 See [memory-write-granularity-contract.md](memory-write-granularity-contract.md),
 [hybrid-memory-retrieval-contract.md](hybrid-memory-retrieval-contract.md),
 [memory-feedback-loop-trial.md](memory-feedback-loop-trial.md), and
-[content-reading-contract.md](content-reading-contract.md).
+[content-reading-contract.md](content-reading-contract.md). Source dependency
+and conflict rules live in
+[source-monitoring-memory-schema.md](source-monitoring-memory-schema.md), and
+lane availability states live in
+[memory-meta-index-contract.md](memory-meta-index-contract.md).
 
 ## Skill Lifecycle Contract
 

@@ -742,7 +742,9 @@ $activeConversationMemoryDurableSignal = (
     ($conversationSignals.Count -ge $conversationThreshold) -or
     ($projectizationSignals.Count -ge $projectizationThreshold) -or
     ($risk -in @("R4", "R5"))
-  )
+  ) -and
+  (-not $commonErrorWriteIntent) -and
+  ($commonErrorHits.Count -eq 0)
 )
 if ($projectLane -eq "PROJECTLESS") {
   if ($conversationExplicitHits.Count -gt 0) {

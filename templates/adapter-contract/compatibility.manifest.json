@@ -79,6 +79,27 @@
     "durable_writes_require_context_complete_content": true,
     "strict_capsules_reject_orphan_fragments": true
   },
+  "memory_integrity_policy": {
+    "supported": "unverified",
+    "conflict_resolution_policy": "scope_and_confidence_before_recency",
+    "confidence_tier_order": [
+      "unverified",
+      "low",
+      "medium",
+      "high",
+      "verified"
+    ],
+    "recency_is_context_not_truth": true,
+    "lower_confidence_conflict_requires_review": true,
+    "source_validity_dependency_supported": "unverified",
+    "source_invalidity_cascade_blocks_validated_retrieval": true,
+    "lane_state_values": [
+      "active",
+      "frozen_readonly",
+      "cleared"
+    ],
+    "frozen_readonly_excluded_from_default_retrieval_and_writes": true
+  },
   "memory_feedback_loop": {
     "supported": "unverified",
     "default_enabled": false,

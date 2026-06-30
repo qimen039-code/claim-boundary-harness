@@ -56,9 +56,12 @@ def test_bilingual_readme_and_local_overlay_template_are_present() -> None:
 def test_memory_feedback_loop_trial_is_optional_and_template_visible() -> None:
     trial = read_text("docs/memory-feedback-loop-trial.md")
     schema = read_text("docs/source-monitoring-memory-schema.md")
+    meta_contract = read_text("docs/memory-meta-index-contract.md")
+    routing_contract = read_text("docs/memory-routing-contract.md")
     common_error_doc = read_text("docs/common-error-corpus.md")
     common_error_template = read_text("templates/common-error-corpus/CE-EXAMPLE-YYYY-MM-DD.md")
     project_meta = read_text("templates/project/memory-library/_META_INDEX.md")
+    conversation_meta = read_text("templates/conversation-memory/_META_INDEX.md")
     manifest = json.loads(read_text("templates/adapter-contract/compatibility.manifest.json"))
     workbuddy_doc = read_text("docs/integrations/workbuddy.md")
     doubao_doc = read_text("docs/integrations/doubao.md")
@@ -66,6 +69,13 @@ def test_memory_feedback_loop_trial_is_optional_and_template_visible() -> None:
     for text in [trial, schema, common_error_doc, common_error_template, project_meta]:
         assert "feedback_loop" in text
 
+    for text in [schema, project_meta, conversation_meta]:
+        assert "source_validity_dependency" in text
+
+    assert "Conflict Resolution Policy" in schema
+    assert "source invalidation" in read_text("docs/architecture.md")
+    assert "lane_state" in meta_contract
+    assert "frozen_readonly" in routing_contract
     assert "not a task-cost ledger" in trial
     assert "per-task token ledger" in read_text("docs/architecture.md")
     assert "status: pending" in common_error_template
@@ -74,6 +84,14 @@ def test_memory_feedback_loop_trial_is_optional_and_template_visible() -> None:
     assert manifest["memory_feedback_loop"]["host_hard_stop_gate"] is False
     assert manifest["memory_feedback_loop"]["internalized_on_reusable_memory_selection"] is True
     assert manifest["memory_feedback_loop"]["does_not_create_task_cost_ledger"] is True
+    assert manifest["memory_integrity_policy"]["recency_is_context_not_truth"] is True
+    assert manifest["memory_integrity_policy"]["source_invalidity_cascade_blocks_validated_retrieval"] is True
+    assert manifest["memory_integrity_policy"]["lane_state_values"] == [
+        "active",
+        "frozen_readonly",
+        "cleared",
+    ]
+    assert manifest["memory_integrity_policy"]["frozen_readonly_excluded_from_default_retrieval_and_writes"] is True
     assert manifest["observation_and_causal_attribution"]["public_private_boundary_is_separate"] is True
     assert manifest["observation_and_causal_attribution"]["blocks_ordinary_local_causal_reasoning"] is False
     assert "feedback_loop" in workbuddy_doc
@@ -134,6 +152,14 @@ def test_memory_profiles_are_routed_and_template_visible() -> None:
 
     assert conversation_index["hybrid_retrieval_profile_default"] == "meta_first_hybrid_required"
     assert conversation_index["content_plane"]["memory_write_profile_default"] == "context_complete_required"
+    assert conversation_index["lane_state"] == "active"
+    assert conversation_index["lane_state_policy"]["allowed_values"] == [
+        "active",
+        "frozen_readonly",
+        "cleared",
+    ]
+    assert conversation_index["memory_integrity_policy"]["conflict_resolution"] == "scope_and_confidence_before_recency"
+    assert conversation_index["memory_integrity_policy"]["recency_is_context_not_truth"] is True
     assert manifest["skill_lifecycle"]["receipt_schema"] == "cbh.skill_release_receipt.v1"
     assert manifest["skill_lifecycle"]["reactivation_reads_current_source_files"] is True
     assert manifest["memory_feedback_loop"]["prediction_is_hypothesis_until_verified"] is True
