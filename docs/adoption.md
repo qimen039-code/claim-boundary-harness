@@ -101,9 +101,14 @@ Stronger setups can run:
 
 Also make the advisory control plane mandatory:
 
-1. Create a lightweight routing receipt for nontrivial work: task type, target surface, audience, lane, risk, semantic ambiguity, module need, memory need, memory mode, memory lane, record intent, external need, claim risk, projectization decision, conversation memory decision, link intent, receipt profile, and required gates.
+1. Create a lightweight routing receipt for nontrivial work: task type, target surface, audience, lane, risk, semantic ambiguity, module need, skill lifecycle profile, feedback loop profile, memory need, memory mode, memory lane, record intent, external need, claim risk, projectization decision, conversation memory decision, link intent, receipt profile, and required gates.
 2. Re-evaluate only after trigger events: new evidence, missing files, tool errors, scope changes, user corrections, cross-project terminology, currentness/version claims, GitHub/open-source mechanism intake, risk/cost escalation, strong claims, R5 actions, or memory writes.
 3. Final-check claim scope, memory scope, version metadata, and unresolved verification debt.
+
+When a self-check finds memory pollution, target pollution, dirty-tree debt, or
+technical debt, route `debt_hygiene_gate`: group issues, clean the must-fix set,
+and mark acceptable deferrals as `candidate_technical_debt`. This does not
+authorize deletion, reset, or full rewrites.
 
 For local single-user adapters, including Codex-style local harness installs, keep R0-R5 classification internal and silent by default.
 Start with no visible receipt for ordinary work, use `compact_runtime` only when a boundary changes the next action, expand to `extended_governance` only when public/private boundaries, framework rules, adapters, project memory, memory writes, conversation-link decisions, semantic ambiguity, or projectization drift appear, and use `debug_receipt` only for router troubleshooting or explicit audit requests.

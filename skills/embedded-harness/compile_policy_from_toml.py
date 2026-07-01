@@ -36,6 +36,7 @@ TRACKED_PATHS: list[tuple[str, ...]] = [
     ("r5_context_decision_rules",),
     ("router_decision_contract", "observation_scope_triggers"),
     ("router_decision_contract", "feedback_loop_triggers"),
+    ("router_decision_contract", "common_error_prevention_triggers"),
     ("router_decision_contract", "causal_attribution_contract"),
     ("router_decision_contract", "causal_attribution_triggers"),
     ("router_decision_contract", "conversation_memory_full_lane_triggers"),
@@ -184,6 +185,16 @@ def _normal_feedback_loop_triggers(authoring: dict[str, Any]) -> list[str] | Non
     return _string_list(triggers, "router_decision_contract.feedback_loop_triggers")
 
 
+def _normal_common_error_prevention_triggers(authoring: dict[str, Any]) -> list[str] | None:
+    router = authoring.get("router_decision_contract", {})
+    if not isinstance(router, dict):
+        raise ValueError("router_decision_contract must be a table")
+    triggers = router.get("common_error_prevention_triggers")
+    if triggers is None:
+        return None
+    return _string_list(triggers, "router_decision_contract.common_error_prevention_triggers")
+
+
 def _normal_causal_attribution_triggers(authoring: dict[str, Any]) -> dict[str, Any] | None:
     router = authoring.get("router_decision_contract", {})
     if not isinstance(router, dict):
@@ -246,6 +257,14 @@ def compile_policy(base_policy: dict[str, Any], authoring: dict[str, Any]) -> di
     feedback_loop_triggers = _normal_feedback_loop_triggers(authoring)
     if feedback_loop_triggers is not None:
         _set_path(compiled, ("router_decision_contract", "feedback_loop_triggers"), feedback_loop_triggers)
+
+    common_error_prevention_triggers = _normal_common_error_prevention_triggers(authoring)
+    if common_error_prevention_triggers is not None:
+        _set_path(
+            compiled,
+            ("router_decision_contract", "common_error_prevention_triggers"),
+            common_error_prevention_triggers,
+        )
 
     causal_contract = _normal_causal_attribution_contract(authoring)
     if causal_contract is not None:

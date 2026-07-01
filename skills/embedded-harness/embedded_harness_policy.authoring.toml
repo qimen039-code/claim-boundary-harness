@@ -4,6 +4,8 @@ rule = "Human-maintained authoring layer for high-churn policy sections. Runtime
 compiled_sections = [
   "risk_trigger_rules.R5",
   "r5_context_decision_rules",
+  "router_decision_contract.feedback_loop_triggers",
+  "router_decision_contract.common_error_prevention_triggers",
   "router_decision_contract.conversation_memory_full_lane_triggers",
   "runtime_enforcement.human_confirmation_permit",
 ]
@@ -309,8 +311,6 @@ feedback_loop_triggers = [
   "calibration",
   "future route decision",
   "prevent repeated mistake",
-  "recurring mistake",
-  "same mistake",
   "记忆-预测-验证-校准",
   "反馈闭环",
   "预测",
@@ -318,9 +318,23 @@ feedback_loop_triggers = [
   "校准",
   "未来路由",
   "防止重复错误",
-  "重复错误",
-  "同类错误",
-  "复发",
+]
+common_error_prevention_triggers = [
+  "prevention",
+  "prevent recurrence",
+  "avoid recurrence",
+  "use prevention",
+  "prevention rule",
+  "continue diagnosis",
+  "继续排查",
+  "继续诊断",
+  "按里面的预防规则",
+  "预防规则",
+  "避免复发",
+  "防止复发",
+  "防止再次出现",
+  "按解决方案继续",
+  "按记录修复",
 ]
 
 [router_decision_contract.causal_attribution_contract]

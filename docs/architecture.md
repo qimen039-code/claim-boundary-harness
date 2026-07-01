@@ -73,6 +73,7 @@ risk_level
 semantic_ambiguity
 module_need
 skill_lifecycle_profile
+feedback_loop_profile
 memory_need
 hybrid_retrieval_profile
 memory_mode
@@ -82,12 +83,22 @@ record_intent
 external_need
 claim_risk
 projectization_decision
+conversation_memory_decision
+link_intent
+receipt_profile
 required_gates
 ```
 
 This contract keeps the decision layer stronger than a suggestion while avoiding full runtime wrapping. It tells the agent which surface is being touched, who the content is for, whether a term is ambiguous, which module to open, whether memory or external lookup is needed, and whether the final answer needs a claim schema.
 
 The design borrows a few lightweight patterns: separate decision from execution, run prechecks before critical boundaries, route by metadata, reassess on trigger events, preflight likely failure modes, and keep audience/ownership explicit. These are design influences, not proof that this framework is validated in every runtime.
+
+When self-check exposes substantial memory pollution, target pollution,
+dirty-tree debt, or accumulated technical debt, the same control plane can
+route a debt hygiene pass. That pass inventories and groups issues, cleans the
+current required set, and records deferrable items as
+`candidate_technical_debt` for later review instead of trying to force the debt
+to zero.
 
 ## Receipt Profile Layer
 
@@ -422,6 +433,9 @@ If a capsule or CE record has a feedback loop, keep the full loop in the
 payload and expose only a compact index hint such as `feedback_loop: pending`
 or `feedback_loop: matched`. A failed prediction should trigger calibration and
 may promote the record to a paired incident or a router regression.
+Use `feedback_loop_profile` to decide whether the current task needs only an
+index hint, a compact record candidate, selected prevention review, or an
+explicit full cycle.
 
 See [../examples/memory-library-demo/_META_INDEX.md](../examples/memory-library-demo/_META_INDEX.md) for a synthetic end-to-end example.
 

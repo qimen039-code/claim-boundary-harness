@@ -45,8 +45,8 @@ def test_bilingual_readme_and_local_overlay_template_are_present() -> None:
 
     assert "[中文版](./README_zh.md) | English" in readme
     assert "[English](./README.md) | 中文" in readme_zh
-    assert "v0.18.0" in readme
-    assert "v0.18.0" in readme_zh
+    assert "v0.18.1" in readme
+    assert "v0.18.1" in readme_zh
     assert overlay["schema"] == "cbh.project_lane_overlay.v1"
     assert policy["local_project_lane_overlay"]["default_filename"] == "embedded_harness_policy.local.json"
     assert "embedded_harness_policy.local.json" in readme
@@ -84,6 +84,14 @@ def test_memory_feedback_loop_trial_is_optional_and_template_visible() -> None:
     assert manifest["memory_feedback_loop"]["host_hard_stop_gate"] is False
     assert manifest["memory_feedback_loop"]["internalized_on_reusable_memory_selection"] is True
     assert manifest["memory_feedback_loop"]["does_not_create_task_cost_ledger"] is True
+    assert manifest["memory_feedback_loop"]["profile_controls_cost"] is True
+    assert manifest["memory_feedback_loop"]["feedback_loop_profile_values"] == [
+        "none",
+        "index_hint",
+        "record_candidate",
+        "prevention_review",
+        "explicit_cycle",
+    ]
     assert manifest["memory_integrity_policy"]["recency_is_context_not_truth"] is True
     assert manifest["memory_integrity_policy"]["source_invalidity_cascade_blocks_validated_retrieval"] is True
     assert manifest["memory_integrity_policy"]["lane_state_values"] == [
@@ -130,14 +138,26 @@ def test_memory_profiles_are_routed_and_template_visible() -> None:
 
     receipt_fields = policy["router_decision_contract"]["receipt_fields"]
     assert "skill_lifecycle_profile" in receipt_fields
+    assert "feedback_loop_profile" in receipt_fields
     assert "hybrid_retrieval_profile" in receipt_fields
     assert "memory_write_profile" in receipt_fields
+    assert "debt_hygiene_gate" in policy["router_decision_contract"]["module_need_values"]
+    assert "debt_hygiene_rule" in policy["router_decision_contract"]
+    assert "candidate_technical_debt" in read_text("docs/router-decision-contract.md")
+    assert "candidate_technical_debt" in read_text("docs/cost-control-contract.md")
     assert policy["router_decision_contract"]["skill_lifecycle_profile_values"] == [
         "none",
         "listing_only",
         "active_frame_required",
         "release_receipt_required",
         "reactivate_from_receipt",
+    ]
+    assert policy["router_decision_contract"]["feedback_loop_profile_values"] == [
+        "none",
+        "index_hint",
+        "record_candidate",
+        "prevention_review",
+        "explicit_cycle",
     ]
     assert policy["router_decision_contract"]["hybrid_retrieval_profile_values"] == [
         "none",

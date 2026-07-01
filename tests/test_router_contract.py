@@ -260,6 +260,7 @@ ROUTER_CASES = [
         "gates": ["feedback_loop_gate"],
         "expect": {
             "memory_need": "index_only",
+            "feedback_loop_profile": "explicit_cycle",
         },
         "expect_contains": {
             "semantic_ambiguity": "feedback_loop_required",
@@ -272,6 +273,7 @@ ROUTER_CASES = [
         "gates": ["feedback_loop_gate"],
         "expect": {
             "memory_need": "paired_err_sol",
+            "feedback_loop_profile": "prevention_review",
         },
         "expect_contains": {
             "semantic_ambiguity": "feedback_loop_required",
@@ -289,6 +291,7 @@ ROUTER_CASES = [
             "memory_need": "common_error_corpus",
             "memory_mode": "read",
             "record_intent": "no_record",
+            "feedback_loop_profile": "prevention_review",
         },
         "expect_contains": {
             "semantic_ambiguity": "feedback_loop_required",
@@ -301,18 +304,48 @@ ROUTER_CASES = [
     {
         "id": "TC-009d",
         "task": "record this error as a common error after the fix is verified",
-        "gates": ["feedback_loop_gate"],
+        "not_gates": ["feedback_loop_gate"],
         "expect": {
             "memory_need": "common_error_corpus",
             "memory_mode": "write",
             "record_intent": "inferred_reusable_error",
+            "feedback_loop_profile": "record_candidate",
         },
         "expect_contains": {
-            "semantic_ambiguity": "feedback_loop_required",
             "module_need": "memory_meta_index",
         },
         "expect_trigger_contains": {
-            "feedback_loop_common_error": "common error",
+            "common_error_candidate": "common error",
+        },
+    },
+    {
+        "id": "TC-009e",
+        "task": "查看 common error 记录",
+        "not_gates": ["feedback_loop_gate"],
+        "expect": {
+            "memory_need": "common_error_corpus",
+            "memory_mode": "read",
+            "record_intent": "no_record",
+            "feedback_loop_profile": "index_hint",
+        },
+        "expect_contains": {
+            "module_need": "memory_meta_index",
+        },
+        "expect_trigger_contains": {
+            "common_error_index_hint": "common error",
+        },
+    },
+    {
+        "id": "TC-009f",
+        "task": "自检后发现当前项目有大量记忆污染、目标污染、脏树债和技术债，先清查分组，清理必须清理项，并把可暂存内容标记为候选技术债",
+        "risk": "R3",
+        "gates": ["debt_hygiene_gate"],
+        "expect_contains": {
+            "semantic_ambiguity": "debt_hygiene_required",
+            "module_need": "debt_hygiene_gate",
+        },
+        "expect_trigger_contains": {
+            "debt_hygiene": "技术债",
         },
     },
 ]
@@ -329,6 +362,8 @@ def test_router_contract_cases(case: dict) -> None:
         assert contains(payload.get("triggered_risks"), risk)
     for gate in case.get("gates", []):
         assert contains(payload.get("required_gates"), gate)
+    for gate in case.get("not_gates", []):
+        assert not contains(payload.get("required_gates"), gate)
     if "negated_r5" in case:
         assert contains(payload.get("negated_risk_triggers", {}).get("R5"), case["negated_r5"])
     if "candidate_r5" in case:
@@ -561,10 +596,12 @@ def test_router_records_route_issue_and_requires_external_evidence_for_linked_cu
     assert payload["memory_mode"] == "write"
     assert payload["memory_lane"] == "common_error_corpus"
     assert payload["conversation_memory_decision"] == "none"
+    assert payload["feedback_loop_profile"] == "record_candidate"
     assert payload["needs_external_research"] is True
     assert "external_research" in payload["matched_risk_triggers"]
+    assert "common_error_candidate" in payload["matched_risk_triggers"]
     assert "external_research_gate" in payload["module_need"]
-    assert "feedback_loop_gate" in payload["required_gates"]
+    assert "feedback_loop_gate" not in payload["required_gates"]
     assert "official_authority_source_search" in payload["external_need"]
     assert "general_web_cross_check" in payload["external_need"]
     assert "source_grounded_learning_intake" in payload["external_need"]

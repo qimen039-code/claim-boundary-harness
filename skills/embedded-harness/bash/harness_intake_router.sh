@@ -445,6 +445,29 @@ fi
 
 semantic_ambiguity=()
 collect_matching_triggers '.router_decision_contract.semantic_ambiguity_triggers' semantic_ambiguity
+debt_hygiene_hits=()
+collect_matching_triggers '.router_decision_contract.debt_hygiene_triggers' debt_hygiene_hits
+if [ "${#debt_hygiene_hits[@]}" -gt 0 ]; then
+  add_unique semantic_ambiguity "debt_hygiene_required"
+  add_unique required_gates "debt_hygiene_gate"
+  set_object_array "$matched_file" "debt_hygiene" "${debt_hygiene_hits[@]}"
+fi
+observation_scope_hits=()
+collect_matching_triggers '.router_decision_contract.observation_scope_triggers' observation_scope_hits
+if [ "${#observation_scope_hits[@]}" -gt 0 ]; then
+  add_unique semantic_ambiguity "observation_scope_required"
+  add_unique required_gates "observation_scope_gate"
+  set_object_array "$matched_file" "observation_scope" "${observation_scope_hits[@]}"
+fi
+feedback_loop_hits=()
+feedback_loop_profile="none"
+collect_matching_triggers '.router_decision_contract.feedback_loop_triggers' feedback_loop_hits
+if [ "${#feedback_loop_hits[@]}" -gt 0 ]; then
+  add_unique semantic_ambiguity "feedback_loop_required"
+  add_unique required_gates "feedback_loop_gate"
+  set_object_array "$matched_file" "feedback_loop" "${feedback_loop_hits[@]}"
+  feedback_loop_profile="explicit_cycle"
+fi
 if array_contains "R3" "${triggered_risks[@]}"; then
   add_unique semantic_ambiguity "governance_or_change_surface"
 fi
@@ -479,8 +502,16 @@ collect_matching_triggers '.router_decision_contract.paired_memory_triggers' pai
 collect_matching_triggers '.router_decision_contract.static_knowledge_triggers' static_knowledge_hits
 if [ "${#paired_memory_hits[@]}" -gt 0 ]; then
   memory_need="paired_err_sol"
-elif [ "${#memory_hits[@]}" -gt 0 ] || [ "${#static_knowledge_hits[@]}" -gt 0 ]; then
+elif [ "${#memory_hits[@]}" -gt 0 ] || [ "${#static_knowledge_hits[@]}" -gt 0 ] || [ "${#feedback_loop_hits[@]}" -gt 0 ]; then
   memory_need="index_only"
+fi
+if [ "${#paired_memory_hits[@]}" -gt 0 ]; then
+  add_unique semantic_ambiguity "feedback_loop_required"
+  add_unique required_gates "feedback_loop_gate"
+  set_object_array "$matched_file" "feedback_loop_memory" "${paired_memory_hits[@]}"
+  if [ "$feedback_loop_profile" != "explicit_cycle" ]; then
+    feedback_loop_profile="prevention_review"
+  fi
 fi
 if [ "${#static_knowledge_hits[@]}" -gt 0 ]; then
   add_unique required_gates "static_knowledge_index_gate"
@@ -488,6 +519,7 @@ fi
 
 explicit_record_hits=()
 common_error_hits=()
+common_error_prevention_hits=()
 projectization_signals=()
 conversation_explicit_hits=()
 conversation_signals=()
@@ -495,6 +527,7 @@ read_only_memory_audit_hits=()
 active_conversation_write_intent_hits=()
 collect_matching_triggers '.router_decision_contract.explicit_record_triggers' explicit_record_hits
 collect_matching_triggers '.router_decision_contract.common_error_triggers' common_error_hits
+collect_matching_triggers '.router_decision_contract.common_error_prevention_triggers' common_error_prevention_hits
 collect_matching_triggers '.router_decision_contract.projectization_signals' projectization_signals
 collect_matching_triggers '.router_decision_contract.conversation_memory_explicit_triggers' conversation_explicit_hits
 collect_matching_triggers '.router_decision_contract.conversation_memory_signals' conversation_signals
@@ -503,6 +536,10 @@ collect_matching_triggers '.router_decision_contract.active_conversation_write_i
 self_reflection_record_hits=("${explicit_record_hits[@]}")
 if [ "${#conversation_explicit_hits[@]}" -gt 0 ]; then
   self_reflection_record_hits=()
+fi
+common_error_write_intent=false
+if [ "${#common_error_hits[@]}" -gt 0 ] && [ "${#explicit_record_hits[@]}" -gt 0 ]; then
+  common_error_write_intent=true
 fi
 projectization_threshold="$(jq -r '.router_decision_contract.projectization_threshold // 5' "$POLICY_PATH" | tr -d '\r')"
 conversation_threshold="$(jq -r '.router_decision_contract.conversation_memory_threshold // 5' "$POLICY_PATH" | tr -d '\r')"
@@ -523,7 +560,7 @@ active_conversation_write_intent=false
 if [ "${#active_conversation_write_intent_hits[@]}" -gt 0 ]; then
   active_conversation_write_intent=true
 fi
-if [ "${#explicit_record_hits[@]}" -gt 0 ] || [ "${#common_error_hits[@]}" -gt 0 ]; then
+if [ "${#explicit_record_hits[@]}" -gt 0 ] || [ "$common_error_write_intent" = true ]; then
   active_conversation_write_intent=true
 fi
 active_conversation_memory_durable_signal=false
@@ -546,12 +583,26 @@ fi
 
 if [ "${#common_error_hits[@]}" -gt 0 ]; then
   memory_need="common_error_corpus"
+  if [ "$common_error_write_intent" = true ]; then
+    [ "$feedback_loop_profile" = "none" ] && feedback_loop_profile="record_candidate"
+    set_object_array "$matched_file" "common_error_candidate" "${common_error_hits[@]}"
+  elif [ "${#common_error_prevention_hits[@]}" -gt 0 ]; then
+    add_unique semantic_ambiguity "feedback_loop_required"
+    add_unique required_gates "feedback_loop_gate"
+    set_object_array "$matched_file" "feedback_loop_common_error" "${common_error_hits[@]}"
+    if [ "$feedback_loop_profile" != "explicit_cycle" ]; then
+      feedback_loop_profile="prevention_review"
+    fi
+  else
+    [ "$feedback_loop_profile" = "none" ] && feedback_loop_profile="index_hint"
+    set_object_array "$matched_file" "common_error_index_hint" "${common_error_hits[@]}"
+  fi
 elif [ "${#self_reflection_record_hits[@]}" -gt 0 ] && [ "$memory_need" = "none" ]; then
   memory_need="paired_err_sol"
 fi
 
 record_intent="no_record"
-if [ "${#common_error_hits[@]}" -gt 0 ]; then
+if [ "$common_error_write_intent" = true ]; then
   record_intent="inferred_reusable_error"
 elif [ "$conversation_memory_decision" = "create_or_update_current_conversation" ]; then
   if [ "${#conversation_explicit_hits[@]}" -gt 0 ]; then
@@ -616,6 +667,7 @@ module_need=()
 [ "${#semantic_ambiguity[@]}" -gt 0 ] && add_unique module_need "semantic_anchors"
 [ "$memory_need" != "none" ] && add_unique module_need "memory_meta_index"
 [ "${#static_knowledge_hits[@]}" -gt 0 ] && add_unique module_need "static_knowledge_index"
+[ "${#debt_hygiene_hits[@]}" -gt 0 ] && add_unique module_need "debt_hygiene_gate"
 [ "$conversation_memory_decision" != "none" ] && add_unique module_need "conversation_memory_index"
 if [ "${#external_need[@]}" -gt 0 ] && [ "${external_need[0]}" != "none" ]; then
   add_unique module_need "external_research_gate"
@@ -669,6 +721,7 @@ result="$(
     --arg audience "$audience" \
     --arg project_lane "$project_lane" \
     --arg risk_level "$risk" \
+    --arg feedback_loop_profile "$feedback_loop_profile" \
     --arg memory_need "$memory_need" \
     --arg memory_mode "$memory_mode" \
     --arg memory_lane "$memory_lane" \
@@ -709,6 +762,7 @@ result="$(
         risk_level: $risk_level,
         semantic_ambiguity: $semantic_ambiguity,
         module_need: $module_need,
+        feedback_loop_profile: $feedback_loop_profile,
         memory_need: $memory_need,
         memory_mode: $memory_mode,
         memory_lane: $memory_lane,
@@ -726,6 +780,7 @@ result="$(
         task_type: $risk_level,
         risk_level: $risk_level,
         required_gates: $required_gates,
+        feedback_loop_profile: $feedback_loop_profile,
         memory_mode: $memory_mode,
         memory_lane: $memory_lane,
         conversation_memory_decision: $conversation_memory_decision,
@@ -741,6 +796,7 @@ result="$(
       risk_level: $risk_level,
       semantic_ambiguity: $semantic_ambiguity,
       module_need: $module_need,
+      feedback_loop_profile: $feedback_loop_profile,
       memory_need: $memory_need,
       memory_mode: $memory_mode,
       memory_lane: $memory_lane,

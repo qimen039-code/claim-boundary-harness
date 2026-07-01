@@ -1,7 +1,7 @@
 {
   "schema_version": "0.1",
   "manifest_type": "agent_memory_lane_compatibility_manifest",
-  "harness_version": "v0.18.0",
+  "harness_version": "v0.18.1",
   "adapter": {
     "name": "example-adapter",
     "version": "unverified",
@@ -111,6 +111,14 @@
     "prediction_is_hypothesis_until_verified": true,
     "requires_evidence_ref_for_verification": true,
     "does_not_create_task_cost_ledger": true,
+    "profile_controls_cost": true,
+    "feedback_loop_profile_values": [
+      "none",
+      "index_hint",
+      "record_candidate",
+      "prevention_review",
+      "explicit_cycle"
+    ],
     "recommended_for": [
       "reusable_memory_capsules",
       "common_error_records",

@@ -212,6 +212,9 @@ when those reusable records are used for recurrence prevention. Predictions
 remain hypotheses until later evidence verifies them, and failed predictions
 should calibrate the record or promote it to a paired incident. Do not create a
 per-task token or consumption ledger only to support this field.
+Use `feedback_loop_profile` to choose cost: `index_hint` and
+`record_candidate` stay compact; `prevention_review` and `explicit_cycle` may
+open selected payloads.
 
 `skill_lifecycle_profile` is also a decision field. A WorkBuddy-compatible loop
 can use it to keep idle skills listing-only, open an active frame for selected

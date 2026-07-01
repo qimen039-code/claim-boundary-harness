@@ -88,6 +88,9 @@ A prediction is a hypothesis. It is not evidence that the behavior is fixed.
 The operator may explicitly ask to run the loop or correct its result, but
 ordinary task execution should not expose prediction scaffolding unless it
 changes the action, risk, memory, or claim boundary.
+Use `feedback_loop_profile` to keep the cost bounded: lookup hints and record
+candidates stay compact; prevention review and explicit cycles may open the
+selected payload.
 
 ## Human Work In This Framework
 

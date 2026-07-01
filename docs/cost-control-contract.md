@@ -37,6 +37,7 @@ Expose the smallest necessary explanation only when the classification changes o
 - permission or human confirmation;
 - skill activation, release, or reactivation behavior;
 - memory read/write/link/merge/archive behavior;
+- feedback-loop profile or recurrence-prevention behavior;
 - hybrid retrieval or memory write granularity profile;
 - external search or current-fact verification;
 - claim schema or evidence boundary.
@@ -138,6 +139,20 @@ discussion after a skill task, retain only the receipt. This keeps long
 contexts from carrying stale rendered skill bodies while preserving recovery
 state and auditability.
 
+## Feedback Loop Budget
+
+The feedback loop must not become a full-payload scan for every reusable error
+mention. Use `feedback_loop_profile`:
+
+```text
+index_hint -> record_candidate -> prevention_review -> explicit_cycle
+```
+
+Only `prevention_review` and `explicit_cycle` should open selected payloads for
+prediction/verification/calibration. `index_hint` and `record_candidate` stay at
+meta/index or compact-write shape unless another gate independently requires a
+deeper read.
+
 Hybrid retrieval does not add a new broad scan by itself. It may only run after
 the selected meta/index layer has bounded the lane and category. The profile
 changes the matching channels inside that bounded set; it does not authorize
@@ -162,6 +177,23 @@ action:
 Do not enable `middle_safe` or `full_audit` merely because the source is
 interesting. They are escalation profiles selected by the route or decision
 layer.
+
+## Debt Hygiene Budget
+
+Debt hygiene is bounded cleanup, not full repo or memory rewriting. When
+`debt_hygiene_gate` is selected, use:
+
+```text
+one inventory pass
+-> grouped issue list
+-> must-clean-now set
+-> candidate_technical_debt set
+-> targeted cleanup only
+```
+
+Do not scan every memory or file unless the user requested a full audit or the
+selected surface cannot be bounded. Deferred debt is acceptable when it has a
+surface, reason, next-review trigger, and cleanup condition.
 
 ## Non-Goals
 

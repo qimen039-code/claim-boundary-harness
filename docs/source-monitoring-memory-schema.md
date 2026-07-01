@@ -341,6 +341,10 @@ treat the loop as part of memory reuse: prediction, verification, and calibratio
 are internal checks, not a feature that depends on the operator explicitly
 asking for prediction each time.
 
+The route-level `feedback_loop_profile` controls how much of this field should
+be loaded: `index_hint` and `record_candidate` stay compact; `prevention_review`
+and `explicit_cycle` may open the selected payload for loop review.
+
 Recommended shape:
 
 ```json

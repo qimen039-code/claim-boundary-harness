@@ -55,9 +55,25 @@ Route or decision layers should require feedback-loop review for:
   validation behavior.
 
 Ordinary discussion and normal task execution should not pay this cost.
-Reading a common-error record is not the same as writing a new one. Common-error
-terms can select the corpus and feedback loop for reuse, but durable CE writes
-still need explicit record intent or a verified post-tool issue capture.
+Reading a common-error record is not the same as preventing recurrence or
+writing a new one.
+
+## Profile And Cost Control
+
+The router exposes `feedback_loop_profile` so adapters can keep the loop cheap:
+
+| Profile | Cost boundary |
+| --- | --- |
+| `none` | Do not load feedback-loop state. |
+| `index_hint` | Expose only compact corpus/index hints; do not open full payloads for the loop. |
+| `record_candidate` | Prepare a compact CE candidate after verification; do not run full prediction review by default. |
+| `prevention_review` | Open only the selected CE, ERR/SOL, capsule, or decision payload needed to prevent recurrence. |
+| `explicit_cycle` | Run the full loop because the user or task explicitly requested it. |
+
+This profile is independent of `risk_level`, `external_need`, `claim_risk`, and
+`record_intent`. Those gates still combine by union. For example, a routing
+mistake with a current external-source claim may be both a CE write candidate
+and an external-research task, without paying the full feedback-loop cost.
 
 ## Field Shape
 

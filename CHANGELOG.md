@@ -6,9 +6,15 @@ This project uses `vMAJOR.MINOR.PATCH` version labels while the framework is sti
 
 ## Unreleased
 
+## v0.18.1 - 2026-07-01
+
 - Added memory integrity rules for conflict resolution, source-validity dependency cascade, and frozen/read-only lane states.
 - Fixed routing for route-issue records that cite external links, third-party sources, Claude/Anthropic product behavior, current mechanisms, or official-fact wording.
 - Added common-issue coverage and regression tests for the external-evidence route miss.
+- Added `feedback_loop_profile` so common-error lookup, CE write candidates, prevention review, and explicit feedback cycles use different context budgets.
+- Tightened feedback-loop triggers so broad same-error wording does not automatically run the full memory -> prediction -> verification -> calibration loop.
+- Added `debt_hygiene_gate` for memory pollution, target pollution, dirty-tree debt, and technical-debt cleanup triage, with deferred items marked as `candidate_technical_debt`.
+- Synchronized the new routing and cost-control rules into the PowerShell/Bash routers, README files, adapter notes, templates, and regression tests.
 
 ## v0.18.0 - 2026-06-29
 

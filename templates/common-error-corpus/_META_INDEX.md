@@ -9,3 +9,6 @@ lane: EXAMPLE_COMMON_ERROR_CORPUS
 
 If a CE payload includes `feedback_loop`, keep only a compact state hint in
 this index, such as `feedback_loop: pending` or `feedback_loop: matched`.
+Use `feedback_loop_profile: index_hint` for ordinary lookup, `record_candidate`
+for compact writes, `prevention_review` for selected prevention payloads, and
+`explicit_cycle` only when explicitly requested.

@@ -15,6 +15,7 @@ risk_level
 semantic_ambiguity
 module_need
 skill_lifecycle_profile
+feedback_loop_profile
 memory_need
 hybrid_retrieval_profile
 memory_mode
@@ -42,6 +43,7 @@ Field meanings:
 | `semantic_ambiguity` | Mark terms that could mean multiple actions, such as update, record, publish, call, route, memory, or skill. |
 | `module_need` | Decide whether to use no module, project router, semantic anchors, skill matrix, memory meta index, conversation memory index, static knowledge index, external research gate, claim verifier, or runtime hard gate. |
 | `skill_lifecycle_profile` | Decide whether selected skill work stays listing-only, opens an active frame, requires a release receipt, or reactivates from a previous receipt. |
+| `feedback_loop_profile` | Decide the feedback-loop depth without replacing risk, external, claim, record, memory-isolation, or gate-union decisions. |
 | `memory_need` | Decide whether memory is unnecessary, meta-only, index-only, capsule-level, paired ERR/SOL retrieval, common error corpus, or conversation state. |
 | `hybrid_retrieval_profile` | Decide whether memory lookup stays unused, uses the normal meta-first surface, or must add the hybrid lexical/original-language enhancement over the already bounded candidate set. |
 | `memory_mode` | Decide whether memory should be skipped, read, written, or updated. |
@@ -87,6 +89,27 @@ Allowed values:
 | `reactivate_from_receipt` | Resume by rereading current skill source files from the receipt's `resume_entry`, not by trusting stale compressed fragments. |
 
 See [skill-lifecycle-contract.md](skill-lifecycle-contract.md).
+
+## Feedback Loop Profile
+
+`feedback_loop_profile` controls only the memory -> prediction ->
+verification -> calibration loop. It is not a risk level and does not replace
+`required_gates`; multiple gates still combine by union.
+
+Allowed values:
+
+| Value | Meaning |
+| --- | --- |
+| `none` | No feedback-loop work is selected. |
+| `index_hint` | A reusable-error corpus may be relevant, but only a compact index hint should be exposed. |
+| `record_candidate` | The task may write a compact CE candidate after verification; do not run the full loop just because a record is being created. |
+| `prevention_review` | A selected CE, ERR/SOL, capsule, or decision record should actively prevent recurrence; run the loop over the selected payload only. |
+| `explicit_cycle` | The user or task explicitly asks for memory -> prediction -> verification -> calibration; full loop review is allowed within normal evidence and memory budgets. |
+
+This profile exists to prevent the loop from becoming a token sink. A common
+error mention can set `index_hint`; explicit recording can set
+`record_candidate`; only prevention wording or selected prevention memory should
+set `prevention_review`.
 
 ## Memory Retrieval And Write Profiles
 
@@ -198,12 +221,14 @@ decision record has a `feedback_loop` or recurrence-prevention role, the agent
 should apply the loop without waiting for the user to request prediction. User
 corrections and explicit requests still force the same gate.
 
-For common-error records, distinguish retrieval from write intent. A phrase such
-as "read/check/use the common error record" should select
-`memory_need: common_error_corpus`, `memory_mode: read`, and
-`feedback_loop_gate`. It must not become a durable CE write unless the task also
-has explicit record/write intent or a later post-tool capture has a fixed,
-verified issue to store.
+For common-error records, distinguish lookup, prevention, and write intent.
+Reading a record should select `memory_need: common_error_corpus`,
+`memory_mode: read`, and `feedback_loop_profile: index_hint`. Prevention wording
+or a selected prevention record may add `feedback_loop_gate` with
+`feedback_loop_profile: prevention_review`. Durable CE writes require explicit
+record/write intent or a verified post-tool issue capture and should use
+`feedback_loop_profile: record_candidate` unless a full cycle was explicitly
+requested.
 
 Do not trigger it for ordinary chat, one-off notes, static manuals, or task
 states that are not meant to shape future behavior. The feedback loop and the
@@ -290,6 +315,37 @@ needed public docs, README, policy, router, adapter, test, or framework-behavior
 change, the next action must be reclassified as R3 before editing. Do not solve
 this by promoting every self-check to R3; the promotion is tied to the selected
 edit path.
+
+## Debt Hygiene Gate
+
+Use `debt_hygiene_gate` when self-check confirms substantial memory pollution,
+target pollution, dirty-tree debt, or accumulated technical debt in the current
+project or long conversation. This gate is a cleanup discipline, not a mandate
+to clear every debt item immediately.
+
+Execution order:
+
+```text
+inventory
+-> group by surface and urgency
+-> clean must-clean-now items
+-> defer acceptable items as candidate_technical_debt
+-> list candidate debt in the next cleanup review
+```
+
+Definitions:
+
+| Term | Meaning |
+| --- | --- |
+| `memory_pollution` | Durable memory, ledger, or capsule content is in the wrong lane, wrong scope, or carries stale/overbroad meaning. |
+| `target_pollution` | Public docs, local rules, adapter files, or project surfaces contain content meant for another audience or lane. |
+| `dirty_tree_debt` | The worktree contains unrelated or partially finished changes that obscure the current task boundary. |
+| `technical_debt` | Known design, test, implementation, or documentation debt. It can remain when bounded and marked. |
+| `candidate_technical_debt` | Deferred debt with owner/surface, reason for deferral, next-review trigger, and cleanup condition. |
+
+Do not use this gate to authorize destructive cleanup. Deleting, resetting,
+archiving, or rewriting still follows the normal R5, archive, and local-patch
+rules.
 
 ## Trigger Promotion Gate
 

@@ -26,7 +26,7 @@ routing receipt
 -> selective runtime hard gate only for critical risks
 ```
 
-Routing receipt fields: task type, target surface, audience, active lane, risk level, semantic ambiguity, module need, memory need, memory mode, memory lane, record intent, external need, claim risk, projectization decision, conversation memory decision, link intent, receipt profile, and required gates.
+Routing receipt fields: task type, target surface, audience, active lane, risk level, semantic ambiguity, module need, skill lifecycle profile, feedback loop profile, memory need, memory mode, memory lane, record intent, external need, claim risk, projectization decision, conversation memory decision, link intent, receipt profile, and required gates.
 
 For projectless long-running conversations, also decide `conversation_memory_decision`. Use a conversation memory lane only when the user explicitly asks for a checkpoint or durable long-chat signals accumulate. Conversation memory is isolated by conversation/thread id, is not project memory, and is not global memory. If the user explicitly asks a new conversation to continue a previous conversation and create or update current-conversation memory, create or update the current conversation lane and add a continuation link to the previous memory; do not write new payloads back into the old lane unless merge, backfill, or archive is explicitly requested.
 
@@ -37,6 +37,14 @@ Use the action-relevant rule: if a field will not change the next action, do not
 Re-evaluation is required after trigger events: new evidence, missing files, tool errors, scope changes, user corrections, cross-project terminology, currentness/version claims, GitHub/open-source mechanism intake, risk/cost escalation, broad observation-scope claims, strong claims, R5 actions, or memory writes.
 
 Final boundary check must verify claim scope, causal-attribution scope, memory scope, unresolved verification debt, and whether version metadata or paired ERR/SOL records need updates.
+
+If self-check shows substantial memory pollution, target pollution, dirty-tree
+debt, or accumulated technical debt in the current project or long conversation,
+run a debt hygiene pass before continuing broad edits: inventory and group the
+issues, separate must-clean-now items from deferrable debt, clean only the
+current required set, and mark deferred items as `candidate_technical_debt` for
+review during the next cleanup. Technical debt does not need to be zeroed out;
+it needs an explicit boundary and revisit marker.
 
 Use the causal attribution gate during final or draft-final review when text makes high-risk causal, stability, definition, or generalization assertions. This gate is not triggered by ordinary local reasoning with words such as because/therefore. It fires only for stronger assertion patterns such as abstract system/framework/mechanism subject plus causal predicate plus global effect, time-range plus stability assertion, single-sample/case wording plus generalization, or origin/path wording mixed into a mechanism definition. Classify such statements as one of four epistemic levels: `mechanism_property`, `empirical_record`, `causal_hypothesis`, or `validated_causality`. `empirical_record` must keep scope and sample boundaries; `causal_hypothesis` must be marked as a hypothesis; `validated_causality` requires controls or repeatable evidence. Information visibility and release eligibility stay in the public/private boundary gate, not in the causal attribution gate.
 

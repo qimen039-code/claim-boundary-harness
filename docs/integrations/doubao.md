@@ -182,9 +182,9 @@ Before calling a Doubao-style deployment successful, verify:
   matching only as an enhancement over bounded fact/hypothesis candidates;
 - durable fact or hypothesis writes are context-complete and avoid orphan
   fragments before derived reuse;
-- selected reusable records with `feedback_loop` apply the memory -> prediction
-  -> verification -> calibration loop, while predictions remain hypotheses
-  until later evidence verifies them;
+- selected reusable records with `feedback_loop` use `feedback_loop_profile`
+  to keep lookup and record candidates compact, and only apply memory ->
+  prediction -> verification -> calibration for prevention or explicit cycles;
 - Windows consoles use UTF-8 output or the scripts avoid emoji status output;
 - normal-output and boundary-output examples demonstrate a meaningful behavior
   difference;

@@ -555,6 +555,16 @@ if ($scopeReassessmentHits.Count -gt 0) {
   $semanticAmbiguity += @("composite_or_scope_reassessment")
   $requiredGates += "scope_reassessment_gate"
 }
+$debtHygieneTriggers = $policy.router_decision_contract.debt_hygiene_triggers
+if ($null -eq $debtHygieneTriggers) {
+  $debtHygieneTriggers = @("technical debt", "dirty tree debt", "memory pollution", "target pollution", "cleanup grouping", "技术债", "候选技术债", "脏树债", "记忆污染", "目标污染", "清查分组", "整理清理")
+}
+$debtHygieneHits = Get-MatchedTriggers $debtHygieneTriggers
+if ($debtHygieneHits.Count -gt 0) {
+  $semanticAmbiguity += @("debt_hygiene_required")
+  $requiredGates += "debt_hygiene_gate"
+  $matchedRiskTriggers["debt_hygiene"] = @($debtHygieneHits)
+}
 $observationScopeTriggers = $policy.router_decision_contract.observation_scope_triggers
 $observationScopeHits = Get-MatchedTriggers $observationScopeTriggers
 if ($observationScopeHits.Count -gt 0) {
@@ -564,10 +574,12 @@ if ($observationScopeHits.Count -gt 0) {
 }
 $feedbackLoopTriggers = $policy.router_decision_contract.feedback_loop_triggers
 $feedbackLoopHits = Get-MatchedTriggers $feedbackLoopTriggers
+$feedbackLoopProfile = "none"
 if ($feedbackLoopHits.Count -gt 0) {
   $semanticAmbiguity += @("feedback_loop_required")
   $requiredGates += "feedback_loop_gate"
   $matchedRiskTriggers["feedback_loop"] = @($feedbackLoopHits)
+  $feedbackLoopProfile = "explicit_cycle"
 }
 if ($triggeredRisks -contains "R3") {
   $semanticAmbiguity += @("governance_or_change_surface")
@@ -621,6 +633,9 @@ if ($pairedMemoryHits.Count -gt 0) {
   $semanticAmbiguity += @("feedback_loop_required")
   $requiredGates += "feedback_loop_gate"
   $matchedRiskTriggers["feedback_loop_memory"] = @($pairedMemoryHits)
+  if ($feedbackLoopProfile -ne "explicit_cycle") {
+    $feedbackLoopProfile = "prevention_review"
+  }
 }
 if ($staticKnowledgeHits.Count -gt 0) {
   $requiredGates += "static_knowledge_index_gate"
@@ -634,12 +649,17 @@ $commonErrorTriggers = $policy.router_decision_contract.common_error_triggers
 if ($null -eq $commonErrorTriggers) {
   $commonErrorTriggers = @("common error", "common mistake", "field error", "schema error", "function call error", "tool call error", "semantic error", "patch context", "apply_patch context", "wildcard error", "quoting error")
 }
+$commonErrorPreventionTriggers = $policy.router_decision_contract.common_error_prevention_triggers
+if ($null -eq $commonErrorPreventionTriggers) {
+  $commonErrorPreventionTriggers = @("prevention", "prevent recurrence", "avoid recurrence", "use prevention", "continue diagnosis", "预防", "避免复发", "继续排查")
+}
 $projectizationTriggers = $policy.router_decision_contract.projectization_signals
 if ($null -eq $projectizationTriggers) {
   $projectizationTriggers = @("version", "VERSION", "CHANGELOG", "README", "repository", "repo", "GitHub", "release", "tests", "adapter", "policy", "runtime", "docs", "template")
 }
 $explicitRecordHits = Get-MatchedTriggers $explicitRecordTriggers
 $commonErrorHits = Get-MatchedTriggers $commonErrorTriggers
+$commonErrorPreventionHits = Get-MatchedTriggers $commonErrorPreventionTriggers
 $commonErrorWriteIntent = (($commonErrorHits.Count -gt 0) -and ($explicitRecordHits.Count -gt 0))
 $r5DecisionForMemoryIntent = $null
 if ($risk_context_decisions.Contains("R5")) {
@@ -651,9 +671,24 @@ if (($null -ne $r5DecisionForMemoryIntent) -and ((Get-ObjectPropertyValue $r5Dec
 }
 $explicitLongTermMemoryWriteIntent = (($r5CandidatesForMemoryIntent | Where-Object { ([string]$_) -in @("write memory", "写入记忆") }).Count -gt 0)
 if ($commonErrorHits.Count -gt 0) {
-  $semanticAmbiguity += @("feedback_loop_required")
-  $requiredGates += "feedback_loop_gate"
-  $matchedRiskTriggers["feedback_loop_common_error"] = @($commonErrorHits)
+  if ($commonErrorWriteIntent) {
+    if ($feedbackLoopProfile -eq "none") {
+      $feedbackLoopProfile = "record_candidate"
+    }
+    $matchedRiskTriggers["common_error_candidate"] = @($commonErrorHits)
+  } elseif ($commonErrorPreventionHits.Count -gt 0) {
+    $semanticAmbiguity += @("feedback_loop_required")
+    $requiredGates += "feedback_loop_gate"
+    $matchedRiskTriggers["feedback_loop_common_error"] = @($commonErrorHits)
+    if ($feedbackLoopProfile -ne "explicit_cycle") {
+      $feedbackLoopProfile = "prevention_review"
+    }
+  } else {
+    if ($feedbackLoopProfile -eq "none") {
+      $feedbackLoopProfile = "index_hint"
+    }
+    $matchedRiskTriggers["common_error_index_hint"] = @($commonErrorHits)
+  }
 }
 $semanticAmbiguity = @($semanticAmbiguity | Select-Object -Unique)
 $conversationExplicitTriggers = $policy.router_decision_contract.conversation_memory_explicit_triggers
@@ -934,6 +969,7 @@ if (($requiredSkills.Count -gt 0) -or ($targetSurface -eq "skill_matrix") -or ($
 if ($semanticAmbiguity.Count -gt 0) { $moduleNeed += "semantic_anchors" }
 if ($memoryNeed -ne "none") { $moduleNeed += "memory_meta_index" }
 if ($staticKnowledgeHits.Count -gt 0) { $moduleNeed += "static_knowledge_index" }
+if ($debtHygieneHits.Count -gt 0) { $moduleNeed += "debt_hygiene_gate" }
 if ($targetSurface -eq "conversation_ledger") { $moduleNeed += "conversation_ledger_index" }
 if ($conversationMemoryDecision -ne "none") { $moduleNeed += "conversation_memory_index" }
 if ($linkIntent -ne "none") { $moduleNeed += "memory_link_ledger" }
@@ -991,6 +1027,7 @@ $routingReceipt = [ordered]@{
   semantic_ambiguity = @($semanticAmbiguity)
   module_need = @($moduleNeed)
   skill_lifecycle_profile = $skillLifecycleProfile
+  feedback_loop_profile = $feedbackLoopProfile
   memory_need = $memoryNeed
   hybrid_retrieval_profile = $hybridRetrievalProfile
   memory_mode = $memoryMode
@@ -1015,6 +1052,7 @@ $compactReceipt = [ordered]@{
   risk_level = $risk
   required_gates = @($requiredGates | Select-Object -Unique)
   skill_lifecycle_profile = $skillLifecycleProfile
+  feedback_loop_profile = $feedbackLoopProfile
   memory_mode = $memoryMode
   hybrid_retrieval_profile = $hybridRetrievalProfile
   memory_write_profile = $memoryWriteProfile
@@ -1043,6 +1081,7 @@ $result = [ordered]@{
   semantic_ambiguity = @($semanticAmbiguity)
   module_need = @($moduleNeed)
   skill_lifecycle_profile = $skillLifecycleProfile
+  feedback_loop_profile = $feedbackLoopProfile
   memory_need = $memoryNeed
   hybrid_retrieval_profile = $hybridRetrievalProfile
   memory_mode = $memoryMode

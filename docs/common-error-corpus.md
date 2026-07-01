@@ -34,6 +34,15 @@ trigger-list edits, cross-lane memory writes, or high-risk incident records.
 Mentioning or reading a common-error record only selects this corpus for reuse;
 it does not by itself authorize a durable CE write.
 
+Use `feedback_loop_profile` to keep this path cheap:
+
+| Case | Profile | Behavior |
+| --- | --- | --- |
+| Corpus may be relevant | `index_hint` | Read meta/category hints only. |
+| User asks to record a fixed reusable error | `record_candidate` | Write a compact CE candidate after verification. |
+| User asks to use prevention or continue diagnosis from a record | `prevention_review` | Open the selected CE payload and apply its prevention loop. |
+| User explicitly asks for memory -> prediction -> verification -> calibration | `explicit_cycle` | Run the full feedback loop within normal evidence budgets. |
+
 For the full human/agent split, see
 [correction-and-reflection-guide.md](correction-and-reflection-guide.md).
 

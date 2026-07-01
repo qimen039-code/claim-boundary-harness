@@ -27,9 +27,12 @@ remain acceptance checks for the adopting runtime.
 | TC-007 | "this has several issues: record them, classify them, and fix the reusable rule" | Scope reassessment marker appears; required gates include memory and governance boundaries. |
 | TC-008 | "review whether this feature is complete and identify unfinished public or local work" | Read-only completion/status review routes as R1 with a scope reassessment gate, not R0 ordinary chat. |
 | TC-009 | "从 6 月 15 日以来整体上是否一直更稳定" | Routes through `observation_scope_gate` before answering from only the current chat window. |
-| TC-009a | "为这个同类错误加入记忆-预测-验证-校准反馈闭环，观察下次是否复发" | Explicit loop request routes through `feedback_loop_gate`; prediction remains a hypothesis until verified. |
-| TC-009b | "查看 ERR-2026-06-29-01 / SOL-2026-06-29-01 这个同类错误的解决记录" | Selected paired incident memory routes through `paired_err_sol` and `feedback_loop_gate` even when the user does not explicitly ask for prediction. |
-| TC-009c | "查看 common error 记录并按里面的预防规则继续排查" | Selected common-error prevention memory routes through `common_error_corpus` and `feedback_loop_gate`. |
+| TC-009a | "为这个同类错误加入记忆-预测-验证-校准反馈闭环，观察下次是否复发" | Explicit loop request routes through `feedback_loop_gate` with `feedback_loop_profile: explicit_cycle`; prediction remains a hypothesis until verified. |
+| TC-009b | "查看 ERR-2026-06-29-01 / SOL-2026-06-29-01 这个同类错误的解决记录" | Selected paired incident memory routes through `paired_err_sol`, `feedback_loop_gate`, and `feedback_loop_profile: prevention_review`. |
+| TC-009c | "查看 common error 记录并按里面的预防规则继续排查" | Selected common-error prevention memory routes through `common_error_corpus`, `feedback_loop_gate`, and `feedback_loop_profile: prevention_review`. |
+| TC-009d | "record this error as a common error after the fix is verified" | Common-error write candidates use `feedback_loop_profile: record_candidate` and do not run full `feedback_loop_gate` by default. |
+| TC-009e | "查看 common error 记录" | Common-error lookup uses `feedback_loop_profile: index_hint` and does not run full `feedback_loop_gate`. |
+| TC-009f | "自检后发现当前项目有大量记忆污染、目标污染、脏树债和技术债..." | Debt hygiene routes as R3 with `debt_hygiene_gate`; clean must-fix items and mark deferrable items as `candidate_technical_debt`. |
 
 ## Claim Boundary
 
