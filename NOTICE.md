@@ -1,0 +1,40 @@
+# Notice And Attribution
+
+Claim Boundary Harness (CBH) is maintained at:
+
+https://github.com/qimen039-code/claim-boundary-harness
+
+Copyright (c) 2026 qimen039-code.
+
+The repository code is licensed under the MIT License. The license permits use,
+modification, distribution, sublicensing, and sale, provided that the copyright
+notice and permission notice are retained in copies or substantial portions of
+the software. The `LICENSE` file is the controlling license text.
+
+If you use, adapt, evaluate, cite, or productize this framework, retain the
+license notice and cite the project using `CITATION.cff` when practical.
+
+Recommended short attribution:
+
+> Based on or adapted from Claim Boundary Harness (CBH),
+> https://github.com/qimen039-code/claim-boundary-harness.
+
+## Project Contribution Boundary
+
+CBH's contribution is the composed governance contract around agent workflows:
+claim verification, memory continuity, risk routing, correction accumulation,
+bounded retrieval and reading, selective runtime gates, and adapter-boundary
+documentation. It is a framework and reference implementation, not a claim that
+all underlying ideas were invented here.
+
+Public influences, established engineering patterns, and non-adopted boundaries
+are listed in `docs/influences-and-attribution.md` and `CREDITS.toml`. Those
+records are part of the attribution boundary and should be preserved when the
+framework is discussed, forked, or adapted.
+
+## Publication Boundary
+
+The technical report draft in
+`docs/articles/claim-boundary-harness-technical-report.md` is a draft artifact.
+It is not a peer-reviewed publication and should not be described as an arXiv
+submission unless it has actually been submitted and assigned an arXiv record.

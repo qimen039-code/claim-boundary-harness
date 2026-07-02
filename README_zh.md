@@ -8,7 +8,12 @@ Claim Boundary Harness（CBH）是一套面向 agent 工作流的外部认知治
 harness。它把声明验证、记忆连续性、风险路由、纠错沉淀和客户端适配契约
 组合成结构性约束，而不是再写一段普通提示词。
 
-当前版本：`v0.18.3`
+当前版本：`v0.19.0`
+
+引用与署名：如果你在研究、工具、产品或评测中使用、改编或讨论 CBH，请优先使用
+`CITATION.cff` 引用本仓库，并保留 `NOTICE.md` 与 MIT license notice。可继续打磨的
+arXiv 技术报告草稿在
+[docs/articles/claim-boundary-harness-technical-report.md](docs/articles/claim-boundary-harness-technical-report.md)。
 
 CBH 的目标不是替换大模型、训练新模型，或把所有任务都塞进沉重的记忆后端。
 它的设计杠杆很小：先路由，再只打开必要的记忆、证据窗口或工具边界；保留
@@ -270,6 +275,8 @@ python -m unittest discover -s integrations/workbuddy-python-runtime/tests
 - [docs/common-issues-and-solutions.md](docs/common-issues-and-solutions.md)
 - [docs/deployment-risk-patterns.md](docs/deployment-risk-patterns.md)
 - [docs/influences-and-attribution.md](docs/influences-and-attribution.md)
+- [docs/articles/claim-boundary-harness-technical-report.md](docs/articles/claim-boundary-harness-technical-report.md)
+- [CITATION.cff](CITATION.cff)、[NOTICE.md](NOTICE.md)
 - [docs/reproduction.md](docs/reproduction.md)
 - [docs/integrations/codex.md](docs/integrations/codex.md)
 - [docs/integrations/workbuddy.md](docs/integrations/workbuddy.md)

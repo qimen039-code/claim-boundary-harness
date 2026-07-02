@@ -6,6 +6,13 @@ This project uses `vMAJOR.MINOR.PATCH` version labels while the framework is sti
 
 ## Unreleased
 
+## v0.19.0 - 2026-07-02
+
+- Added `CITATION.cff`, `NOTICE.md`, and a clearer MIT copyright holder so reused or adapted CBH work has a public citation and attribution path.
+- Added an academic-style technical report draft for possible arXiv submission, with explicit evidence limits, adaptation boundaries, and non-claims.
+- Linked citation, attribution, and provenance guidance from the English and Chinese README files without turning the README into a legal or marketing page.
+- Added documentation-contract checks so citation metadata, attribution notice, report draft, and version labels stay visible.
+
 ## v0.18.3 - 2026-07-02
 
 - Reclassified the Doubao client status: the inspected desktop client did not load the prepared `claim-boundary-harness` native skill in a later new chat, and did not expose the host-owned `sync_skill_folder_to_cloud_disk` registration path.

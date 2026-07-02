@@ -45,12 +45,47 @@ def test_bilingual_readme_and_local_overlay_template_are_present() -> None:
 
     assert "[中文版](./README_zh.md) | English" in readme
     assert "[English](./README.md) | 中文" in readme_zh
-    assert "v0.18.3" in readme
-    assert "v0.18.3" in readme_zh
+    assert "v0.19.0" in readme
+    assert "v0.19.0" in readme_zh
     assert overlay["schema"] == "cbh.project_lane_overlay.v1"
     assert policy["local_project_lane_overlay"]["default_filename"] == "embedded_harness_policy.local.json"
     assert "embedded_harness_policy.local.json" in readme
     assert "CBH_PROJECT_LANES_FILE" in readme_zh
+
+
+def test_citation_notice_and_technical_report_are_visible() -> None:
+    required_files = [
+        "CITATION.cff",
+        "NOTICE.md",
+        "docs/articles/claim-boundary-harness-technical-report.md",
+    ]
+    for relative in required_files:
+        assert (ROOT / relative).is_file(), relative
+
+    readme = read_text("README.md")
+    readme_zh = read_text("README_zh.md")
+    citation = read_text("CITATION.cff")
+    notice = read_text("NOTICE.md")
+    license_text = read_text("LICENSE")
+    report = read_text("docs/articles/claim-boundary-harness-technical-report.md")
+    changelog = read_text("CHANGELOG.md")
+    manifest = json.loads(read_text("templates/adapter-contract/compatibility.manifest.json"))
+
+    assert "CITATION.cff" in readme
+    assert "NOTICE.md" in readme
+    assert "claim-boundary-harness-technical-report.md" in readme
+    assert "CITATION.cff" in readme_zh
+    assert "NOTICE.md" in readme_zh
+    assert "title: \"Claim Boundary Harness: External Cognition Governance for Agent Workflows\"" in citation
+    assert "qimen039-code" in citation
+    assert "version: \"0.19.0\"" in citation
+    assert "Recommended short attribution" in notice
+    assert "not a peer-reviewed publication" in notice
+    assert "Copyright (c) 2026 qimen039-code" in license_text
+    assert "Draft technical report for possible arXiv submission." in report
+    assert "not as a completed benchmark result" in report
+    assert "## v0.19.0 - 2026-07-02" in changelog
+    assert manifest["harness_version"] == "v0.19.0"
 
 
 def test_memory_feedback_loop_trial_is_optional_and_template_visible() -> None:

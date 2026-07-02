@@ -9,7 +9,12 @@ agent workflows. It provides claim verification, memory continuity, risk
 routing, correction accumulation, and adapter contracts as structural
 enforcement, not advisory prompts.
 
-Current version: `v0.18.3`
+Current version: `v0.19.0`
+
+Citation and attribution: if you use, adapt, evaluate, or productize CBH,
+please cite this repository with `CITATION.cff` and retain `NOTICE.md` plus the
+MIT license notice. The draft technical report is
+[docs/articles/claim-boundary-harness-technical-report.md](docs/articles/claim-boundary-harness-technical-report.md).
 
 The project exists to make capable agents more reliable without replacing the
 model, training a new model, or forcing every task through a heavy memory
@@ -63,6 +68,7 @@ Fast paths:
 | See the architecture | [Architecture At A Glance](#architecture-at-a-glance) |
 | Install or adapt | [Quick Start](#quick-start), [docs/adoption.md](docs/adoption.md) |
 | Validate behavior | [docs/test-cases.md](docs/test-cases.md), [docs/reproduction.md](docs/reproduction.md) |
+| Cite or review provenance | [CITATION.cff](CITATION.cff), [NOTICE.md](NOTICE.md), [docs/influences-and-attribution.md](docs/influences-and-attribution.md) |
 | Runtime troubleshooting | [docs/deployment-risk-patterns.md](docs/deployment-risk-patterns.md), [docs/integrations](docs/integrations) |
 
 ## Capability Map
@@ -150,8 +156,9 @@ those slices into one low-cost contract:
   concrete tool event passes, so the same permit cannot be replayed.
 
 Some mechanisms are adapted from public projects and established engineering
-patterns. See [docs/influences-and-attribution.md](docs/influences-and-attribution.md)
-and `CREDITS.toml`.
+patterns. See [NOTICE.md](NOTICE.md),
+[docs/influences-and-attribution.md](docs/influences-and-attribution.md),
+`CREDITS.toml`, and `CITATION.cff`.
 
 ## Memory Lanes Without Memory Bleed
 
@@ -325,8 +332,11 @@ unbounded context growth.
 ```text
 .
 +-- AGENTS.md
++-- CITATION.cff
 +-- CREDITS.toml
 +-- CHANGELOG.md
++-- LICENSE
++-- NOTICE.md
 +-- PROJECT_SKILL_MATRIX_REGISTRY.md
 +-- README_zh.md
 +-- VERSION
@@ -336,6 +346,8 @@ unbounded context growth.
 +-- docs/
 |   +-- adoption.md
 |   +-- architecture.md
+|   +-- articles/
+|       +-- claim-boundary-harness-technical-report.md
 |   +-- examples.md
 |   +-- influences-and-attribution.md
 |   +-- skillopt-runtime.md
@@ -512,6 +524,7 @@ The package includes synthetic examples that show the intended record shapes wit
 - [examples/memory-library-demo/_META_INDEX.md](examples/memory-library-demo/_META_INDEX.md): layered memory library demo using meta index, category indexes, capsule status, and supersession.
 - [docs/router-decision-contract.md](docs/router-decision-contract.md): router and dynamic decision receipt contract.
 - [docs/articles/claim-boundary-harness-design.md](docs/articles/claim-boundary-harness-design.md): design note covering claim boundaries, meta-first routing, memory lanes, runtime enforcement limits, deployment pitfalls, and reproduction scope.
+- [docs/articles/claim-boundary-harness-technical-report.md](docs/articles/claim-boundary-harness-technical-report.md): academic-style technical report draft for possible arXiv submission; it is not a submitted or peer-reviewed paper.
 - [docs/declarative-governance-contract.md](docs/declarative-governance-contract.md): small adapter governance contract for stages, denial semantics, payload safety, and cost boundaries.
 - [docs/version-compatibility-management.md](docs/version-compatibility-management.md): runtime/client compatibility manifest and drift response rules.
 - [docs/memory-routing-contract.md](docs/memory-routing-contract.md): memory mode, memory lane, record intent, and projectization drift contract.
@@ -528,6 +541,7 @@ The package includes synthetic examples that show the intended record shapes wit
 - [docs/common-issues-and-solutions.md](docs/common-issues-and-solutions.md): reusable issue classes and applied solutions from adaptation, release, and CI work.
 - [docs/skillopt-runtime.md](docs/skillopt-runtime.md): optional external SkillOpt-style candidate-edit runner and gate workflow.
 - [docs/influences-and-attribution.md](docs/influences-and-attribution.md): public GitHub and engineering-pattern influences versus project contributions.
+- [CITATION.cff](CITATION.cff) and [NOTICE.md](NOTICE.md): recommended citation metadata, attribution wording, and publication boundary.
 - [docs/test-cases.md](docs/test-cases.md): acceptance cases for adopters to run against their own runtime.
 - [docs/conversation-memory-lane.md](docs/conversation-memory-lane.md): isolated memory lane for long-running projectless conversations.
 - [docs/conversation-ledger-contract.md](docs/conversation-ledger-contract.md): derived raw-session ledger with session, turn, segment, time-anchor, evidence-ref, and link records.
