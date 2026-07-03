@@ -34,7 +34,7 @@ framework is discussed, forked, or adapted.
 
 ## Publication Boundary
 
-The technical report draft in
-`docs/articles/claim-boundary-harness-technical-report.md` is a draft artifact.
-It is not a peer-reviewed publication and should not be described as an arXiv
-submission unless it has actually been submitted and assigned an arXiv record.
+This repository should not be described as having an arXiv paper unless a
+submitted arXiv record exists. Working drafts for publication preparation may
+exist outside the public repository and are not part of this package unless
+explicitly added later.

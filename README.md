@@ -9,12 +9,11 @@ agent workflows. It provides claim verification, memory continuity, risk
 routing, correction accumulation, and adapter contracts as structural
 enforcement, not advisory prompts.
 
-Current version: `v0.19.0`
+Current version: `v0.19.1`
 
 Citation and attribution: if you use, adapt, evaluate, or productize CBH,
 please cite this repository with `CITATION.cff` and retain `NOTICE.md` plus the
-MIT license notice. The draft technical report is
-[docs/articles/claim-boundary-harness-technical-report.md](docs/articles/claim-boundary-harness-technical-report.md).
+MIT license notice.
 
 The project exists to make capable agents more reliable without replacing the
 model, training a new model, or forcing every task through a heavy memory
@@ -347,7 +346,7 @@ unbounded context growth.
 |   +-- adoption.md
 |   +-- architecture.md
 |   +-- articles/
-|       +-- claim-boundary-harness-technical-report.md
+|       +-- claim-boundary-harness-design.md
 |   +-- examples.md
 |   +-- influences-and-attribution.md
 |   +-- skillopt-runtime.md
@@ -524,7 +523,6 @@ The package includes synthetic examples that show the intended record shapes wit
 - [examples/memory-library-demo/_META_INDEX.md](examples/memory-library-demo/_META_INDEX.md): layered memory library demo using meta index, category indexes, capsule status, and supersession.
 - [docs/router-decision-contract.md](docs/router-decision-contract.md): router and dynamic decision receipt contract.
 - [docs/articles/claim-boundary-harness-design.md](docs/articles/claim-boundary-harness-design.md): design note covering claim boundaries, meta-first routing, memory lanes, runtime enforcement limits, deployment pitfalls, and reproduction scope.
-- [docs/articles/claim-boundary-harness-technical-report.md](docs/articles/claim-boundary-harness-technical-report.md): academic-style technical report draft for possible arXiv submission; it is not a submitted or peer-reviewed paper.
 - [docs/declarative-governance-contract.md](docs/declarative-governance-contract.md): small adapter governance contract for stages, denial semantics, payload safety, and cost boundaries.
 - [docs/version-compatibility-management.md](docs/version-compatibility-management.md): runtime/client compatibility manifest and drift response rules.
 - [docs/memory-routing-contract.md](docs/memory-routing-contract.md): memory mode, memory lane, record intent, and projectization drift contract.

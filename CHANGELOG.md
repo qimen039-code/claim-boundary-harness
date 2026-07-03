@@ -6,12 +6,16 @@ This project uses `vMAJOR.MINOR.PATCH` version labels while the framework is sti
 
 ## Unreleased
 
+## v0.19.1 - 2026-07-03
+
+- Removed the public arXiv technical report draft from the repository surface; publication drafts should stay outside the public package until intentionally released.
+- Updated version metadata for an arXiv-preparation artifact freeze that keeps citation and attribution files public while keeping manuscript drafts local until release.
+
 ## v0.19.0 - 2026-07-02
 
 - Added `CITATION.cff`, `NOTICE.md`, and a clearer MIT copyright holder so reused or adapted CBH work has a public citation and attribution path.
-- Added an academic-style technical report draft for possible arXiv submission, with explicit evidence limits, adaptation boundaries, and non-claims.
 - Linked citation, attribution, and provenance guidance from the English and Chinese README files without turning the README into a legal or marketing page.
-- Added documentation-contract checks so citation metadata, attribution notice, report draft, and version labels stay visible.
+- Added documentation-contract checks so citation metadata, attribution notice, and version labels stay visible.
 
 ## v0.18.3 - 2026-07-02
 
