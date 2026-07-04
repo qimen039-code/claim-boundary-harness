@@ -80,6 +80,7 @@ Most adopters should aim for L1 plus L2. Do not try to wrap every tool call unti
 | DEP-027 | A product-specific guide exists, but the installed client behaves differently | The guide is a reference mapping, not completed validation for that client version | Build a compatibility manifest from the actual client and run local acceptance tests | Do not claim hard enforcement until the installed client blocks a disposable high-risk action before execution |
 | DEP-028 | Memory retrieval returns a plausible paragraph with no metadata | The retrieval backend or memory tool returns text snippets without source, provenance, belief status, or score-method fields | Require returned memories to include these fields before the agent can use them as reusable context: `source_tag` `derived_from` `belief_status` `confidence` `score_method` | A retrieved snippet without those fields is treated as unbounded context, not validated memory |
 | DEP-029 | A shared memory server improves recall but leaks context across projects | The backend is shared across agents but not lane-scoped before retrieval and writing | Add project, conversation, and global lane IDs at write time; filter by lane before payload retrieval; keep cross-lane reads explicit | A query from project A cannot retrieve project B payloads unless the user explicitly requested cross-project lookup |
+| DEP-030 | A Windows PowerShell command starts with Bash heredoc syntax such as `<<'PY'` | The agent generated a shell fragment before checking the actual executor dialect | Add an unconditional shell dialect preflight before multiline command generation; use PowerShell here-strings, temporary files, `-File`, or pipe-safe forms under PowerShell | A Python inline-script command generated for PowerShell contains no Bash heredoc syntax and succeeds without an initial syntax failure |
 
 ## Deployment Problem Examples And Solution Playbooks
 
@@ -332,7 +333,40 @@ Acceptance check:
 The validator, intake router, and runtime enforcer all parse the same policy file in the target shell.
 ```
 
-### Example 10: Client Update Silently Breaks The Adapter
+### Example 10: Windows PowerShell Receives Bash Heredoc Syntax
+
+Symptom:
+
+```text
+A command generated for Windows PowerShell starts with `<<'PY'` or another
+Bash heredoc form, then fails before the intended Python or script body runs.
+```
+
+Check:
+
+- Which shell will execute the command: PowerShell, cmd, Bash, POSIX sh, or an
+  agent-owned wrapper?
+- Does the generated command use syntax from a different shell dialect?
+- Is this a multiline or inline script where a temporary file or `-File` would
+  be safer?
+
+Solution path:
+
+1. Run shell dialect preflight before emitting multiline commands.
+2. Use Bash heredocs only for Bash or POSIX sh executors.
+3. Under Windows PowerShell, use here-strings, temporary files, `-File`, or
+   pipe-safe command forms.
+4. Treat this as an execution-layer rule; do not rely on memory or CE lookup to
+   remember the correction after the first failure.
+
+Acceptance check:
+
+```text
+The first generated PowerShell command for an inline Python/script body uses
+PowerShell-compatible syntax and does not fail once with Bash heredoc parsing.
+```
+
+### Example 11: Client Update Silently Breaks The Adapter
 
 Symptom:
 
@@ -360,7 +394,7 @@ Acceptance check:
 After the update, the same disposable blocked action is still stopped before execution.
 ```
 
-### Example 11: Memory Backend Returns Unbounded Context
+### Example 12: Memory Backend Returns Unbounded Context
 
 Symptom:
 
@@ -388,7 +422,7 @@ Acceptance check:
 The agent can explain whether a retrieved memory is raw observation, working memory, capsule, or archive, and whether it is source_prior, bounded_claim, local_validated, conflicted, or rejected.
 ```
 
-### Example 12: Claude Code Mapping Exists But Local Deployment Is Unverified
+### Example 13: Claude Code Mapping Exists But Local Deployment Is Unverified
 
 Symptom:
 

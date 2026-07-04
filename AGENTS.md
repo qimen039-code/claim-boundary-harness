@@ -214,3 +214,10 @@ Mark uncertainty directly. Do not convert prep artifacts, mocks, weak signals, t
 ## Execution Standard
 
 Read actual files and current state before editing. Before modifying files, state the files you will touch. Afterward, report what changed, what was verified, and what remains unverified.
+
+Before generating a multiline or inline script command, perform a shell dialect
+preflight against the actual executor. Use Bash heredoc syntax only when the
+target shell is Bash or POSIX sh. In Windows PowerShell, use here-strings,
+temporary files, `-File`, or pipe-safe command forms instead of Bash heredocs
+such as `<<'PY'`. This is an unconditional execution-layer rule, not a memory
+lookup or common-error recall path.

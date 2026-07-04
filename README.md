@@ -9,7 +9,7 @@ agent workflows. It provides claim verification, memory continuity, risk
 routing, correction accumulation, and adapter contracts as structural
 enforcement, not advisory prompts.
 
-Current version: `v0.19.1`
+Current version: `v0.19.2`
 
 Citation and attribution: if you use, adapt, evaluate, or productize CBH,
 please cite this repository with `CITATION.cff` and retain `NOTICE.md` plus the

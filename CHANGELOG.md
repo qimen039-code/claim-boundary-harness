@@ -6,6 +6,13 @@ This project uses `vMAJOR.MINOR.PATCH` version labels while the framework is sti
 
 ## Unreleased
 
+## v0.19.2 - 2026-07-04
+
+- Added a shell dialect preflight rule so Windows PowerShell command generation
+  does not start with Bash heredoc syntax before checking the actual executor.
+- Updated citation and compatibility metadata for the Zenodo DOI archive
+  snapshot release.
+
 ## v0.19.1 - 2026-07-03
 
 - Removed the public arXiv technical report draft from the repository surface; publication drafts should stay outside the public package until intentionally released.

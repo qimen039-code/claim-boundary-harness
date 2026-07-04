@@ -45,8 +45,8 @@ def test_bilingual_readme_and_local_overlay_template_are_present() -> None:
 
     assert "[中文版](./README_zh.md) | English" in readme
     assert "[English](./README.md) | 中文" in readme_zh
-    assert "v0.19.1" in readme
-    assert "v0.19.1" in readme_zh
+    assert "v0.19.2" in readme
+    assert "v0.19.2" in readme_zh
     assert overlay["schema"] == "cbh.project_lane_overlay.v1"
     assert policy["local_project_lane_overlay"]["default_filename"] == "embedded_harness_policy.local.json"
     assert "embedded_harness_policy.local.json" in readme
@@ -78,13 +78,13 @@ def test_citation_notice_are_visible_and_public_report_draft_is_absent() -> None
     assert "claim-boundary-harness-technical-report.md" not in readme_zh
     assert "title: \"Claim Boundary Harness: External Cognition Governance for Agent Workflows\"" in citation
     assert "qimen039-code" in citation
-    assert "version: \"0.19.1\"" in citation
+    assert "version: \"0.19.2\"" in citation
     assert "Recommended short attribution" in notice
     assert "submitted arXiv record exists" in notice
     assert "Copyright (c) 2026 qimen039-code" in license_text
     assert "Removed the public arXiv technical report draft" in changelog
-    assert "## v0.19.1 - 2026-07-03" in changelog
-    assert manifest["harness_version"] == "v0.19.1"
+    assert "## v0.19.2 - 2026-07-04" in changelog
+    assert manifest["harness_version"] == "v0.19.2"
 
 
 def test_memory_feedback_loop_trial_is_optional_and_template_visible() -> None:

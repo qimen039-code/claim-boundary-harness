@@ -94,6 +94,7 @@ remain acceptance checks for the adopting runtime.
 | TC-051 | Shell strips `$variable` in `-Command` | Put complex PowerShell logic in a `.ps1` file instead of inline shell strings. |
 | TC-052 | JSON quoting breaks through nested shells | Prefer file-based JSON handoff such as `-ClaimFile`. |
 | TC-053 | Script parameter drift | Read the script `param()` block or `--help` before writing tests. |
+| TC-054 | Windows PowerShell receives Bash heredoc syntax such as `<<'PY'` | Detect the actual shell before generating multiline commands; use PowerShell here-strings, temporary files, `-File`, or pipe-safe forms under PowerShell. |
 
 ## Periodic Skill Improvement
 
