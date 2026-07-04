@@ -3,6 +3,7 @@
 # Claim Boundary Harness
 
 [![Smoke checks](https://github.com/qimen039-code/claim-boundary-harness/actions/workflows/smoke.yml/badge.svg?branch=main)](https://github.com/qimen039-code/claim-boundary-harness/actions/workflows/smoke.yml)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.21189880.svg)](https://doi.org/10.5281/zenodo.21189880)
 
 Claim Boundary Harness (CBH) is an external cognition governance harness for
 agent workflows. It provides claim verification, memory continuity, risk
@@ -13,7 +14,8 @@ Current version: `v0.19.3`
 
 Citation and attribution: if you use, adapt, evaluate, or productize CBH,
 please cite this repository with `CITATION.cff` and retain `NOTICE.md` plus the
-MIT license notice.
+MIT license notice. The archived DOI is
+[10.5281/zenodo.21189880](https://doi.org/10.5281/zenodo.21189880).
 
 The project exists to make capable agents more reliable without replacing the
 model, training a new model, or forcing every task through a heavy memory

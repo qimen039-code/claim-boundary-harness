@@ -73,13 +73,18 @@ def test_citation_notice_are_visible_and_public_report_draft_is_absent() -> None
 
     assert "CITATION.cff" in readme
     assert "NOTICE.md" in readme
+    assert "10.5281/zenodo.21189880" in readme
+    assert "https://zenodo.org/badge/DOI/10.5281/zenodo.21189880.svg" in readme
     assert "claim-boundary-harness-technical-report.md" not in readme
     assert "CITATION.cff" in readme_zh
     assert "NOTICE.md" in readme_zh
+    assert "10.5281/zenodo.21189880" in readme_zh
+    assert "https://zenodo.org/badge/DOI/10.5281/zenodo.21189880.svg" in readme_zh
     assert "claim-boundary-harness-technical-report.md" not in readme_zh
     assert "title: \"Claim Boundary Harness: External Cognition Governance for Agent Workflows\"" in citation
     assert "qimen039-code" in citation
     assert "version: \"0.19.3\"" in citation
+    assert "doi: \"10.5281/zenodo.21189880\"" in citation
     assert "Recommended short attribution" in notice
     assert "submitted arXiv record exists" in notice
     assert "Copyright (c) 2026 qimen039-code" in license_text

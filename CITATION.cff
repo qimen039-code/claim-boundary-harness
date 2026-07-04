@@ -5,6 +5,7 @@ authors:
   - name: "qimen039-code"
 version: "0.19.3"
 date-released: "2026-07-04"
+doi: "10.5281/zenodo.21189880"
 repository-code: "https://github.com/qimen039-code/claim-boundary-harness"
 url: "https://github.com/qimen039-code/claim-boundary-harness"
 license: "MIT"
