@@ -8,7 +8,7 @@ Claim Boundary Harness（CBH）是一套面向 agent 工作流的外部认知治
 harness。它把声明验证、记忆连续性、风险路由、纠错沉淀和客户端适配契约
 组合成结构性约束，而不是再写一段普通提示词。
 
-当前版本：`v0.19.2`
+当前版本：`v0.19.3`
 
 引用与署名：如果你在研究、工具、产品或评测中使用、改编或讨论 CBH，请优先使用
 `CITATION.cff` 引用本仓库，并保留 `NOTICE.md` 与 MIT license notice。
