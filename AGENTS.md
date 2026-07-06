@@ -14,6 +14,8 @@ This is a generic foundation file. It does not contain project-specific policy, 
 
 For existing files, default to local patch semantics. Change, update, fix, supplement, optimize, sync, or adapt requests should make the smallest necessary in-file edit. Do not rewrite, regenerate, or replace the whole file unless the user explicitly asks for a full-file rewrite, regeneration, or replacement. Read the current file and nearby anchor context before editing, then review the diff for unrelated churn, encoding changes, reordered content, or unauthorized deletion. This rule applies to existing-file edits; newly requested files may still be created as new files.
 
+Classify file actions before editing: modify means changing content in an existing file, including clearing, replacing, or updating sections; add means creating a file that did not exist or was explicitly requested as a new artifact; delete means removing a file or directory from disk and requires explicit confirmation. Do not turn ordinary content updates into unnecessary successor files, deletion language, or archive churn.
+
 ## Mandatory Advisory Control Plane
 
 For every nontrivial task, run this control plane as a required chain. It is mandatory, but it should not wrap every tool call by default:
@@ -211,9 +213,13 @@ If deterministic rules do not match but the text looks like a nontrivial task, m
 
 Mark uncertainty directly. Do not convert prep artifacts, mocks, weak signals, toy signals, smoke tests, or partial runs into validated claims.
 
+Self-reports about the agent's own prior actions must be grounded in the current session's actual command, tool, or host logs when such logs exist. Whether a check was attempted, why a step was skipped, what ran, what failed, or what was later retried must not be reconstructed as a verified account from plausible reasoning alone. If no log evidence exists, say so.
+
 ## Execution Standard
 
 Read actual files and current state before editing. Before modifying files, state the files you will touch. Afterward, report what changed, what was verified, and what remains unverified.
+
+Keep formal surfaces clean. Assistant-facing rationale, temporary execution notes, placeholders, and draft reminders belong in chat, debug receipts, fieldnotes, or issue records unless the target file is explicitly meant to carry that rule or explanation. Do not leak them into UI text, runtime code, public docs, release notes, citation files, papers, or root agent rules.
 
 Before generating a multiline or inline script command, perform a shell dialect
 preflight against the actual executor. Use Bash heredoc syntax only when the

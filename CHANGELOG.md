@@ -6,6 +6,12 @@ This project uses `vMAJOR.MINOR.PATCH` version labels while the framework is sti
 
 ## Unreleased
 
+## v0.19.5 - 2026-07-06
+
+- Added a log-grounded self-report rule for agent descriptions of prior actions.
+- Clarified file action semantics so in-place edits are not treated as add/delete events.
+- Added a formal-surface hygiene rule to keep assistant-facing memos out of public, runtime, and rule surfaces.
+
 ## v0.19.4 - 2026-07-06
 
 - Tightened the public/private boundary so public materials stay generic and do not include private project traces, even when sanitized.
