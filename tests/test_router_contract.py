@@ -142,7 +142,7 @@ ROUTER_CASES = [
     },
     {
         "id": "TC-004d",
-        "task": "只读检查 AI Lead Radar Memory Bank 已更新和长期记忆状态，不写入记忆",
+        "task": "只读检查 Example Project Memory Bank 已更新和长期记忆状态，不写入记忆",
         "not_risk": "R5",
         "context_surface": "documentation_or_discussion",
         "candidate_r5": "长期记忆",

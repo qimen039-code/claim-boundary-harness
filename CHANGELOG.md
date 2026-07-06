@@ -6,6 +6,12 @@ This project uses `vMAJOR.MINOR.PATCH` version labels while the framework is sti
 
 ## Unreleased
 
+## v0.19.4 - 2026-07-06
+
+- Tightened the public/private boundary so public materials stay generic and do not include private project traces, even when sanitized.
+- Replaced maintainer-local field-use wording and private project examples with adopter-local validation boundaries.
+- Added shell dialect drift to the compatibility refresh triggers.
+
 ## v0.19.3 - 2026-07-04
 
 - Published a Zenodo DOI trigger release after enabling the repository in Zenodo.

@@ -9,7 +9,7 @@ Claim Boundary Harness（CBH）是一套面向 agent 工作流的外部认知治
 harness。它把声明验证、记忆连续性、风险路由、纠错沉淀和客户端适配契约
 组合成结构性约束，而不是再写一段普通提示词。
 
-当前版本：`v0.19.3`
+当前版本：`v0.19.4`
 
 引用与署名：如果你在研究、工具、产品或评测中使用、改编或讨论 CBH，请优先使用
 `CITATION.cff` 引用本仓库，并保留 `NOTICE.md` 与 MIT license notice。
@@ -70,7 +70,7 @@ CBH 给编码 agent 增加一个低成本外部认知层。这个仓库已经包
 | 路由与声明 gate | `harness_intake_router.ps1`、`harness_claim_schema_verifier.ps1` | 脚本契约和测试覆盖 |
 | runtime 硬阻断 | `harness_runtime_enforcer.ps1`、`harness_tool_proxy.ps1`、`harness_task_wrapper.ps1` | 只有宿主调用时才硬阻断 |
 | 策略与适配预检 | `compile_policy_from_toml.py`、`validate_policy.ps1`、`tools/cbh_doctor.py` | 漂移和预检工具 |
-| WorkBuddy adapter | `integrations/workbuddy-python-runtime/` | 单元测试覆盖；一次本地 hook 部署观察 |
+| WorkBuddy adapter | `integrations/workbuddy-python-runtime/` | 单元测试覆盖的参考 adapter；采用者需自行验证 hook 接线 |
 | 记忆 lane 与账本 | `templates/project/memory-library/`、`templates/conversation-memory/`、`codex_session_ledger.py` | 模板和证据索引 |
 | 检索与读取 | `docs/hybrid-memory-retrieval-contract.md`、`docs/content-reading-contract.md` | meta-first、保留来源、有界窗口 |
 | skill 生命周期 | `docs/skill-lifecycle-contract.md`、`templates/skill-lifecycle/` | active-frame 与 release receipt |
@@ -245,17 +245,18 @@ python -m pytest tests
 python -m unittest discover -s integrations/workbuddy-python-runtime/tests
 ```
 
-## 已测试客户端边界
+## 公开使用边界
+
+公开仓库只提供通用框架、参考实现、合成示例和可复现测试包；不得包含本地私有项目名称、私有 memory 胶囊、真实事故历史，或任何脱敏后仍能指向维护者本地项目的痕迹。
+
+CBH 应在每个采用者自己的本地 lane 中成长。项目专属记忆、fieldnote、已解决事故、客户端部署观察应留在私有 overlay 或项目本地文件中；只有可复用的通用规则和测试才应提升回公开包。
 
 当前公开包只声明以下边界：
 
-- **Codex**：Windows 本地扩展使用和本机 active harness smoke checks。
-- **WorkBuddy**：Python adapter 单元测试和一次本地 hook 部署路径确认；不是完整 WorkBuddy
+- **Codex**：参考集成和 active harness smoke checks；客户端更新后需重跑检查。
+- **WorkBuddy**：Python adapter 单元测试和 hook-runner 参考路径；不是完整 WorkBuddy
   版本认证。
-- **豆包**：一次位于特定日期 chat/workspace 内的本地适配测试，包含脚本链、JSON memory
-  布局、UTF-8 输出要求，以及宿主 `interaction.warn` 对一个破坏性删除路径的硬确认测试。
-  仓库内已准备 native skill 包，但当前客户端未暴露持久自定义 skill / tool 注册入口，后续新会话复测结果为
-  `not loaded`。因此豆包当前适配判定为失败；最多只能在单次对话中用建议/要求形式让模型部分遵循 CBH。
+- **豆包**：当前证据只支持 chat/workspace 范围内的 advisory demo，不支持 inspected desktop client 中的持久 custom-skill 或 tool 注册。
 - **其他客户端**：只有参考映射，直到目标客户端的 instruction、hook、wrapper、denial、
   bypass surfaces 被实际测试。
 

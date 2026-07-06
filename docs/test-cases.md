@@ -19,7 +19,7 @@ remain acceptance checks for the adopting runtime.
 | TC-004a | "trigger list contains commit push 删除 提交" | R5 terms are recorded as candidates, but documentation/example context does not promote to R5. |
 | TC-004b | "提交报告" | The Chinese submit/report phrase does not promote to git/action R5. |
 | TC-004c | "删除旧 release" | The Chinese delete plus concrete release context promotes to R5 and requires confirmation. |
-| TC-004d | "只读检查 AI Lead Radar Memory Bank 已更新和长期记忆状态，不写入记忆" | Long-term-memory wording in read/status context remains an R5 candidate but does not promote to R5. |
+| TC-004d | "只读检查 Example Project Memory Bank 已更新和长期记忆状态，不写入记忆" | Long-term-memory wording in read/status context remains an R5 candidate but does not promote to R5. |
 | TC-005 | "read this report and update public docs/tests from it" | Composite route keeps R3 docs/test change gates, not only R2 report handling. |
 | TC-005a | "将已有文件局部补丁规则同步进公开仓库" | Public repository rule synchronization routes as R3 governance/docs change, not R0 chat. |
 | TC-005d | "准备发布，但提交推送不执行。先做结构读图和现有 diff 审计。" | Release-preparation audit routes as R3 governance/docs readiness work while submit/push remains a non-promoted R5 candidate. |

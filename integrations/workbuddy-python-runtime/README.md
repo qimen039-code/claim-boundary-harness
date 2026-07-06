@@ -8,7 +8,7 @@ It is not a general Python distribution of the framework. It is a reference adap
 
 ## Validation Boundary
 
-This adapter has not been fully tested across WorkBuddy versions, operating systems, or real production agent loops. It was drafted from one local device's WorkBuddy/CodeBuddy runtime surface and verified only with local Python unit tests against the shared policy file.
+This adapter has not been fully tested across WorkBuddy versions, operating systems, or real production agent loops. It is a public reference adapter verified with local Python unit tests against the shared policy file; adopters must validate the exact runtime surface they use.
 
 Treat it as a starting point. Before relying on it as a hard control path, test it inside the exact WorkBuddy version, workspace, tool schema, permission mode, and hook or loop entry point you use.
 

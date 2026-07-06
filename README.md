@@ -10,7 +10,7 @@ agent workflows. It provides claim verification, memory continuity, risk
 routing, correction accumulation, and adapter contracts as structural
 enforcement, not advisory prompts.
 
-Current version: `v0.19.3`
+Current version: `v0.19.4`
 
 Citation and attribution: if you use, adapt, evaluate, or productize CBH,
 please cite this repository with `CITATION.cff` and retain `NOTICE.md` plus the
@@ -79,7 +79,7 @@ Fast paths:
 | Routing and claim gates | `harness_intake_router.ps1`, `harness_claim_schema_verifier.ps1` | Tested script contracts |
 | Runtime hard stops | `harness_runtime_enforcer.ps1`, `harness_tool_proxy.ps1`, `harness_task_wrapper.ps1` | Hard only on host-called paths |
 | Policy and adoption checks | `compile_policy_from_toml.py`, `validate_policy.ps1`, `tools/cbh_doctor.py` | Drift and preflight checks |
-| WorkBuddy adapter | `integrations/workbuddy-python-runtime/` | Unit-tested; one local hook deployment observation |
+| WorkBuddy adapter | `integrations/workbuddy-python-runtime/` | Unit-tested reference adapter; adopter must verify hook wiring |
 | Memory lanes and ledgers | `templates/project/memory-library/`, `templates/conversation-memory/`, `codex_session_ledger.py` | Templates and evidence indexes |
 | Retrieval and reading | `docs/hybrid-memory-retrieval-contract.md`, `docs/content-reading-contract.md` | Meta-first, source-preserving, bounded windows |
 | Skill lifecycle | `docs/skill-lifecycle-contract.md`, `templates/skill-lifecycle/` | Active-frame plus release receipt |
@@ -491,24 +491,24 @@ Detailed contracts:
 - [docs/common-error-corpus.md](docs/common-error-corpus.md)
 - [docs/common-issues-and-solutions.md](docs/common-issues-and-solutions.md)
 
-## Field Use Note
+## Field Use Boundary
 
-This framework has been used for an extended private Codex-based workflow. Once the root instruction file, harness policy, project registry, and skill tree are in place, that use suggests new conversations can continue to follow the same routing chain instead of rediscovering the workflow from scratch.
+The public package is a generic framework, reference implementation, synthetic example set, and reproducible test bundle. It must not contain private project names, private memory capsules, local incident histories, or even sanitized traces of one maintainer's local projects.
 
-One observed side effect in that private Codex workflow is better reuse of prior process lessons: the agent sometimes recognized a repeated mistake pattern, looked up the relevant reusable fix, and corrected the path without waiting for a full manual restatement. Treat this as an operator observation, not proof of model fine-tuning or a universal behavior claim.
+CBH is intended to improve inside each adopter's own local lane. Adopters should keep their project-specific memory, field notes, solved incidents, and client-specific deployment observations in private overlays or project-local files, then promote only reusable generic rules or tests back into the public package.
 
-This is not yet broad field validation. The public package has not been battle-tested across many projects, many operators, or many agent runtimes.
+This is not broad field validation. Public claims are limited to repository tests, reference scripts, documented contracts, and adapter boundaries that adopters can rerun in their own environments.
 
 Current client boundary:
 
-- **Codex**: extended private local use plus source/active harness smoke checks in a Windows Codex workflow.
-- **WorkBuddy**: local Python adapter tests plus one operator-confirmed local hook deployment path. This is still not a complete WorkBuddy version or platform certification.
-- **Doubao**: one operator-confirmed dated chat/workspace demo plus repository-side review of the generated report, script chain, JSON memory layout, and a host-owned `interaction.warn` confirmation test for one destructive delete path. The persistent client adaptation failed in the inspected desktop client: it did not expose a custom skill/tool registration path, a later new chat reported `not loaded`, and direct `.skills` copy was only a same-session/runtime smoke path.
+- **Codex**: reference integration plus source/active harness smoke checks; rerun after client updates.
+- **WorkBuddy**: Python adapter unit tests and hook-runner reference path; not a complete WorkBuddy version or platform certification.
+- **Doubao**: current evidence supports only chat/workspace-scoped advisory demos, not persistent custom-skill or tool registration in the inspected desktop client.
 - **Other clients**: reference mappings only until the target client, instruction surface, hook or wrapper path, denial behavior, and bypass surfaces are tested in that client.
 
 The PowerShell, Bash, and WorkBuddy Python adapters are also not complete compatibility claims.
-They were adapted from one local device environment. PowerShell and the WorkBuddy Python decision layer were smoke-tested locally; the Bash/mac-style scripts are reference adapters and still need target-shell verification on the adopter's machine.
-The WorkBuddy Python adapter now includes a hook runner tested through local unit tests, including prompt routing, command-tool denial, Stop/final claim checks, and transcript extraction. One local WorkBuddy hook deployment has also been confirmed to run normally with this package. Real hard enforcement still depends on each adopter's WorkBuddy version honoring hook denial, exit code `2`, final-hook blocking, and the configured matcher scope.
+PowerShell and the WorkBuddy Python decision layer are covered by repository-side tests and smoke contracts; Bash/mac-style scripts are reference adapters and still need target-shell verification on the adopter's machine.
+The WorkBuddy Python adapter includes a hook runner tested through local unit tests, including prompt routing, command-tool denial, Stop/final claim checks, and transcript extraction. Real hard enforcement still depends on each adopter's WorkBuddy version honoring hook denial, exit code `2`, final-hook blocking, and the configured matcher scope.
 
 The Claude Code integration page is currently a reference mapping, not a completed client-deployment validation. Adopters should confirm which instruction file the installed client reads, whether a pre-tool or command hook exists, whether blocked results are honored, and which surfaces can bypass the wrapper. If any of those checks fail, follow the deployment troubleshooting guide and let the adopting agent localize the problem before claiming hard enforcement.
 
@@ -518,7 +518,7 @@ It also supports independent project lanes. After global routing boundaries are 
 
 ## Concrete Examples
 
-The package includes synthetic examples that show the intended record shapes without exposing any private project history:
+The package includes generic synthetic examples that show the intended record shapes without exposing private project history or sanitized traces of one maintainer's local work:
 
 - [examples/sample-routing.md](examples/sample-routing.md): routing examples for mixed risk and vague tasks.
 - [examples/memory-capsule-examples.md](examples/memory-capsule-examples.md): project memory capsule, paired error/solution records, claim boundary record, and client-update drift record.
@@ -550,7 +550,7 @@ The package includes synthetic examples that show the intended record shapes wit
 - [docs/cost-control-contract.md](docs/cost-control-contract.md): routing field budgets, delta receipts, active-context ceilings, and action-relevant field rules.
 - [docs/archive-and-persona-boundaries.md](docs/archive-and-persona-boundaries.md): optional cold archive, move/copy archive defaults, summary capsule exceptions, and conversation-only persona boundaries.
 - [docs/deployment-risk-patterns.md](docs/deployment-risk-patterns.md): common deployment failures, concrete issue examples, and solution playbooks for WorkBuddy-like hooks, CLI agents, IDE agents, custom orchestrators, hosted agents, and wrapper-only setups.
-- [docs/integrations/doubao.md](docs/integrations/doubao.md): Doubao adaptation boundary notes. The inspected client did not support persistent custom-skill/tool registration; CBH is limited to dated chat/workspace demos or single-chat advisory guidance there.
+- [docs/integrations/doubao.md](docs/integrations/doubao.md): Doubao adaptation boundary notes. Treat persistent custom-skill/tool registration as unverified until the target new chat proves it; CBH is limited to chat/workspace-scoped advisory guidance there.
 - [docs/examples.md](docs/examples.md): expected gate behavior and how to interpret examples.
 
 ## Quick Start

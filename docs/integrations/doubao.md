@@ -1,29 +1,24 @@
 # Doubao Client Adaptation Boundary
 
-These notes document a failed persistent Doubao client adaptation attempt and
-the remaining limited-use path. They are migration guidance for adopters, not an
-official Doubao compatibility certification.
+These notes document the current Doubao adaptation boundary and remaining
+limited-use path. They are migration guidance for adopters, not an official
+Doubao compatibility certification.
 
-The dated chat/workspace demo was reported by the operator as deployed and
-tested successfully inside one Doubao chat. Repository-side review checked the
-generated adaptation report, file layout, JSON memory files, helper scripts, and
-an operator-provided hard-constraint test record. That review confirms only that
-the demo can guide one workspace as a soft plus semi-hard workflow layer, and
-that the tested Doubao client surfaced a platform-owned hard confirmation guard
-for one destructive file operation.
+Keep adopter-specific chat folders, reports, memory files, and hard-constraint
+test records private. The public package should retain only the reusable
+boundary: an advisory chat/workspace demo can guide one session, but that does
+not prove persistent custom-skill or tool registration.
 
-Current status for the inspected desktop client: persistent Claim Boundary
-Harness adaptation failed. A later new chat did not load
-`claim-boundary-harness`; the client did not expose a usable custom-skill
-registration tool; and direct `.skills` copying was removed by workspace
-refresh. At most, CBH can be supplied to Doubao as single-chat advisory
-instructions or requirements that the model may partly follow. This is not a
-complete native skill, hook, tool, or hard-gate adaptation.
+Current status for the inspected desktop-client class: treat persistent Claim
+Boundary Harness adaptation as unverified unless a new chat can prove the
+custom skill/tool registration path loads the harness. At most, CBH can be
+supplied as single-chat advisory instructions or requirements that the model may
+partly follow. This is not a complete native skill, hook, tool, or hard-gate
+adaptation.
 
 ## Session Scope Boundary
 
-The reviewed demo was a chat/workspace-scoped deployment. A successful test in
-one dated Doubao chat directory does not imply that a later new chat has loaded
+A chat/workspace-scoped demo does not imply that a later new chat has loaded
 the same instruction pack, memory files, scripts, or workflow rules. Treat each
 new chat as inactive until one of these activation paths is verified:
 

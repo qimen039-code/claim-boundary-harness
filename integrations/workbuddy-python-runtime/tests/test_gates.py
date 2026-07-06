@@ -145,7 +145,7 @@ class HarnessGateTests(unittest.TestCase):
         self.assertIn("delete", route["negated_risk_triggers"].get("R5", []))
 
     def test_router_demotes_memory_status_wording_from_r5(self) -> None:
-        route = self._route("只读检查 AI Lead Radar Memory Bank 已更新和长期记忆状态，不写入记忆", policy=self.policy)
+        route = self._route("只读检查 Example Project Memory Bank 已更新和长期记忆状态，不写入记忆", policy=self.policy)
         self.assertNotEqual(route["risk_level"], "R5")
         self.assertIn("长期记忆", route["risk_candidates"].get("R5", []))
         self.assertEqual(route["risk_context_decisions"]["R5"]["action_surface"], "documentation_or_discussion")

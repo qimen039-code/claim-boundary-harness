@@ -78,6 +78,7 @@ Refresh the manifest when any of these change:
 - hook settings path;
 - hook event name or payload schema;
 - Python, PowerShell, Bash, Node, or shell path;
+- generated command dialect such as PowerShell here-strings versus Bash heredocs;
 - instruction entry filename;
 - denial payload or exit code behavior;
 - hook matcher scope such as `*` versus command tools only;
