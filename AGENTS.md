@@ -16,6 +16,8 @@ For existing files, default to local patch semantics. Change, update, fix, suppl
 
 Classify file actions before editing: modify means changing content in an existing file, including clearing, replacing, or updating sections; add means creating a file that did not exist or was explicitly requested as a new artifact; delete means removing a file or directory from disk and requires explicit confirmation. Do not turn ordinary content updates into unnecessary successor files, deletion language, or archive churn.
 
+When the user refers to prior context, an event, or a decision that is not present in the active conversation and the agent does not remember it, do not answer from guesswork. First perform a bounded meta-first memory lookup in the relevant lane or event index. If no local memory record is found, state that the local memory lookup found no relevant record, then use the external-evidence route only when the claim needs public or current evidence. Keep the answer unverified when both local and external evidence are insufficient.
+
 ## Mandatory Advisory Control Plane
 
 For every nontrivial task, run this control plane as a required chain. It is mandatory, but it should not wrap every tool call by default:

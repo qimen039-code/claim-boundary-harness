@@ -6,6 +6,11 @@ This project uses `vMAJOR.MINOR.PATCH` version labels while the framework is sti
 
 ## Unreleased
 
+## v0.19.6 - 2026-07-07
+
+- Added a memory-first unknown-reference rule for user-mentioned prior context that is not present in the active conversation.
+- Added a public common-issue entry for answering from guesses when local memory lookup should happen first.
+
 ## v0.19.5 - 2026-07-06
 
 - Added a log-grounded self-report rule for agent descriptions of prior actions.
