@@ -30,7 +30,7 @@ routing receipt
 -> selective runtime hard gate only for critical risks
 ```
 
-Routing receipt fields: task type, target surface, audience, active lane, risk level, semantic ambiguity, module need, skill lifecycle profile, feedback loop profile, memory need, memory mode, memory lane, record intent, external need, claim risk, projectization decision, conversation memory decision, link intent, receipt profile, and required gates.
+Routing receipt fields: task type, target surface, audience, active lane, risk level, semantic ambiguity, module need, skill lifecycle profile, feedback loop profile, first principles profile, memory need, memory mode, memory lane, record intent, external need, claim risk, projectization decision, conversation memory decision, link intent, receipt profile, and required gates.
 
 For projectless long-running conversations, also decide `conversation_memory_decision`. Use a conversation memory lane only when the user explicitly asks for a checkpoint or durable long-chat signals accumulate. Conversation memory is isolated by conversation/thread id, is not project memory, and is not global memory. If the user explicitly asks a new conversation to continue a previous conversation and create or update current-conversation memory, create or update the current conversation lane and add a continuation link to the previous memory; do not write new payloads back into the old lane unless merge, backfill, or archive is explicitly requested.
 
@@ -58,6 +58,17 @@ docs, tests, adapters, policy, memory, or routing rules, keep the highest risk
 level and the union of required gates. Scope markers such as "also", "plus",
 "not only", "but also", "同时", "还有", "另外", "以及", "不只是", "不仅",
 "并且", "组合", and "多个问题" should trigger scope reassessment before action.
+
+Use `first_principles_profile` as a routed constraint gate, not as a default long-form reasoning ritual:
+
+```text
+none: typo, formatting, small copy, simple version sync, known assertion fixes, or low-risk low-impact work.
+micro_constraints: ordinary nontrivial code, config, or docs changes; internally identify 1-3 non-negotiable constraints.
+constraint_gate: architecture, router, policy, AGENTS, memory, ledger, claim, harness, safety, release, permissions, global config, cross-platform, encoding/shell/path, repeated bugs, data consistency, external mechanism intake, public capability boundaries, or causal claims; explicitly state non-negotiable constraints before patching.
+full_design: user explicitly asks for design, refactor planning, theory analysis, a new mechanism, or first-principles analysis.
+```
+
+When enabled, the sequence is: read real context, list non-negotiable constraints, map those constraints onto the existing architecture, apply the smallest compatible patch, then verify. Do not use first-principles reasoning to bypass existing code patterns, tests, project boundaries, evidence boundaries, or user authorization. Downgrade to `none` or `micro_constraints` when existing rules already cover the task, a single file or command can answer it, or the analysis would cost more than the fix.
 
 Do not load all skills, all memory, all history, or wrap every tool call just because this layer is active. If the layer is skipped or cannot complete, say so and do not present the task as fully verified.
 

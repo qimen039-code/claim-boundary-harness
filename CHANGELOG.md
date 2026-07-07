@@ -6,6 +6,11 @@ This project uses `vMAJOR.MINOR.PATCH` version labels while the framework is sti
 
 ## Unreleased
 
+## v0.19.7 - 2026-07-07
+
+- Added a routed `first_principles_profile` for constraint-first implementation decisions.
+- Added a public common-issue entry for overusing or skipping first-principles constraint checks.
+
 ## v0.19.6 - 2026-07-07
 
 - Added a memory-first unknown-reference rule for user-mentioned prior context that is not present in the active conversation.
