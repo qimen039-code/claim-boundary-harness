@@ -348,6 +348,77 @@ ROUTER_CASES = [
             "debt_hygiene": "技术债",
         },
     },
+    {
+        "id": "TC-009g",
+        "task": "Release text includes DOI, version marker, commit hash, path, client support status, deployment status, and memory lane id; preserve exact anchors.",
+        "gates": ["exact_anchor_preservation_gate"],
+        "expect_trigger_contains": {
+            "exact_anchor_preservation_gate": "DOI",
+        },
+    },
+    {
+        "id": "TC-009h",
+        "task": "Build a current status table from these unverified local notes and latest status fields.",
+        "gates": ["current_status_table_evidence_gate"],
+        "expect_trigger_contains": {
+            "current_status_table_evidence_gate": "current status table",
+        },
+    },
+    {
+        "id": "TC-009i",
+        "task": "我不记得之前说过的旧的存储点叫什么来着",
+        "gates": ["unknown_memory_reference_gate"],
+        "expect": {
+            "memory_need": "index_only",
+            "memory_mode": "read",
+        },
+        "expect_contains": {
+            "module_need": "memory_meta_index",
+        },
+        "expect_trigger_contains": {
+            "unknown_memory_reference_gate": "叫什么来着",
+        },
+    },
+    {
+        "id": "TC-009j",
+        "task": "Judge whether this answer is hallucinated, unsupported, incomplete, or a non-answer.",
+        "gates": ["hallucination_detection_anchor_gate"],
+        "expect_trigger_contains": {
+            "hallucination_detection_anchor_gate": "non-answer",
+        },
+    },
+    {
+        "id": "TC-009k",
+        "task": "Review the public README and release note for private leakage or local-only trace before publishing.",
+        "gates": ["public_private_surface_gate"],
+        "expect_trigger_contains": {
+            "public_private_surface_gate": "public README",
+        },
+    },
+    {
+        "id": "TC-009l",
+        "task": "I already checked and verified this; explain the prior action from command log or tool log evidence.",
+        "gates": ["self_report_log_grounding_gate"],
+        "expect_trigger_contains": {
+            "self_report_log_grounding_gate": "already checked",
+        },
+    },
+    {
+        "id": "TC-009m",
+        "task": "This is not blame; find the root cause, cleanup plan, and prevent recurrence.",
+        "gates": ["root_cause_cleanup_gate"],
+        "expect_trigger_contains": {
+            "root_cause_cleanup_gate": "root cause",
+        },
+    },
+    {
+        "id": "TC-009n",
+        "task": "The packet mentions Project A; should we backfill memory or is this lane pollution?",
+        "gates": ["lane_ownership_gate"],
+        "expect_trigger_contains": {
+            "lane_ownership_gate": "backfill memory",
+        },
+    },
 ]
 
 

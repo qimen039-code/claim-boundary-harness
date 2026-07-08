@@ -581,6 +581,19 @@ if ($feedbackLoopHits.Count -gt 0) {
   $matchedRiskTriggers["feedback_loop"] = @($feedbackLoopHits)
   $feedbackLoopProfile = "explicit_cycle"
 }
+$issuePreventionGates = Get-ObjectPropertyValue $policy.router_decision_contract "issue_prevention_gates"
+if ($null -ne $issuePreventionGates) {
+  foreach ($gateEntry in $issuePreventionGates.PSObject.Properties) {
+    $gateName = [string]$gateEntry.Name
+    $gateTriggers = Get-ObjectPropertyValue $gateEntry.Value "triggers"
+    $gateHits = Get-MatchedTriggers $gateTriggers
+    if ($gateHits.Count -gt 0) {
+      $semanticAmbiguity += @($gateName)
+      $requiredGates += $gateName
+      $matchedRiskTriggers[$gateName] = @($gateHits)
+    }
+  }
+}
 if ($triggeredRisks -contains "R3") {
   $semanticAmbiguity += @("governance_or_change_surface")
 }

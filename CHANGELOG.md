@@ -6,6 +6,15 @@ This project uses `vMAJOR.MINOR.PATCH` version labels while the framework is sti
 
 ## Unreleased
 
+## v0.19.8 - 2026-07-08
+
+- Added issue-prevention gates for exact anchors, current/status table evidence,
+  unknown memory references, hallucination-detection anchoring, public/private
+  publication surfaces, log-grounded self-reports, root-cause cleanup, and
+  memory-lane ownership.
+- Added public common-issue entries and acceptance cases for the new prevention
+  gates.
+
 ## v0.19.7 - 2026-07-07
 
 - Added a routed `first_principles_profile` for constraint-first implementation decisions.

@@ -42,6 +42,20 @@ Re-evaluation is required after trigger events: new evidence, missing files, too
 
 Final boundary check must verify claim scope, causal-attribution scope, memory scope, unresolved verification debt, and whether version metadata or paired ERR/SOL records need updates.
 
+Use issue-prevention gates when a task matches a known repeated failure shape:
+`exact_anchor_preservation_gate` for DOI, version, tag, hash, path,
+client-support status, deployment status, and memory-lane ids;
+`current_status_table_evidence_gate` for current/status tables built from
+unverified notes; `unknown_memory_reference_gate` when the user refers to a
+forgotten prior term or event; `hallucination_detection_anchor_gate` when
+judging whether another answer is hallucinated, grounded, complete, or a
+non-answer; `public_private_surface_gate` before public-facing artifact
+publication or review; `self_report_log_grounding_gate` when describing prior
+checks, runs, skips, failures, or validation from logs; `root_cause_cleanup_gate`
+for incident analysis that should locate logs/diffs/hash-based causes rather
+than blame; and `lane_ownership_gate` when a project/client name appears in
+evidence but may not own the memory record.
+
 If self-check shows substantial memory pollution, target pollution, dirty-tree
 debt, or accumulated technical debt in the current project or long conversation,
 run a debt hygiene pass before continuing broad edits: inventory and group the
@@ -104,6 +118,18 @@ Hybrid memory retrieval is meta-first plus bounded structural and lexical signal
 Expose this through `hybrid_retrieval_profile` only after `memory_need` is selected; it augments the existing meta-first chain and must not replace lane/category filtering, source-monitoring, or claim gates. Expose `memory_write_profile` only after `memory_mode` selects a durable write/update; it constrains write shape and does not authorize memory writes by itself.
 
 Content reading happens after retrieval selects a candidate, and the route or decision layer must choose the smallest sufficient reading profile: `baseline`, `evidence_window`, `middle_safe`, or `full_audit`. Baseline source reads identify source shape, prefer an existing structure map, use a temporary micro-map when no map exists, and keep retrieval separate from reading. Evidence reads attach a compact source context header, read a bounded evidence window, expand only missing context, and report unread zones or verification debt before stronger claims. For long, multi-window, multi-hop, public, memory-promotion, R4/R5, or strong-claim cases, use middle-safe layout: evidence inventory plus original windows, per-window conclusion cards before synthesis, adjacent multi-hop evidence clusters, key evidence reminders near strong claims, and a `position_risk` marker. If only head/tail anchors were read and they do not provide enough fact, scope, time, or relevance for a strong claim, trigger a bounded middle reread around structural anchors before promoting the claim.
+
+When producing public, release, citation, handoff, or memory surfaces, preserve
+exact anchors as text facts rather than style targets. Do not shorten, normalize,
+prettify, infer, or repair DOI strings, version markers, tags, hashes, file paths,
+client-support labels, deployment status, or lane ids from memory. If sources
+conflict, keep both with provenance or stop for verification.
+
+When a user asks for a current/status table but the available material is only a
+local note, draft, stale handoff, or unverified memory, do not place mutable
+values into `current` or `status` columns as if they are verified facts. Rename
+the fields to note/draft values, omit the mutable fields, or trigger source
+verification before presenting them as current.
 
 Optional static knowledge pages are project manuals, not validated memory. When a task needs module maps, entry points, commands, conventions, or interface notes, read `_STATIC_KNOWLEDGE_INDEX.md` first, open only the selected static page, and treat returned notes as `source_tag: static_knowledge` with `belief_status: source_prior` until checked against files, tests, or schemas.
 
@@ -197,6 +223,13 @@ memory_summary / _META_INDEX / router manifest
 ```
 
 If an adopting project has no `_META_INDEX.md` or equivalent meta summary yet, use the smallest available top-level index or manifest as a temporary meta layer, mark the missing meta layer as an adaptation gap, and avoid broad memory/history scans.
+
+Mention-based retrieval is not ownership. A project name, client name, or user
+lane appearing in a packet proves only that the source mentioned it. Before
+writing project memory, backfilling another lane, or merging records, check task
+target, source provenance, impact surface, active lane, and explicit user
+authorization. Default to link-only cross-lane references when ownership is not
+resolved.
 
 ## Format Layering
 

@@ -236,6 +236,26 @@ causal attribution gate can both apply to one event, but they do not authorize
 each other. A feedback prediction remains a hypothesis until verified; a causal
 hypothesis remains a hypothesis until controlled evidence supports it.
 
+## Issue Prevention Gates
+
+Issue-prevention gates are narrow recurrence guards for failure classes that are
+too specific to be risk levels and too operational to be only prose advice. They
+are additive `required_gates`; they do not authorize memory writes, external
+search, public release, or R5 actions by themselves.
+
+Current generic gates:
+
+| Gate | Use when | Required behavior |
+| --- | --- | --- |
+| `exact_anchor_preservation_gate` | DOI, version, tag, hash, path, client-support status, deployment status, or lane id appears in a public, release, citation, handoff, or memory surface. | Preserve exact strings from source or stop for verification; do not normalize from memory. |
+| `current_status_table_evidence_gate` | A current/status/latest table is built from notes, drafts, stale handoffs, or unverified memory. | Verify mutable fields, rename them as note/draft values, omit them, or show cell-level verification debt. |
+| `unknown_memory_reference_gate` | The user refers to a forgotten prior term, storage point, event, or decision. | Run bounded meta-first memory lookup before providing a named answer; report no hit if none is found. |
+| `hallucination_detection_anchor_gate` | The task asks whether an answer is hallucinated, grounded, complete, unsupported, or a non-answer. | Use source labels or requested-output contract anchors; separate unsupported, incomplete, and non-answer outcomes. |
+| `public_private_surface_gate` | A public README, docs, release note, citation, package, or other public artifact is being prepared or reviewed. | Scan for private or local-only traces before publishing; keep public surfaces generic unless disclosure is explicitly authorized. |
+| `self_report_log_grounding_gate` | The agent describes what it previously checked, ran, verified, skipped, or failed. | Ground the statement in command/tool/session logs when logs exist; otherwise state that no log evidence exists. |
+| `root_cause_cleanup_gate` | Incident analysis asks what went wrong or how to prevent recurrence. | Prefer logs, diffs, hashes, and source records; keep subjective intent unknown unless proven; produce cleanup/prevention candidates. |
+| `lane_ownership_gate` | A project or client is mentioned in evidence but may not own the memory record. | Determine ownership from task target, provenance, impact surface, active lane, and user authorization; default to link-only when unresolved. |
+
 ## R5 Candidate And Context Rule
 
 R5 trigger terms are a recall layer, not the final decision. Terms such as

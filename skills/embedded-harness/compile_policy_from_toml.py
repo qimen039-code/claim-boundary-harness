@@ -39,6 +39,7 @@ TRACKED_PATHS: list[tuple[str, ...]] = [
     ("router_decision_contract", "common_error_prevention_triggers"),
     ("router_decision_contract", "causal_attribution_contract"),
     ("router_decision_contract", "causal_attribution_triggers"),
+    ("router_decision_contract", "issue_prevention_gates"),
     ("router_decision_contract", "conversation_memory_full_lane_triggers"),
     ("runtime_enforcement", "human_confirmation_permit"),
 ]
@@ -210,6 +211,26 @@ def _normal_causal_attribution_triggers(authoring: dict[str, Any]) -> dict[str, 
     }
 
 
+def _normal_issue_prevention_gates(authoring: dict[str, Any]) -> dict[str, Any] | None:
+    router = authoring.get("router_decision_contract", {})
+    if not isinstance(router, dict):
+        raise ValueError("router_decision_contract must be a table")
+    gates = router.get("issue_prevention_gates")
+    if gates is None:
+        return None
+    if not isinstance(gates, dict) or not gates:
+        raise ValueError("issue_prevention_gates must be a non-empty table")
+    normalized: dict[str, Any] = {}
+    for name, gate in gates.items():
+        if not isinstance(gate, dict):
+            raise ValueError(f"issue_prevention_gates.{name} must be a table")
+        normalized[str(name)] = {
+            "purpose": str(gate.get("purpose") or ""),
+            "triggers": _string_list(gate.get("triggers"), f"issue_prevention_gates.{name}.triggers"),
+        }
+    return normalized
+
+
 def _normal_permit(authoring: dict[str, Any]) -> dict[str, Any] | None:
     runtime = authoring.get("runtime_enforcement", {})
     if not isinstance(runtime, dict):
@@ -273,6 +294,10 @@ def compile_policy(base_policy: dict[str, Any], authoring: dict[str, Any]) -> di
     causal_triggers = _normal_causal_attribution_triggers(authoring)
     if causal_triggers is not None:
         _set_path(compiled, ("router_decision_contract", "causal_attribution_triggers"), causal_triggers)
+
+    issue_prevention_gates = _normal_issue_prevention_gates(authoring)
+    if issue_prevention_gates is not None:
+        _set_path(compiled, ("router_decision_contract", "issue_prevention_gates"), issue_prevention_gates)
 
     full_lane = _normal_full_lane(authoring)
     if full_lane is not None:

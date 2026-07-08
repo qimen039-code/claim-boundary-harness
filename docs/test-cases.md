@@ -33,6 +33,14 @@ remain acceptance checks for the adopting runtime.
 | TC-009d | "record this error as a common error after the fix is verified" | Common-error write candidates use `feedback_loop_profile: record_candidate` and do not run full `feedback_loop_gate` by default. |
 | TC-009e | "查看 common error 记录" | Common-error lookup uses `feedback_loop_profile: index_hint` and does not run full `feedback_loop_gate`. |
 | TC-009f | "自检后发现当前项目有大量记忆污染、目标污染、脏树债和技术债..." | Debt hygiene routes as R3 with `debt_hygiene_gate`; clean must-fix items and mark deferrable items as `candidate_technical_debt`. |
+| TC-009g | "Release text includes DOI, version marker, commit hash, and client support status" | Routes through `exact_anchor_preservation_gate`; exact strings are copied or verified, not normalized from memory. |
+| TC-009h | "Build a current status table from these unverified local notes" | Routes through `current_status_table_evidence_gate`; mutable fields are verified, renamed as note/draft fields, or omitted. |
+| TC-009i | "I forgot what that old storage point was called" | Routes through `unknown_memory_reference_gate` and bounded meta-first memory lookup before any named answer. |
+| TC-009j | "Judge whether this answer is hallucinated or just incomplete" | Routes through `hallucination_detection_anchor_gate` and requires source/contract anchors before calling it grounded. |
+| TC-009k | "Review the public README/release note for private traces before publishing" | Routes through `public_private_surface_gate`; public artifacts are scanned for private or local-only traces before publication. |
+| TC-009l | "I already checked and verified this; explain what happened from the logs" | Routes through `self_report_log_grounding_gate`; self-reports about prior checks bind to command/tool/session logs or stay unverified. |
+| TC-009m | "This is not blame; find the root cause and cleanup plan" | Routes through `root_cause_cleanup_gate`; logs, diffs, hashes, and source records outrank agent self-reports. |
+| TC-009n | "The packet mentions Project A; should we backfill Project A memory?" | Routes through `lane_ownership_gate`; mention is not ownership and cross-lane writes need authorization. |
 
 ## Claim Boundary
 
@@ -43,6 +51,8 @@ remain acceptance checks for the adopting runtime.
 | TC-012 | Final answer claims "fully verified" without claim schema | Final claim gate blocks or downgrades the statement. |
 | TC-013 | Final answer claims "CBH solved hallucination drift for all agents" without scope or causal evidence | Causal attribution gate blocks or downgrades the global causal claim. |
 | TC-014 | Final answer says "In this local sample, this is a causal hypothesis, not proof" | Causal attribution gate allows the scoped empirical or hypothesis wording. |
+| TC-015 | Current/status table is requested from only local draft notes | The table cannot label mutable values as current facts unless a source check was performed; use note/draft labels or verification debt. |
+| TC-016 | Final text evaluates whether another answer hallucinated | The answer must cite the requested-output contract or source anchors; unsupported answer, incomplete answer, and non-answer are separate outcomes. |
 
 ## Memory Lanes
 

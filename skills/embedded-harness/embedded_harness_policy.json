@@ -1689,7 +1689,182 @@
       "校准",
       "未来路由",
       "防止重复错误"
-    ]
+    ],
+    "issue_prevention_gates": {
+      "exact_anchor_preservation_gate": {
+        "purpose": "Preserve exact identifiers and boundary words in public, release, citation, memory, and handoff surfaces. Do not shorten, normalize, prettify, or repair identifiers from memory.",
+        "triggers": [
+          "exact anchor",
+          "version marker",
+          "release version",
+          "DOI",
+          "Zenodo",
+          "commit hash",
+          "tag",
+          "path",
+          "client support",
+          "deployment status",
+          "memory lane id",
+          "精确锚点",
+          "版本标记",
+          "发布版本",
+          "提交哈希",
+          "标签",
+          "路径",
+          "客户端支持",
+          "部署状态",
+          "记忆车道"
+        ]
+      },
+      "current_status_table_evidence_gate": {
+        "purpose": "Prevent unverified notes from solidifying into current/status tables. Mutable fields need source checks or must be renamed as note/draft fields.",
+        "triggers": [
+          "current status table",
+          "status table",
+          "current table",
+          "current facts",
+          "latest status",
+          "unverified notes",
+          "local notes",
+          "status columns",
+          "当前状态表",
+          "状态表",
+          "当前事实",
+          "最新状态",
+          "未验证笔记",
+          "本地笔记",
+          "表格列"
+        ]
+      },
+      "unknown_memory_reference_gate": {
+        "purpose": "When the user refers to a forgotten prior term, event, storage point, or old decision, search the relevant memory/event index before giving a named answer.",
+        "triggers": [
+          "I forgot what it was called",
+          "what was that called",
+          "previously mentioned",
+          "old storage point",
+          "prior term",
+          "forgot the name",
+          "不记得叫什么",
+          "叫什么来着",
+          "之前说过",
+          "之前提到",
+          "旧的存储点",
+          "忘了名字",
+          "我记得之前"
+        ]
+      },
+      "hallucination_detection_anchor_gate": {
+        "purpose": "When judging whether an answer is hallucinated, complete, grounded, or task-satisfying, require source labels, evidence anchors, requested-output contract, or explicit unsupported/non-answer category.",
+        "triggers": [
+          "hallucination detection",
+          "is this hallucinated",
+          "hallucinated answer",
+          "judge the answer",
+          "grounded answer",
+          "unsupported answer",
+          "non-answer",
+          "answer completeness",
+          "幻觉判定",
+          "是否幻觉",
+          "判断回答",
+          "答案是否有依据",
+          "无依据回答",
+          "非回答",
+          "回答完整性"
+        ]
+      },
+      "public_private_surface_gate": {
+        "purpose": "Scan public-facing artifacts for private or local-only traces before publishing. Public surfaces must stay generic unless the user explicitly authorizes disclosure.",
+        "triggers": [
+          "public artifact",
+          "public README",
+          "public release",
+          "public docs",
+          "release note",
+          "private leakage",
+          "private trace",
+          "local-only trace",
+          "public/private surface",
+          "公开产物",
+          "公开 README",
+          "公开 release",
+          "公开文档",
+          "发布说明",
+          "私有泄漏",
+          "私有痕迹",
+          "本地痕迹",
+          "公私边界"
+        ]
+      },
+      "self_report_log_grounding_gate": {
+        "purpose": "Ground agent self-reports about prior checks, runs, validation, or skipped actions in actual command, tool, host, or session logs when such logs exist.",
+        "triggers": [
+          "I checked",
+          "I verified",
+          "I tested",
+          "I ran",
+          "already checked",
+          "already verified",
+          "already tested",
+          "command log",
+          "tool log",
+          "execution log",
+          "self-report",
+          "agent self-report",
+          "我检查了",
+          "我验证了",
+          "我测试了",
+          "我运行了",
+          "已经检查",
+          "已经验证",
+          "已经测试",
+          "命令日志",
+          "工具日志",
+          "执行日志",
+          "自我报告"
+        ]
+      },
+      "root_cause_cleanup_gate": {
+        "purpose": "For incident analysis, locate root causes and cleanup/prevention actions from logs, diffs, hashes, and source records. Do not turn it into blame or subjective intent claims.",
+        "triggers": [
+          "root cause",
+          "root-cause",
+          "incident analysis",
+          "what went wrong",
+          "why did this happen",
+          "prevent recurrence",
+          "not blame",
+          "cleanup plan",
+          "根因",
+          "问题根源",
+          "事故分析",
+          "为什么会这样",
+          "防止复发",
+          "不是追责",
+          "清理方案"
+        ]
+      },
+      "lane_ownership_gate": {
+        "purpose": "A project or client name appearing in evidence is only a retrieval hit. Memory ownership requires task target, provenance, impact surface, and user authorization.",
+        "triggers": [
+          "memory lane ownership",
+          "project mentioned",
+          "mentioned in packet",
+          "backfill memory",
+          "write project memory",
+          "cross-lane",
+          "lane pollution",
+          "记忆车道归属",
+          "项目被提到",
+          "资料中提到",
+          "回填记忆",
+          "写入项目记忆",
+          "跨车道",
+          "车道污染"
+        ]
+      }
+    }
   },
   "receipt_profiles": {
     "default_profile": "compact_runtime",
