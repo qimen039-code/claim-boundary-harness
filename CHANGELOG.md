@@ -6,6 +6,13 @@ This project uses `vMAJOR.MINOR.PATCH` version labels while the framework is sti
 
 ## Unreleased
 
+## v0.19.10 - 2026-07-08
+
+- Tightened router classification for skill/security/redundancy audit requests
+  so skill safety, hidden-risk, token-bloat, and merge-candidate reviews route
+  through the skill matrix and change-contract gate instead of defaulting to
+  ordinary chat.
+
 ## v0.19.9 - 2026-07-08
 
 - Added `global_task_context_gate` for local causal diagnosis and narrow edits

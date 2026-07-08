@@ -223,6 +223,30 @@ ROUTER_CASES = [
         },
     },
     {
+        "id": "TC-005f",
+        "task": "对我们的 skill 进行安全漏洞、隐藏风险、冗余和可合并内容审计",
+        "risk": "R3",
+        "gates": ["change_contract_gate"],
+        "expect": {
+            "target_surface": "skill_matrix",
+        },
+        "expect_contains": {
+            "module_need": "skill_matrix",
+        },
+    },
+    {
+        "id": "TC-005g",
+        "task": "audit skills for security hidden risks token bloat redundancy and merge candidates",
+        "risk": "R3",
+        "gates": ["change_contract_gate"],
+        "expect": {
+            "target_surface": "skill_matrix",
+        },
+        "expect_contains": {
+            "module_need": "skill_matrix",
+        },
+    },
+    {
         "id": "TC-006",
         "task": "check whether this feature exists, then implement it if missing",
         "risk": "R3",
