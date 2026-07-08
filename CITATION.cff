@@ -3,7 +3,7 @@ message: "If you use or adapt Claim Boundary Harness, please cite this repositor
 title: "Claim Boundary Harness: External Cognition Governance for Agent Workflows"
 authors:
   - name: "qimen039-code"
-version: "0.19.8"
+version: "0.19.9"
 date-released: "2026-07-07"
 doi: "10.5281/zenodo.21189880"
 repository-code: "https://github.com/qimen039-code/claim-boundary-harness"

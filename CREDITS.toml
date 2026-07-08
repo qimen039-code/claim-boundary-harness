@@ -185,3 +185,33 @@ used_for = [
   "interface notes near the repository",
 ]
 boundary = "static notes are source-prior orientation until checked against files, tests, or schemas"
+
+[[pattern]]
+id = "structural-causal-models"
+name = "Structural causal models and do-calculus"
+used_for = [
+  "observation versus causality separation",
+  "causal attribution levels",
+  "intervention and counterfactual boundary pressure",
+]
+boundary = "CBH does not perform formal causal identification or prove causal effects from text alone"
+
+[[pattern]]
+id = "systems-thinking-task-context"
+name = "Systems thinking and system dynamics"
+used_for = [
+  "global task context gate",
+  "root-cause cleanup boundaries",
+  "local symptom versus system-structure distinction",
+]
+boundary = "CBH does not build a simulation model; it routes agents to read outer task context before local causal claims"
+
+[[pattern]]
+id = "situation-awareness-task-state"
+name = "Situation awareness"
+used_for = [
+  "current task state checks",
+  "active lane and goal awareness",
+  "projection of next-step effects before action",
+]
+boundary = "CBH does not measure human situation awareness; it adapts the pattern into an agent task-context check"

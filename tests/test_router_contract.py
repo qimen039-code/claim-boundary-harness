@@ -255,6 +255,17 @@ ROUTER_CASES = [
         },
     },
     {
+        "id": "TC-009o",
+        "task": "这个局部任务因果判断是否忽略了全局观、当前目标、状态表和文件图",
+        "gates": ["global_task_context_gate"],
+        "expect_contains": {
+            "semantic_ambiguity": "global_task_context_gate",
+        },
+        "expect_trigger_contains": {
+            "global_task_context_gate": "局部任务",
+        },
+    },
+    {
         "id": "TC-009a",
         "task": "为这个同类错误加入记忆-预测-验证-校准反馈闭环，观察下次是否复发",
         "gates": ["feedback_loop_gate"],

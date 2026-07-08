@@ -181,6 +181,14 @@ phrases such as "always" / "since June 15" / "整体上" / "长期". It prevents
 agent from answering a global or historical question from only the current
 chat window. It does not decide the causal label by itself.
 
+`global_task_context_gate` is a task-context gate. It applies when a local fix,
+local causal diagnosis, or narrow file edit may depend on the upstream goal,
+active lane, current status table, file map, workflow state, or cross-step
+constraints. It prevents a local symptom from being explained or patched as if
+the current file or current chat turn were the whole system. This gate should
+read only the nearest outer context first; it is not permission for a full
+history scan by default.
+
 `causal_attribution_gate` is an output-side or draft-final gate. It reviews
 high-risk assertion patterns before display:
 
@@ -251,6 +259,7 @@ Current generic gates:
 | `current_status_table_evidence_gate` | A current/status/latest table is built from notes, drafts, stale handoffs, or unverified memory. | Verify mutable fields, rename them as note/draft values, omit them, or show cell-level verification debt. |
 | `unknown_memory_reference_gate` | The user refers to a forgotten prior term, storage point, event, or decision. | Run bounded meta-first memory lookup before providing a named answer; report no hit if none is found. |
 | `hallucination_detection_anchor_gate` | The task asks whether an answer is hallucinated, grounded, complete, unsupported, or a non-answer. | Use source labels or requested-output contract anchors; separate unsupported, incomplete, and non-answer outcomes. |
+| `global_task_context_gate` | A local fix, local causal diagnosis, or narrow edit may depend on upstream goals, active lane, status table, file map, workflow state, or cross-step constraints. | Read the nearest outer context before diagnosing or patching; keep the result scoped and avoid turning local symptoms into root-cause claims. |
 | `public_private_surface_gate` | A public README, docs, release note, citation, package, or other public artifact is being prepared or reviewed. | Scan for private or local-only traces before publishing; keep public surfaces generic unless disclosure is explicitly authorized. |
 | `self_report_log_grounding_gate` | The agent describes what it previously checked, ran, verified, skipped, or failed. | Ground the statement in command/tool/session logs when logs exist; otherwise state that no log evidence exists. |
 | `root_cause_cleanup_gate` | Incident analysis asks what went wrong or how to prevent recurrence. | Prefer logs, diffs, hashes, and source records; keep subjective intent unknown unless proven; produce cleanup/prevention candidates. |

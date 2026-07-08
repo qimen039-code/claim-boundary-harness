@@ -6,6 +6,12 @@ This project uses `vMAJOR.MINOR.PATCH` version labels while the framework is sti
 
 ## Unreleased
 
+## v0.19.9 - 2026-07-08
+
+- Added `global_task_context_gate` for local causal diagnosis and narrow edits
+  that need upstream goal, lane, status, file-map, or workflow context before
+  root-cause or patch claims.
+
 ## v0.19.8 - 2026-07-08
 
 - Added issue-prevention gates for exact anchors, current/status table evidence,

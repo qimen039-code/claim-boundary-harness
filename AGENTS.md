@@ -49,8 +49,10 @@ client-support status, deployment status, and memory-lane ids;
 unverified notes; `unknown_memory_reference_gate` when the user refers to a
 forgotten prior term or event; `hallucination_detection_anchor_gate` when
 judging whether another answer is hallucinated, grounded, complete, or a
-non-answer; `public_private_surface_gate` before public-facing artifact
-publication or review; `self_report_log_grounding_gate` when describing prior
+non-answer; `global_task_context_gate` when a local fix, root-cause diagnosis,
+or narrow edit may depend on the outer goal, active lane, status table, file
+map, workflow state, or cross-step constraints; `public_private_surface_gate`
+before public-facing artifact publication or review; `self_report_log_grounding_gate` when describing prior
 checks, runs, skips, failures, or validation from logs; `root_cause_cleanup_gate`
 for incident analysis that should locate logs/diffs/hash-based causes rather
 than blame; and `lane_ownership_gate` when a project/client name appears in

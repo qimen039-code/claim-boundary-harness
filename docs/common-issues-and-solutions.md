@@ -42,6 +42,7 @@ requested as a full incident.
 | `CE-PUBLIC-2026-07-08-05` | `semantic_routing_error` | A project or client memory is updated only because that project/client was mentioned in an evidence packet. | Mention-based retrieval is mistaken for lane ownership. | Trigger `lane_ownership_gate`; determine memory ownership from task target, source provenance, impact surface, active lane, and user authorization. Use link-only cross-lane references when ownership is unresolved. | Router exposes the lane ownership gate and test cases cover mention-versus-ownership memory routing. |
 | `CE-PUBLIC-2026-07-08-06` | `publication_boundary_error` | A public README, release note, citation, package, or docs artifact may include private paths, local-only names, private fieldnotes, or user-specific traces. | Public/private hygiene is left to model memory instead of an explicit artifact-surface scan. | Trigger `public_private_surface_gate`; scan publication-bound surfaces for private or local-only traces before release, and keep generic framework wording unless disclosure is explicitly authorized. | Router exposes the public/private surface gate and test cases cover public README/release review. |
 | `CE-PUBLIC-2026-07-08-07` | `evidence_boundary_error` | The agent says it checked, ran, verified, skipped, or failed a prior step without tying that self-report to command/tool/session logs. | Prior-action reports are treated as narrative instead of evidence-bound claims. | Trigger `self_report_log_grounding_gate`; cite command/tool/session logs when they exist, or say no log evidence is available instead of reconstructing a plausible story. | Router exposes the self-report log grounding gate and test cases cover prior-action report review. |
+| `CE-PUBLIC-2026-07-08-08` | `causal_attribution_error` | A local file, symptom, or narrow task is diagnosed as the root cause without checking the current goal, active lane, status table, file map, or upstream workflow constraints. | The agent treats the current local context as the whole system and turns a local symptom into a causal explanation or patch target. | Trigger `global_task_context_gate`; read the nearest outer context before diagnosing or patching, keep causal wording scoped, and do not claim root cause from a local symptom alone. | Router exposes the global task context gate and test cases cover local-causal diagnosis that needs task-level context. |
 
 ## Feedback Loop Trial Entries
 
@@ -79,6 +80,7 @@ current status table latest status unverified notes local notes mutable fields n
 hallucination detection unsupported answer incomplete answer non-answer requested output contract grounded answer
 root cause incident analysis not blame logs diffs hashes self-report cleanup prevention
 lane ownership project mentioned memory backfill cross-lane mention is not ownership
+global task context whole task view local causal diagnosis upstream constraint current objective active lane file map status table workflow state 全局观 局部任务 局部因果 上游约束 当前目标 活跃车道 文件图 状态表
 ```
 
 ## Upgrade Boundary

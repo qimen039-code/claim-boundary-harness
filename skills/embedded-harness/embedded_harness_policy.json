@@ -1774,6 +1774,34 @@
           "回答完整性"
         ]
       },
+      "global_task_context_gate": {
+        "purpose": "Prevent local task fixes, local causal diagnosis, or narrow file edits from ignoring upstream goals, active lane, current status, file map, or cross-step constraints. This is a task-context gate, distinct from observation-scope claims.",
+        "triggers": [
+          "global task view",
+          "whole task context",
+          "local fix caused",
+          "local task causal",
+          "upstream constraint",
+          "current objective",
+          "active lane",
+          "file map",
+          "status table",
+          "workflow state",
+          "cross-step",
+          "局部任务",
+          "全局观",
+          "整体任务",
+          "任务全貌",
+          "局部因果",
+          "上游约束",
+          "当前目标",
+          "活跃车道",
+          "文件图",
+          "状态表",
+          "工作流状态",
+          "跨步骤"
+        ]
+      },
       "public_private_surface_gate": {
         "purpose": "Scan public-facing artifacts for private or local-only traces before publishing. Public surfaces must stay generic unless the user explicitly authorizes disclosure.",
         "triggers": [
