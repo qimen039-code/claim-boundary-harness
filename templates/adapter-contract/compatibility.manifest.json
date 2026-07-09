@@ -1,7 +1,7 @@
 {
   "schema_version": "0.1",
   "manifest_type": "agent_memory_lane_compatibility_manifest",
-  "harness_version": "v0.19.10",
+  "harness_version": "v0.19.11",
   "adapter": {
     "name": "example-adapter",
     "version": "unverified",
@@ -140,6 +140,21 @@
     "release_large_skill_body_when_supported": true,
     "reactivation_reads_current_source_files": true,
     "receipt_schema": "cbh.skill_release_receipt.v1"
+  },
+  "tool_surface_discovery": {
+    "supported": "unverified",
+    "default_enabled": true,
+    "advisory_only_unless_host_owns_tool_selection": true,
+    "field_names": [
+      "tool_surface_need",
+      "tool_discovery_status",
+      "skill_or_tool_need",
+      "plugin_need",
+      "preferred_call_surface",
+      "tool_surface_reason"
+    ],
+    "checks_before_fallback_to_shell_or_raw_web": true,
+    "authorization_boundary_required": true
   },
   "wrappers": {
     "python": {

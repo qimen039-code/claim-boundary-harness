@@ -355,6 +355,36 @@ class HarnessGateTests(unittest.TestCase):
         self.assertIn("skill_matrix", route["module_need"])
         self.assertEqual(route["skill_lifecycle_profile"], "reactivate_from_receipt")
 
+    def test_router_detects_github_tool_surface_discovery(self) -> None:
+        route = self._route("查找 GitHub 上 Yuan1z0825/nature-skills 仓库并读取 SKILL.md", policy=self.policy)
+        self.assertEqual(route["tool_surface_need"], "plugin_mcp")
+        self.assertEqual(route["tool_discovery_status"], "not_checked")
+        self.assertEqual(route["plugin_need"], "candidate_discovery_required")
+        self.assertEqual(route["preferred_call_surface"], "plugin_or_connector")
+        self.assertIn("tool_surface_discovery", route["module_need"])
+        self.assertIn("tool_surface_discovery_gate", route["required_gates"])
+
+    def test_router_detects_user_named_plugin_surface(self) -> None:
+        route = self._route("[@github] 读取某个仓库的 release 和 Actions 日志", policy=self.policy)
+        self.assertEqual(route["tool_discovery_status"], "user_named")
+        self.assertEqual(route["plugin_need"], "user_named")
+        self.assertEqual(route["preferred_call_surface"], "plugin_or_connector")
+        self.assertIn("tool_surface_discovery", route["module_need"])
+
+    def test_router_detects_codex_native_skill_surface(self) -> None:
+        route = self._route("帮我分析这个 PDF 并整理文档摘要", policy=self.policy)
+        self.assertEqual(route["tool_surface_need"], "native_skill")
+        self.assertEqual(route["skill_or_tool_need"], "codex_native_skill")
+        self.assertEqual(route["preferred_call_surface"], "native_skill")
+        self.assertIn("tool_surface_discovery", route["module_need"])
+
+    def test_router_keeps_local_test_task_on_shell_surface(self) -> None:
+        route = self._route("运行本地 pytest 并查看失败日志", policy=self.policy)
+        self.assertNotIn("tool_surface_discovery", route["module_need"])
+        self.assertEqual(route["tool_surface_need"], "none")
+        self.assertEqual(route["tool_discovery_status"], "not_needed")
+        self.assertEqual(route["plugin_need"], "none")
+
     def test_router_detects_explicit_merge_memory_link_intent(self) -> None:
         route = self._route("merge the old conversation memory with this conversation", policy=self.policy)
         self.assertEqual(route["link_intent"], "merge_memories_explicit")

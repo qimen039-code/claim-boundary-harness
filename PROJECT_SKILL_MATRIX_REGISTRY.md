@@ -80,6 +80,27 @@ When a task needs public facts, open-source repository evidence, external mechan
 
 Outside material can supply completion ideas, boundary control, engineering constraints, validation methods, failure lessons, or non-applicable examples. It must not replace the active project objective or be presented as local validation by itself.
 
+## Native Skill / Plugin / Connector Discovery Layer
+
+Codex-native skills and installed plugins are not always callable until the
+current turn exposes them through the skill list, `tool_search`, MCP/app tools,
+or an explicit user mention. When the task depends on a platform object or a
+specialized client capability, run a cheap discovery pass before falling back
+to shell, raw web, clone, or manual download.
+
+| Object / capability | Preferred discovery route | Fallback boundary |
+| --- | --- | --- |
+| GitHub repo, file, issue, PR, release, Actions log/artifact | Discover GitHub MCP/app tools first; use direct file/log/artifact tools when available | Shell `git`/`gh` or web only after plugin surface is missing, blocked, or insufficient for the needed local write |
+| Hosted or SaaS platform objects | Discover the named plugin/connector first when one exists | General web or shell only after `checked_missing`, `checked_blocked`, or local filesystem execution is the actual target |
+| PDF, documents, spreadsheets, presentations, templates, OpenAI docs, skill/plugin creation or install | Use the Codex native/system or primary-runtime skill listed for the turn | Shell only when the native skill cannot read/write the needed local artifact or the task is a build/test/edit step |
+| Browser, Chrome, Computer Use | Prefer Browser/Chrome/node_repl control when available; Computer Use only when the user names it or lighter browser paths are insufficient | Screenshots/OCR/manual UI only after lighter browser surfaces fail |
+| Local build/test/edit, filesystem copy, Windows config, large local repo clone | Shell/local tools | Plugin discovery is optional unless a platform API object is also part of the task |
+
+Record the internal decision as `tool_surface_need`,
+`tool_discovery_status`, `skill_or_tool_need`, `plugin_need`, and
+`preferred_call_surface`. Show it only in extended/debug receipts or when it
+changes the action path.
+
 ## Registered Routers
 
 | Scope | Path or trigger | Router skill / file | Status | Notes |

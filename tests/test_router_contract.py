@@ -247,6 +247,58 @@ ROUTER_CASES = [
         },
     },
     {
+        "id": "TC-005h",
+        "task": "查找 GitHub 上 Yuan1z0825/nature-skills 仓库并读取 SKILL.md",
+        "risk": "R4",
+        "gates": ["tool_surface_discovery_gate"],
+        "expect": {
+            "tool_surface_need": "plugin_mcp",
+            "tool_discovery_status": "not_checked",
+            "plugin_need": "candidate_discovery_required",
+            "preferred_call_surface": "plugin_or_connector",
+        },
+        "expect_contains": {
+            "module_need": "tool_surface_discovery",
+        },
+    },
+    {
+        "id": "TC-005i",
+        "task": "[@github] 读取某个仓库的 release 和 Actions 日志",
+        "gates": ["tool_surface_discovery_gate"],
+        "expect": {
+            "tool_discovery_status": "user_named",
+            "plugin_need": "user_named",
+            "preferred_call_surface": "plugin_or_connector",
+        },
+        "expect_contains": {
+            "module_need": "tool_surface_discovery",
+        },
+    },
+    {
+        "id": "TC-005j",
+        "task": "帮我分析这个 PDF 并整理文档摘要",
+        "gates": ["tool_surface_discovery_gate"],
+        "expect": {
+            "tool_surface_need": "native_skill",
+            "skill_or_tool_need": "codex_native_skill",
+            "preferred_call_surface": "native_skill",
+        },
+        "expect_contains": {
+            "module_need": "tool_surface_discovery",
+        },
+    },
+    {
+        "id": "TC-005k",
+        "task": "运行本地 pytest 并查看失败日志",
+        "risk": "R1",
+        "expect": {
+            "tool_surface_need": "none",
+            "tool_discovery_status": "not_needed",
+            "plugin_need": "none",
+            "preferred_call_surface": "none",
+        },
+    },
+    {
         "id": "TC-006",
         "task": "check whether this feature exists, then implement it if missing",
         "risk": "R3",

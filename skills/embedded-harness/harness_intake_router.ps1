@@ -967,6 +967,78 @@ if ((Get-MatchedTriggers $skillReactivateTriggers).Count -gt 0) {
   $skillLifecycleProfile = "reactivate_from_receipt"
 }
 
+$toolSurfaceNeed = "none"
+$toolDiscoveryStatus = "not_needed"
+$skillOrToolNeed = "none"
+$pluginNeed = "none"
+$preferredCallSurface = "none"
+$toolSurfaceReason = @()
+
+$toolSurfaceGroups = $policy.router_decision_contract.tool_surface_trigger_groups
+$explicitToolSurfaceHits = Get-TaskMatchedTerms @("@github", "@browser", "@chrome", "@nvidia", "@hugging-face", "@vercel", "@gmail", "@slack", "@canva", "plugin://", "app://", "tool_search", "MCP", "connector", "plugin", "插件", "连接器")
+$githubPluginHits = @()
+$platformPluginHits = @()
+$codexNativeSkillHits = @()
+$browserSurfaceHits = @()
+if ($null -ne $toolSurfaceGroups) {
+  $githubPluginHits = Get-MatchedTriggers (Get-ObjectPropertyValue $toolSurfaceGroups "github_plugin")
+  $platformPluginHits = Get-MatchedTriggers (Get-ObjectPropertyValue $toolSurfaceGroups "platform_plugin")
+  $codexNativeSkillHits = Get-MatchedTriggers (Get-ObjectPropertyValue $toolSurfaceGroups "codex_native_skill")
+  $browserSurfaceHits = Get-MatchedTriggers (Get-ObjectPropertyValue $toolSurfaceGroups "browser_surface")
+}
+
+if (($explicitToolSurfaceHits.Count -gt 0) -or ($githubPluginHits.Count -gt 0) -or ($platformPluginHits.Count -gt 0)) {
+  $toolSurfaceNeed = "plugin_mcp"
+  $skillOrToolNeed = "mcp_or_app_tool"
+  $preferredCallSurface = "plugin_or_connector"
+  if ($explicitToolSurfaceHits.Count -gt 0) {
+    $pluginNeed = "user_named"
+    $toolDiscoveryStatus = "user_named"
+    $toolSurfaceReason += "explicit_plugin_or_connector"
+  } else {
+    $pluginNeed = "candidate_discovery_required"
+    $toolDiscoveryStatus = "not_checked"
+    $toolSurfaceReason += "platform_object_without_explicit_tool"
+  }
+}
+
+if ($codexNativeSkillHits.Count -gt 0) {
+  if ($toolSurfaceNeed -ne "none") {
+    $toolSurfaceNeed = "multiple"
+  } else {
+    $toolSurfaceNeed = "native_skill"
+    $toolDiscoveryStatus = "not_checked"
+    $preferredCallSurface = "native_skill"
+  }
+  $skillOrToolNeed = "codex_native_skill"
+  $toolSurfaceReason += "codex_native_skill_candidate"
+}
+
+if ($browserSurfaceHits.Count -gt 0) {
+  if ($toolSurfaceNeed -ne "none") {
+    $toolSurfaceNeed = "multiple"
+  } else {
+    $toolSurfaceNeed = "browser"
+    $toolDiscoveryStatus = "not_checked"
+  }
+  $skillOrToolNeed = "mcp_or_app_tool"
+  $preferredCallSurface = "browser_or_chrome"
+  $toolSurfaceReason += "browser_or_chrome_candidate"
+}
+
+if ($targetSurface -eq "tool_call" -and $toolSurfaceNeed -eq "none") {
+  $toolSurfaceNeed = "shell"
+  $toolDiscoveryStatus = "not_needed"
+  $skillOrToolNeed = "shell_or_local_tool"
+  $preferredCallSurface = "shell"
+  $toolSurfaceReason += "local_tool_or_shell_surface"
+}
+
+if ($toolDiscoveryStatus -in @("not_checked", "user_named")) {
+  $requiredGates += "tool_surface_discovery_gate"
+}
+$toolSurfaceReason = @($toolSurfaceReason | Select-Object -Unique)
+
 $strongClaimTerms = Get-MatchedTriggers $policy.blocked_claim_phrases_without_schema
 if ($strongClaimTerms.Count -gt 0) {
   $claimRisk = "strong_claim_needs_schema"
@@ -984,6 +1056,7 @@ if ($memoryNeed -ne "none") { $moduleNeed += "memory_meta_index" }
 if ($staticKnowledgeHits.Count -gt 0) { $moduleNeed += "static_knowledge_index" }
 if ($debtHygieneHits.Count -gt 0) { $moduleNeed += "debt_hygiene_gate" }
 if ($targetSurface -eq "conversation_ledger") { $moduleNeed += "conversation_ledger_index" }
+if ($toolDiscoveryStatus -in @("not_checked", "user_named")) { $moduleNeed += "tool_surface_discovery" }
 if ($conversationMemoryDecision -ne "none") { $moduleNeed += "conversation_memory_index" }
 if ($linkIntent -ne "none") { $moduleNeed += "memory_link_ledger" }
 if (($externalNeed.Count -gt 0) -and ($externalNeed[0] -ne "none")) { $moduleNeed += "external_research_gate" }
@@ -1039,6 +1112,12 @@ $routingReceipt = [ordered]@{
   risk_level = $risk
   semantic_ambiguity = @($semanticAmbiguity)
   module_need = @($moduleNeed)
+  tool_surface_need = $toolSurfaceNeed
+  tool_discovery_status = $toolDiscoveryStatus
+  skill_or_tool_need = $skillOrToolNeed
+  plugin_need = $pluginNeed
+  preferred_call_surface = $preferredCallSurface
+  tool_surface_reason = @($toolSurfaceReason)
   skill_lifecycle_profile = $skillLifecycleProfile
   feedback_loop_profile = $feedbackLoopProfile
   memory_need = $memoryNeed
@@ -1064,6 +1143,11 @@ $compactReceipt = [ordered]@{
   task_type = $risk
   risk_level = $risk
   required_gates = @($requiredGates | Select-Object -Unique)
+  tool_surface_need = $toolSurfaceNeed
+  tool_discovery_status = $toolDiscoveryStatus
+  skill_or_tool_need = $skillOrToolNeed
+  plugin_need = $pluginNeed
+  preferred_call_surface = $preferredCallSurface
   skill_lifecycle_profile = $skillLifecycleProfile
   feedback_loop_profile = $feedbackLoopProfile
   memory_mode = $memoryMode
@@ -1093,6 +1177,12 @@ $result = [ordered]@{
   risk_level = $risk
   semantic_ambiguity = @($semanticAmbiguity)
   module_need = @($moduleNeed)
+  tool_surface_need = $toolSurfaceNeed
+  tool_discovery_status = $toolDiscoveryStatus
+  skill_or_tool_need = $skillOrToolNeed
+  plugin_need = $pluginNeed
+  preferred_call_surface = $preferredCallSurface
+  tool_surface_reason = @($toolSurfaceReason)
   skill_lifecycle_profile = $skillLifecycleProfile
   feedback_loop_profile = $feedbackLoopProfile
   memory_need = $memoryNeed

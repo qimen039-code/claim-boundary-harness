@@ -1063,6 +1063,78 @@ def intake_router(task_text: str = "", cwd: str | None = None, policy: dict[str,
     if skill_reactivate_hits:
         skill_lifecycle_profile = "reactivate_from_receipt"
 
+    tool_surface_need = "none"
+    tool_discovery_status = "not_needed"
+    skill_or_tool_need = "none"
+    plugin_need = "none"
+    preferred_call_surface = "none"
+    tool_surface_reason: list[str] = []
+    tool_surface_groups = contract.get("tool_surface_trigger_groups", {})
+    explicit_tool_surface_hits = _matching_triggers(
+        task_text,
+        [
+            "@github",
+            "@browser",
+            "@chrome",
+            "@nvidia",
+            "@hugging-face",
+            "@vercel",
+            "@gmail",
+            "@slack",
+            "@canva",
+            "plugin://",
+            "app://",
+            "tool_search",
+            "MCP",
+            "connector",
+            "plugin",
+            "插件",
+            "连接器",
+        ],
+    )
+    github_plugin_hits = _matching_triggers(task_text, tool_surface_groups.get("github_plugin", []))
+    platform_plugin_hits = _matching_triggers(task_text, tool_surface_groups.get("platform_plugin", []))
+    codex_native_skill_hits = _matching_triggers(task_text, tool_surface_groups.get("codex_native_skill", []))
+    browser_surface_hits = _matching_triggers(task_text, tool_surface_groups.get("browser_surface", []))
+    if explicit_tool_surface_hits or github_plugin_hits or platform_plugin_hits:
+        tool_surface_need = "plugin_mcp"
+        skill_or_tool_need = "mcp_or_app_tool"
+        preferred_call_surface = "plugin_or_connector"
+        if explicit_tool_surface_hits:
+            plugin_need = "user_named"
+            tool_discovery_status = "user_named"
+            tool_surface_reason.append("explicit_plugin_or_connector")
+        else:
+            plugin_need = "candidate_discovery_required"
+            tool_discovery_status = "not_checked"
+            tool_surface_reason.append("platform_object_without_explicit_tool")
+    if codex_native_skill_hits:
+        if tool_surface_need != "none":
+            tool_surface_need = "multiple"
+        else:
+            tool_surface_need = "native_skill"
+            tool_discovery_status = "not_checked"
+            preferred_call_surface = "native_skill"
+        skill_or_tool_need = "codex_native_skill"
+        tool_surface_reason.append("codex_native_skill_candidate")
+    if browser_surface_hits:
+        if tool_surface_need != "none":
+            tool_surface_need = "multiple"
+        else:
+            tool_surface_need = "browser"
+            tool_discovery_status = "not_checked"
+        skill_or_tool_need = "mcp_or_app_tool"
+        preferred_call_surface = "browser_or_chrome"
+        tool_surface_reason.append("browser_or_chrome_candidate")
+    if target_surface == "tool_call" and tool_surface_need == "none":
+        tool_surface_need = "shell"
+        skill_or_tool_need = "shell_or_local_tool"
+        preferred_call_surface = "shell"
+        tool_surface_reason.append("local_tool_or_shell_surface")
+    if tool_discovery_status in {"not_checked", "user_named"}:
+        required_gates.append("tool_surface_discovery_gate")
+    tool_surface_reason = _unique(tool_surface_reason)
+
     strong_claim_hits = _matching_triggers(task_text, policy.get("blocked_claim_phrases_without_schema", []))
     if strong_claim_hits:
         claim_risk = "strong_claim_needs_schema"
@@ -1088,6 +1160,8 @@ def intake_router(task_text: str = "", cwd: str | None = None, policy: dict[str,
         module_need.append("conversation_memory_index")
     if link_intent != "none":
         module_need.append("memory_link_ledger")
+    if tool_discovery_status in {"not_checked", "user_named"}:
+        module_need.append("tool_surface_discovery")
     if external_need and external_need[0] != "none":
         module_need.append("external_research_gate")
     if claim_risk != "none":
@@ -1135,6 +1209,12 @@ def intake_router(task_text: str = "", cwd: str | None = None, policy: dict[str,
         "risk_level": risk_level,
         "semantic_ambiguity": semantic_ambiguity,
         "module_need": module_need,
+        "tool_surface_need": tool_surface_need,
+        "tool_discovery_status": tool_discovery_status,
+        "skill_or_tool_need": skill_or_tool_need,
+        "plugin_need": plugin_need,
+        "preferred_call_surface": preferred_call_surface,
+        "tool_surface_reason": tool_surface_reason,
         "skill_lifecycle_profile": skill_lifecycle_profile,
         "memory_need": memory_need,
         "hybrid_retrieval_profile": hybrid_retrieval_profile,
@@ -1158,6 +1238,11 @@ def intake_router(task_text: str = "", cwd: str | None = None, policy: dict[str,
         "task_type": risk_level,
         "risk_level": risk_level,
         "required_gates": required_gates_out,
+        "tool_surface_need": tool_surface_need,
+        "tool_discovery_status": tool_discovery_status,
+        "skill_or_tool_need": skill_or_tool_need,
+        "plugin_need": plugin_need,
+        "preferred_call_surface": preferred_call_surface,
         "skill_lifecycle_profile": skill_lifecycle_profile,
         "memory_mode": memory_mode,
         "hybrid_retrieval_profile": hybrid_retrieval_profile,
@@ -1186,6 +1271,12 @@ def intake_router(task_text: str = "", cwd: str | None = None, policy: dict[str,
         "risk_level": risk_level,
         "semantic_ambiguity": semantic_ambiguity,
         "module_need": module_need,
+        "tool_surface_need": tool_surface_need,
+        "tool_discovery_status": tool_discovery_status,
+        "skill_or_tool_need": skill_or_tool_need,
+        "plugin_need": plugin_need,
+        "preferred_call_surface": preferred_call_surface,
+        "tool_surface_reason": tool_surface_reason,
         "skill_lifecycle_profile": skill_lifecycle_profile,
         "memory_need": memory_need,
         "hybrid_retrieval_profile": hybrid_retrieval_profile,

@@ -6,6 +6,12 @@ This project uses `vMAJOR.MINOR.PATCH` version labels while the framework is sti
 
 ## Unreleased
 
+## v0.19.11 - 2026-07-09
+
+- Added tool-surface discovery routing for Codex native skills, plugins,
+  connectors, and platform-specific MCP/app tools so agents check available
+  surfaces before falling back to shell or raw web.
+
 ## v0.19.10 - 2026-07-08
 
 - Tightened router classification for skill/security/redundancy audit requests

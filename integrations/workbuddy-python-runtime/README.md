@@ -61,6 +61,14 @@ meta-first path, and enforce context-complete write shape when a durable memory
 write/update has already been selected. They are advisory unless the host owns
 the relevant skill context or memory read/write execution path.
 
+Route output may also include `tool_surface_need`,
+`tool_discovery_status`, `skill_or_tool_need`, `plugin_need`, and
+`preferred_call_surface`. A WorkBuddy-compatible loop can use these fields to
+check native skills, plugins, connectors, MCP/app tools, or browser surfaces
+before falling back to shell or raw web. They are advisory unless the host owns
+tool selection; using an external account, login, connector, or different
+execution surface still requires the host's normal authorization boundary.
+
 When the host writes memory payloads, it may preserve optional `feedback_loop`
 fields from the memory feedback-loop trial. The Python adapter does not verify
 that loop by itself. Treat `prediction` as a hypothesis, require a later

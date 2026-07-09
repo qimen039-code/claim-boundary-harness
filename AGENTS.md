@@ -99,6 +99,15 @@ large rendered skill body content where the host supports context garbage
 collection. Later reactivation should use `reactivate_from_receipt` and reread
 current source files rather than relying on stale compressed skill fragments.
 
+Tool-surface discovery is routed separately from ordinary local tool use. When
+a task clearly depends on a third-party platform object, installed connector,
+Codex native/system skill, browser/Chrome/Computer Use surface, document/PDF/
+spreadsheet/presentation skill, OpenAI docs, or skill/plugin creation or
+installation, check the available plugin/native-skill surface before falling
+back to shell, raw web, clone, or manual download. If the better surface needs
+login, external account access, user authorization, or changes the execution
+surface, state the candidate tool and boundary before using it.
+
 Active context ceiling by default:
 
 ```text

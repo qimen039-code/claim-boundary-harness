@@ -216,6 +216,15 @@ Use `feedback_loop_profile` to choose cost: `index_hint` and
 `record_candidate` stay compact; `prevention_review` and `explicit_cycle` may
 open selected payloads.
 
+`tool_surface_need`, `tool_discovery_status`, `skill_or_tool_need`,
+`plugin_need`, and `preferred_call_surface` are prompt-stage tool-selection
+fields. A WorkBuddy-compatible loop can use them to discover native skills,
+plugins, connectors, MCP/app tools, or browser surfaces before falling back to
+shell or raw web. They do not create a new hard gate by themselves; they become
+enforceable only if the host owns tool selection. External accounts, logins,
+connectors, and changed execution surfaces still need the host's normal user
+authorization flow.
+
 `skill_lifecycle_profile` is also a decision field. A WorkBuddy-compatible loop
 can use it to keep idle skills listing-only, open an active frame for selected
 skill phases, and write a `skill_release_receipt` when the phase ends. Releasing

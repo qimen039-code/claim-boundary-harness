@@ -45,9 +45,9 @@ def test_bilingual_readme_and_local_overlay_template_are_present() -> None:
 
     assert "[中文版](./README_zh.md) | English" in readme
     assert "[English](./README.md) | 中文" in readme_zh
-    assert "v0.19.10" in readme
-    assert "v0.19.10" in readme_zh
-    assert read_text("VERSION").strip() == "v0.19.10"
+    assert "v0.19.11" in readme
+    assert "v0.19.11" in readme_zh
+    assert read_text("VERSION").strip() == "v0.19.11"
     assert overlay["schema"] == "cbh.project_lane_overlay.v1"
     assert policy["local_project_lane_overlay"]["default_filename"] == "embedded_harness_policy.local.json"
     assert "embedded_harness_policy.local.json" in readme
@@ -83,16 +83,16 @@ def test_citation_notice_are_visible_and_public_report_draft_is_absent() -> None
     assert "claim-boundary-harness-technical-report.md" not in readme_zh
     assert "title: \"Claim Boundary Harness: External Cognition Governance for Agent Workflows\"" in citation
     assert "qimen039-code" in citation
-    assert "version: \"0.19.10\"" in citation
+    assert "version: \"0.19.11\"" in citation
     assert "doi: \"10.5281/zenodo.21189880\"" in citation
     assert "Recommended short attribution" in notice
     assert "submitted arXiv record exists" in notice
     assert "Copyright (c) 2026 qimen039-code" in license_text
     assert "Zenodo DOI trigger release" in changelog
-    assert "## v0.19.10 - 2026-07-08" in changelog
+    assert "## v0.19.11 - 2026-07-09" in changelog
     stale_version = "v0." + "14.0"
     assert stale_version not in changelog
-    assert manifest["harness_version"] == "v0.19.10"
+    assert manifest["harness_version"] == "v0.19.11"
 
 
 def test_memory_feedback_loop_trial_is_optional_and_template_visible() -> None:
@@ -225,6 +225,10 @@ def test_memory_profiles_are_routed_and_template_visible() -> None:
     assert manifest["skill_lifecycle"]["receipt_schema"] == "cbh.skill_release_receipt.v1"
     assert manifest["skill_lifecycle"]["reactivation_reads_current_source_files"] is True
     assert manifest["memory_feedback_loop"]["prediction_is_hypothesis_until_verified"] is True
+    assert manifest["tool_surface_discovery"]["checks_before_fallback_to_shell_or_raw_web"] is True
+    assert "tool_surface_need" in manifest["tool_surface_discovery"]["field_names"]
+    assert "tool_surface_need" in read_text("integrations/workbuddy-python-runtime/README.md")
+    assert "preferred_call_surface" in read_text("docs/integrations/workbuddy.md")
     assert manifest["observation_and_causal_attribution"]["attribution_levels"] == [
         "mechanism_property",
         "empirical_record",
