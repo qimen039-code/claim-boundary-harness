@@ -6,6 +6,12 @@ This project uses `vMAJOR.MINOR.PATCH` version labels while the framework is sti
 
 ## Unreleased
 
+## v0.20.1 - 2026-07-09
+
+- Added a model-facing local LLM adapter brief for OpenAI-compatible local
+  deployments, including GLM-5.2 and DeepSeek-V4 profile notes, capability
+  probing, advisory/proxy/tool/full-host modes, and R5/claim/memory boundaries.
+
 ## v0.20.0 - 2026-07-09
 
 - Added linked-surface synchronization checks so policy/router changes are
