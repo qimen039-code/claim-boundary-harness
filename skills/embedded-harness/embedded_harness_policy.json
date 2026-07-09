@@ -641,6 +641,9 @@
       "hybrid_retrieval_profile",
       "memory_mode",
       "memory_write_profile",
+      "read_semantic_boundary",
+      "read_depth_profile",
+      "edit_operation_profile",
       "memory_lane",
       "record_intent",
       "external_need",
@@ -840,6 +843,44 @@
       "strict_capsule_required"
     ],
     "memory_write_profile_rule": "When memory_mode is write or update, durable memory content must be context-complete and source-preserving. Explicit reusable memory, conversation-memory, and cross-conversation writes require strict capsule shape rather than orphan fragments.",
+    "read_semantic_boundary_values": [
+      "orientation",
+      "continuity_goal",
+      "exact_anchor",
+      "execution_trace",
+      "output_truth",
+      "cross_boundary",
+      "source_validity",
+      "causal_scope",
+      "change_integrity",
+      "contamination_or_debt"
+    ],
+    "read_semantic_boundary_rule": "Select reading depth from semantic evidence demand, not literal keywords alone. Use exact anchors first, then original-language semantic anchors, then domain tags and near-synonym families. Negative anchors prevent false positives. If near matches point to multiple lanes, events, or meanings, keep a bounded candidate set or ask before opening payloads or writing memory.",
+    "read_depth_profile_values": [
+      "none",
+      "capsule_only",
+      "segment_window",
+      "raw_context_window",
+      "artifact_output_window",
+      "cross_lane_link_review",
+      "source_cascade_review",
+      "full_lane_audit"
+    ],
+    "read_depth_profile_rule": "Select read depth after lane/category narrowing. Use capsule_only for ordinary orientation, segment_window for local sequence, raw_context_window for exact wording/tool logs/errors/R5/self-report/user corrections, artifact_output_window for final outputs/tests/diffs/public artifacts, cross_lane_link_review for ownership/continuation/merge/archive boundaries, source_cascade_review for domain/external/causal/conflict/source-validity claims, and full_lane_audit only for migration, cleanup, backfill, contamination review, or explicit audit.",
+    "edit_operation_profile_values": [
+      "none",
+      "read_only",
+      "append_delta",
+      "in_place_patch",
+      "section_replace",
+      "add_new_artifact",
+      "supersede_with_link",
+      "archive_or_move",
+      "full_rewrite",
+      "delete_record_content",
+      "delete_from_disk"
+    ],
+    "edit_operation_profile_rule": "Classify content mutation before editing. Ordinary update/sync/fix/adapt wording defaults to append_delta or in_place_patch on the selected target. section_replace is bounded by anchors. full_rewrite requires explicit whole-surface intent, generated-source truth, unavoidable schema migration, corruption, or approved cleanup/migration plan. delete_from_disk is R5. delete_record_content needs explicit scope and diff review, and high-impact records may require R5-style confirmation.",
     "memory_lane_values": [
       "none",
       "current_project",
@@ -1325,7 +1366,18 @@
       "防止复发",
       "防止再次出现",
       "按解决方案继续",
-      "按记录修复"
+      "按记录修复",
+      "future similar",
+      "future recurrence",
+      "prevent similar",
+      "avoid similar",
+      "后续类似",
+      "后续可能",
+      "预防同类",
+      "预防类似",
+      "避免再犯",
+      "不能重复犯",
+      "不要重复犯"
     ],
     "conversation_memory_explicit_triggers": [
       "remember this conversation",
@@ -1834,7 +1886,20 @@
       "验证",
       "校准",
       "未来路由",
-      "防止重复错误"
+      "防止重复错误",
+      "future similar cases",
+      "similar future events",
+      "recurrence risk",
+      "prevent similar recurrence",
+      "后续类似",
+      "后续可能",
+      "同类问题",
+      "同类事件",
+      "类似事件",
+      "复发风险",
+      "预防同类",
+      "不能重复犯",
+      "不要重复犯"
     ],
     "issue_prevention_gates": {
       "exact_anchor_preservation_gate": {
@@ -1870,15 +1935,11 @@
           "current table",
           "current facts",
           "latest status",
-          "unverified notes",
-          "local notes",
           "status columns",
           "当前状态表",
           "状态表",
           "当前事实",
           "最新状态",
-          "未验证笔记",
-          "本地笔记",
           "表格列"
         ]
       },
@@ -1934,11 +1995,22 @@
           "status table",
           "workflow state",
           "cross-step",
+          "global issue",
+          "systemic issue",
+          "future similar cases",
+          "similar future events",
+          "prevent similar recurrence",
           "局部任务",
           "全局观",
+          "全局问题",
+          "系统性问题",
           "整体任务",
           "任务全貌",
           "局部因果",
+          "后续同类",
+          "后续类似",
+          "类似同类事件",
+          "预防同类复发",
           "上游约束",
           "当前目标",
           "活跃车道",
@@ -1946,6 +2018,62 @@
           "状态表",
           "工作流状态",
           "跨步骤"
+        ]
+      },
+      "novel_recurrence_candidate_gate": {
+        "purpose": "Lightweight re-evaluation for novel-looking failures that resemble prior failure shapes without matching a known gate. Mark a candidate recurrence or candidate global issue first; do not automatically run global, causal, feedback, memory-write, or R5 paths unless the re-evaluation upgrades the scope.",
+        "triggers": [
+          "novel recurrence candidate",
+          "candidate recurrence",
+          "new failure shape",
+          "new anomaly",
+          "same structure different surface",
+          "similar structure",
+          "similar but different",
+          "not the same category",
+          "did not trigger the existing gate",
+          "missed by current gates",
+          "候选复发",
+          "候选同类",
+          "新型异常",
+          "新问题形态",
+          "结构相似",
+          "表面不同",
+          "类似但不同",
+          "不是同一类",
+          "现有门控没触发",
+          "没有触发旧规则",
+          "没有命中现有规则"
+        ]
+      },
+      "linked_surface_sync_gate": {
+        "purpose": "Before changing linked governance surfaces such as router, policy, AGENTS, memory, ledger, adapter, or profile fields, enumerate the intended supported surfaces and the explicit non-target surfaces. Update only the user-requested or active supported surfaces; leave legacy or unnamed adapters as candidate debt unless explicitly requested.",
+        "triggers": [
+          "linked surface",
+          "surface parity",
+          "sync surfaces",
+          "sync adapter",
+          "adapter parity",
+          "policy sync",
+          "router sync",
+          "AGENTS sync",
+          "memory rule sync",
+          "profile field sync",
+          "Codex and WorkBuddy",
+          "Codex/WorkBuddy",
+          "环环相扣",
+          "联动表面",
+          "同步表面",
+          "同步适配",
+          "适配同步",
+          "路由同步",
+          "策略同步",
+          "规则同步",
+          "记忆规则同步",
+          "Codex 和 WorkBuddy",
+          "Codex/WorkBuddy",
+          "只更新 codex 和 workbuddy",
+          "主要更新codex和workbuddy"
         ]
       },
       "public_private_surface_gate": {
@@ -2175,10 +2303,79 @@
     "summary_capsule_rule": "ARCHIVE_SUMMARY_CAPSULE requires explicit compression, migration, de-identification, public-release, or storage-reduction intent. Do not delete the source unless separately confirmed.",
     "hard_rules": [
       "do_not_regenerate_archived_memory_content_by_default",
+      "do_not_treat_backup_or_sealed_snapshot_as_current_memory_without_explicit_promotion_or_recovery_route",
       "move_or_copy_before_editing_archive_indexes",
       "preserve_source_ref_source_lane_source_path_archive_path_timestamp_operation_type_checksum_when_practical",
       "source_deletion_is_R5"
     ]
+  },
+  "cold_evidence_boundary": {
+    "applies_to": [
+      "backup_paths",
+      "sealed_snapshots",
+      "recovery_copies",
+      "quarantined_records"
+    ],
+    "default_read_mode": "read_only",
+    "default_write_policy": "no_write_from_cold_evidence",
+    "default_merge_allowed": false,
+    "allowed_purposes": [
+      "recovery",
+      "historical_comparison",
+      "checksum_verification",
+      "contamination_review",
+      "root_cause_analysis"
+    ],
+    "active_retrieval_rule": "Do not inject cold evidence as current guidance. Promotion into an active lane requires a separate memory write/update route with source-monitoring metadata and explicit user or project authorization.",
+    "receipt_fields": [
+      "source_lane",
+      "target_lane",
+      "purpose",
+      "read_mode",
+      "write_policy",
+      "merge_allowed",
+      "evidence_boundary"
+    ]
+  },
+  "context_backup_append_contract": {
+    "purpose": "Preserve full-detail context and execution evidence without forcing project or conversation rollup memories to duplicate it.",
+    "default_operation": "append_delta",
+    "rewrite_whole_file_by_default": false,
+    "trigger_boundaries": [
+      "closed_task_segment",
+      "durable_decision",
+      "artifact_or_diff_created",
+      "test_or_verification_result",
+      "error_and_recovery",
+      "context_compaction_boundary",
+      "interruption_stop_resume",
+      "handoff_or_final_review"
+    ],
+    "append_material": [
+      "user_instruction_window",
+      "material_agent_response_or_status_note",
+      "tool_calls_and_command_output",
+      "errors_tests_diffs_artifact_paths",
+      "verification_results",
+      "open_loops_and_verification_debt"
+    ],
+    "rule": "When a detailed context-backup memory is enabled, update means appending or patching only the selected new segment with original context, logs, refs, and hashes when available. Do not replace it with a lossy summary and do not regenerate the entire file for an ordinary update."
+  },
+  "rollup_slimming_profile": {
+    "applies_to": [
+      "project_memory",
+      "long_conversation_memory",
+      "domain_knowledge_memory"
+    ],
+    "rule": "When a context-backup memory or raw ledger preserves the full detail, rollup memories should store compact event/domain/decision/error/source capsules plus evidence_refs instead of duplicating every turn, tool log, error, or diff.",
+    "capsule_types": [
+      "event_capsule",
+      "domain_capsule",
+      "decision_capsule",
+      "error_solution_capsule",
+      "source_capsule"
+    ],
+    "old_memory_migration_rule": "Do not migrate old memories just to match this profile. Apply it to future writes and future updates."
   },
   "persona_state_policy": {
     "default": "off",

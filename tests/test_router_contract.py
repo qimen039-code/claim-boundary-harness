@@ -342,6 +342,46 @@ ROUTER_CASES = [
         },
     },
     {
+        "id": "TC-009p",
+        "task": "这次 router 和 policy 更新要保持环环相扣，只更新 Codex 和 WorkBuddy，不更新 Bash",
+        "risk": "R4",
+        "gates": ["linked_surface_sync_gate"],
+        "expect_contains": {
+            "semantic_ambiguity": "linked_surface_sync_gate",
+        },
+        "expect_trigger_contains": {
+            "linked_surface_sync_gate": "环环相扣",
+        },
+    },
+    {
+        "id": "TC-009q",
+        "task": "这个全局问题需要从当前事件发散分析后续可能出现的同类事件，并进行预防，避免再只照顾局部",
+        "gates": ["global_task_context_gate", "feedback_loop_gate"],
+        "expect": {
+            "feedback_loop_profile": "explicit_cycle",
+            "read_depth_profile": "source_cascade_review",
+        },
+        "expect_contains": {
+            "read_semantic_boundary": "causal_scope",
+        },
+        "expect_trigger_contains": {
+            "global_task_context_gate": "全局问题",
+            "feedback_loop": "后续可能",
+        },
+    },
+    {
+        "id": "TC-009r",
+        "task": "这次表现和旧问题不是同一类，但结构相似，可能是新型异常，先标记为候选复发再轻量复评",
+        "gates": ["novel_recurrence_candidate_gate"],
+        "not_gates": ["global_task_context_gate", "feedback_loop_gate"],
+        "expect_contains": {
+            "semantic_ambiguity": "novel_recurrence_candidate_gate",
+        },
+        "expect_trigger_contains": {
+            "novel_recurrence_candidate_gate": "新型异常",
+        },
+    },
+    {
         "id": "TC-009a",
         "task": "为这个同类错误加入记忆-预测-验证-校准反馈闭环，观察下次是否复发",
         "gates": ["feedback_loop_gate"],
@@ -506,6 +546,108 @@ ROUTER_CASES = [
             "lane_ownership_gate": "backfill memory",
         },
     },
+    {
+        "id": "TC-009p",
+        "task": "上下文压缩后继续这个长对话，先回顾当前任务源头和全局目标",
+        "expect": {
+            "read_depth_profile": "segment_window",
+        },
+        "expect_contains": {
+            "read_semantic_boundary": "continuity_goal",
+        },
+    },
+    {
+        "id": "TC-009q",
+        "task": "检查我刚才是否真的运行了本地 pandas 检查，必须看实际命令日志和错误输出",
+        "expect": {
+            "read_depth_profile": "raw_context_window",
+        },
+        "expect_contains": {
+            "read_semantic_boundary": "execution_trace",
+        },
+    },
+    {
+        "id": "TC-009r",
+        "task": "PDF 编译成功了，但我要确认最终 PDF 里作者中文有没有丢失，不能只看源码",
+        "expect": {
+            "read_depth_profile": "artifact_output_window",
+        },
+        "expect_contains": {
+            "read_semantic_boundary": "output_truth",
+        },
+    },
+    {
+        "id": "TC-009s",
+        "task": "接续上一段对话记忆，但不要合并旧 lane，只建立链接并继续",
+        "expect": {
+            "read_depth_profile": "cross_lane_link_review",
+        },
+        "expect_contains": {
+            "read_semantic_boundary": "cross_boundary",
+        },
+    },
+    {
+        "id": "TC-009t",
+        "task": "这个本地案例能不能证明 CBH 长期降低幻觉漂移？",
+        "expect": {
+            "read_depth_profile": "source_cascade_review",
+        },
+        "expect_contains": {
+            "read_semantic_boundary": "causal_scope",
+        },
+    },
+    {
+        "id": "TC-009u",
+        "task": "更新 AGENTS.md 中的记忆规则，不要重写整个文件",
+        "risk": "R3",
+        "expect": {
+            "edit_operation_profile": "in_place_patch",
+            "read_depth_profile": "artifact_output_window",
+        },
+        "expect_contains": {
+            "read_semantic_boundary": "change_integrity",
+        },
+    },
+    {
+        "id": "TC-009v",
+        "task": "把这个任务段的原始上下文和执行日志追加到上下文备份，不要重写旧文件",
+        "expect": {
+            "edit_operation_profile": "append_delta",
+        },
+        "expect_contains": {
+            "read_semantic_boundary": "execution_trace",
+        },
+    },
+    {
+        "id": "TC-009w",
+        "task": "完全重写这个生成的报告文件，旧文件先保留为备份",
+        "expect": {
+            "edit_operation_profile": "full_rewrite",
+        },
+    },
+    {
+        "id": "TC-009x",
+        "task": "删掉 README 中过时的一段描述，但不要删除文件",
+        "expect": {
+            "edit_operation_profile": "delete_record_content",
+        },
+    },
+    {
+        "id": "TC-009y",
+        "task": "删除旧 release 文件夹",
+        "risk": "R5",
+        "expect": {
+            "edit_operation_profile": "delete_from_disk",
+        },
+    },
+    {
+        "id": "TC-009z",
+        "task": "不要删除任何文件，只检查哪些内容可能需要归档",
+        "not_risk": "R5",
+        "expect": {
+            "edit_operation_profile": "read_only",
+        },
+    },
 ]
 
 
@@ -540,8 +682,17 @@ def test_router_contract_cases(case: dict) -> None:
         assert contains(payload.get("matched_risk_triggers", {}).get(trigger_key), expected_value)
 
 
+def test_router_combines_global_context_and_feedback_prevention() -> None:
+    payload = run_router("这个全局问题需要从当前事件发散分析后续可能出现的同类事件，并进行预防，避免再只照顾局部")
+    assert contains(payload.get("required_gates"), "global_task_context_gate")
+    assert contains(payload.get("required_gates"), "feedback_loop_gate")
+    assert contains(payload.get("semantic_ambiguity"), "global_task_context_gate")
+    assert contains(payload.get("semantic_ambiguity"), "feedback_loop_required")
+    assert payload["feedback_loop_profile"] == "explicit_cycle"
+
+
 def test_router_uses_local_project_lane_overlay(tmp_path: Path) -> None:
-    project = tmp_path / "AI_Lead_Radar"
+    project = tmp_path / "EXAMPLE_PROJECT"
     memory_bank = project / "memory-bank"
     memory_bank.mkdir(parents=True)
     overlay = tmp_path / "project_lanes.local.json"
@@ -549,8 +700,8 @@ def test_router_uses_local_project_lane_overlay(tmp_path: Path) -> None:
         json.dumps(
             {
                 "schema": "cbh.project_lane_overlay.v1",
-                "project_lanes": {"AI_Lead_Radar": [str(project)]},
-                "memory_roots": {"AI_Lead_Radar": [str(memory_bank)]},
+                "project_lanes": {"EXAMPLE_PROJECT": [str(project)]},
+                "memory_roots": {"EXAMPLE_PROJECT": [str(memory_bank)]},
             },
             ensure_ascii=False,
         ),
@@ -561,13 +712,13 @@ def test_router_uses_local_project_lane_overlay(tmp_path: Path) -> None:
 
     payload = run_router_with_cwd("只读检查 Memory Bank 已更新和长期记忆状态", project, env=env)
 
-    assert payload["project_lane"] == "AI_Lead_Radar"
+    assert payload["project_lane"] == "EXAMPLE_PROJECT"
     assert payload["memory_lane"] == "current_project"
     assert payload["risk_level"] != "R5"
 
 
 def test_router_marks_project_long_term_memory_write_as_write_mode(tmp_path: Path) -> None:
-    project = tmp_path / "AI_Lead_Radar"
+    project = tmp_path / "EXAMPLE_PROJECT"
     memory_bank = project / "memory-bank"
     memory_bank.mkdir(parents=True)
     overlay = tmp_path / "project_lanes.local.json"
@@ -575,8 +726,8 @@ def test_router_marks_project_long_term_memory_write_as_write_mode(tmp_path: Pat
         json.dumps(
             {
                 "schema": "cbh.project_lane_overlay.v1",
-                "project_lanes": {"AI_Lead_Radar": [str(project)]},
-                "memory_roots": {"AI_Lead_Radar": [str(memory_bank)]},
+                "project_lanes": {"EXAMPLE_PROJECT": [str(project)]},
+                "memory_roots": {"EXAMPLE_PROJECT": [str(memory_bank)]},
             },
             ensure_ascii=False,
         ),
@@ -587,7 +738,7 @@ def test_router_marks_project_long_term_memory_write_as_write_mode(tmp_path: Pat
 
     payload = run_router_with_cwd("写入记忆：记录这个长期记忆修复", project, env=env)
 
-    assert payload["project_lane"] == "AI_Lead_Radar"
+    assert payload["project_lane"] == "EXAMPLE_PROJECT"
     assert payload["risk_level"] == "R5"
     assert payload["memory_lane"] == "current_project"
     assert payload["memory_mode"] == "write"

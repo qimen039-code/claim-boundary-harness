@@ -6,6 +6,19 @@ This project uses `vMAJOR.MINOR.PATCH` version labels while the framework is sti
 
 ## Unreleased
 
+## v0.20.0 - 2026-07-09
+
+- Added linked-surface synchronization checks so policy/router changes are
+  reviewed against related docs, tests, adapters, active Codex surfaces, and
+  WorkBuddy integration instead of being patched as isolated local edits.
+- Added a novel-recurrence candidate gate for similar-but-different failures
+  that miss existing gates, keeping the first pass lightweight while preserving
+  escalation paths for global context, causal review, feedback-loop, memory, or
+  R5 boundaries.
+- Tightened Codex and WorkBuddy routing around global-context, causal,
+  feedback-loop, common-error, memory-linking, read-depth, and edit-operation
+  profiles while keeping Bash unchanged unless explicitly requested.
+
 ## v0.19.11 - 2026-07-09
 
 - Added tool-surface discovery routing for Codex native skills, plugins,

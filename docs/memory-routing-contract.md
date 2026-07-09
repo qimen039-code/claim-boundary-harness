@@ -11,6 +11,8 @@ memory_need
 hybrid_retrieval_profile
 memory_mode
 memory_write_profile
+read_semantic_boundary
+read_depth_profile
 memory_lane
 record_intent
 projectization_decision
@@ -30,6 +32,8 @@ Meanings:
 | `hybrid_retrieval_profile` | `none`, `meta_first_hybrid_enhancement`, `meta_first_hybrid_required` | Whether to augment meta-first lookup with bounded lexical, original-language, Chinese n-gram, English term, and optional lexical-rank signals. |
 | `memory_mode` | `none`, `read`, `write`, `update` | Whether the task should skip, read, write, or update memory. |
 | `memory_write_profile` | `none`, `context_complete_required`, `strict_capsule_required` | Whether a selected write/update must satisfy context-complete or strict reusable-capsule shape. |
+| `read_semantic_boundary` | One or more semantic evidence-demand families; see below. | Why the selected evidence depth is needed. |
+| `read_depth_profile` | `none`, `capsule_only`, `segment_window`, `raw_context_window`, `artifact_output_window`, `cross_lane_link_review`, `source_cascade_review`, `full_lane_audit` | How far to drill from a rollup into detailed evidence. |
 | `memory_lane` | `none`, `current_project`, `current_conversation`, `referenced_conversation`, `emergent_project_candidate`, `common_error_corpus`, `self_reflection_matrix`, `global_inbox` | Where the memory action belongs. |
 | `record_intent` | `no_record`, `explicit_user_request`, `inferred_reusable_error`, `projectization_review`, `conversation_checkpoint`, `explicit_conversation_memory_request` | Why a record would be written. |
 | `projectization_decision` | `not_project`, `current_project`, `emergent_project_candidate` | Whether projectless work is becoming a durable project lane. |
@@ -88,6 +92,65 @@ conversation-memory, or cross-conversation writes should use
 `strict_capsule_required`. These profiles decide the shape of the selected
 write; they do not by themselves grant permission to write memory.
 
+### Semantic Read Boundary
+
+`read_depth_profile` is selected after the lane and candidate set are bounded.
+Do not choose it from literal keywords alone. First classify the semantic
+evidence demand, then map it to the shallowest safe depth.
+
+Recommended `read_semantic_boundary` values:
+
+| Boundary | Meaning | Typical minimum depth |
+| --- | --- | --- |
+| `orientation` | User needs where the work stands, not exact proof. | `capsule_only` |
+| `continuity_goal` | Need task source, global goal, current stage, open loops, or why the local step exists. | `segment_window` |
+| `exact_anchor` | DOI, path, tag, hash, version, lane id, command, error text, user wording, R5 confirmation, or quoted phrase matters. | `raw_context_window` |
+| `execution_trace` | Need what actually ran, failed, passed, or was skipped. | `raw_context_window` |
+| `output_truth` | Claim concerns the rendered/generated/final artifact rather than the source plan. | `artifact_output_window` |
+| `cross_boundary` | Lane ownership, project/conversation continuation, public/private surface, archive, merge, or link-only boundary matters. | `cross_lane_link_review` |
+| `source_validity` | Claim depends on external source, domain knowledge, stale source, conflict, supersession, or source invalidation. | `source_cascade_review` |
+| `causal_scope` | Claim explains why something happened, trends over time, or generalizes beyond one local event. | `source_cascade_review` |
+| `change_integrity` | Need to know whether content was added, modified, removed, replaced, rewritten, generated, or deleted. | `raw_context_window` or `artifact_output_window` |
+| `contamination_or_debt` | Memory pollution, target pollution, dirty tree debt, technical debt, or quarantine review is at issue. | `full_lane_audit` only when bounded windows are insufficient |
+
+Semantic matching order:
+
+1. Exact anchors first: ids, paths, hashes, versions, timestamps, event ids,
+   lane ids, command strings, error signatures, quoted user text, artifact
+   paths, and source refs.
+2. Original-language semantic anchors next: Chinese phrases stay Chinese,
+   English/API/code terms stay English, and aliases should preserve the source
+   language rather than translating away meaning.
+3. Domain tags and near-synonym families next: e.g. "继续上次", "接续记忆",
+   "上下文压缩后恢复" may map to `continuity_goal`, but they are not proof
+   that the same lane or event is meant.
+4. Negative anchors prevent false positives: "提交报告" is not git commit;
+   "删除这个触发词示例" is not necessarily file deletion; "更新记忆状态表"
+   is not permission to rewrite all memory.
+5. If near matches point to multiple lanes, events, or meanings, return a
+   bounded candidate set or ask for selection before opening payloads or
+   writing memory.
+
+Capsules and ledger indexes should therefore keep compact `semantic_anchors`,
+`alias_terms`, `negative_anchors`, `domain_tags`, and `evidence_refs` when
+available. These are routing aids, not truth signals.
+
+It prevents both under-reading and full-history over-reading:
+
+| Profile | Trigger | Boundary |
+| --- | --- | --- |
+| `capsule_only` | Orientation, low-risk recall, or ordinary continuation. | Use the selected rollup capsule only. |
+| `segment_window` | Need local sequence, task stage, or nearby rationale. | Open selected segment summary and evidence refs. |
+| `raw_context_window` | Exact wording, tool log, error text, R5 confirmation, self-report, or user correction matters. | Read bounded raw context or context-backup append record. |
+| `artifact_output_window` | Public docs, release, PDF/HTML, tests, diffs, screenshots, or final generated output are the claim surface. | Inspect the final artifact or command/test output, not only the source or summary. |
+| `cross_lane_link_review` | Project/conversation ownership, continuation, merge, archive, or link-only boundary matters. | Read link ledger and lane meta before payload. |
+| `source_cascade_review` | Domain knowledge, external source, causal/global claim, conflict, or source validity may change the answer. | Follow `derived_from` and `source_validity_dependency` before promotion. |
+| `full_lane_audit` | Migration, cleanup, backfill, contamination review, or user-requested audit. | Expand deliberately with verification debt tracking; do not use as normal retrieval. |
+
+Default to the shallowest profile that can answer safely. Escalate depth when
+the selected evidence cannot support the claim, not merely because more history
+exists.
+
 Before reading or writing a lane, check its `lane_state` when the meta index
 exposes one:
 
@@ -95,11 +158,21 @@ exposes one:
 - `frozen_readonly`: skip default retrieval injection and block writes. Allow
   reads only for explicit audit, A/B/C comparison, migration review, or user
   requested inspection, and label the result as frozen-lane evidence.
+- `quarantined_readonly`: skip default retrieval injection and block writes.
+  Allow reads only for contamination review, conflict investigation, or
+  root-cause cleanup. Do not reuse its claims as guidance until a selected
+  record is revalidated or superseded.
+- `backup_readonly`: treat backup paths, sealed snapshots, and recovery copies
+  as cold evidence. Read only for recovery, historical comparison, or audit;
+  never merge or backfill from them without a separate explicit route.
 - `cleared`: do not use as active memory. Treat any remaining index as an
   audit marker unless an archive link is explicitly selected.
 
 This state check is a lane-level contamination guard. It does not change the
 truth of any capsule and it does not replace source-validity cascade checks.
+When a non-active lane is read, the receipt should preserve `source_lane`,
+`target_lane`, `purpose`, `read_mode`, `write_policy`, and whether
+`merge_allowed` is false or explicitly authorized.
 
 ## Explicit Memory Command Semantics
 

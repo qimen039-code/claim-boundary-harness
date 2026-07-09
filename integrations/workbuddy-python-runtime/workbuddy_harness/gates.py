@@ -813,10 +813,22 @@ def intake_router(task_text: str = "", cwd: str | None = None, policy: dict[str,
         required_gates.append("observation_scope_gate")
         matched_risk_triggers["observation_scope"] = observation_scope_hits
     feedback_loop_hits = _matching_triggers(task_text, contract.get("feedback_loop_triggers", []))
+    feedback_loop_profile = "none"
     if feedback_loop_hits:
         semantic_ambiguity.append("feedback_loop_required")
         required_gates.append("feedback_loop_gate")
         matched_risk_triggers["feedback_loop"] = feedback_loop_hits
+        feedback_loop_profile = "explicit_cycle"
+    issue_prevention_gates = contract.get("issue_prevention_gates", {})
+    if isinstance(issue_prevention_gates, dict):
+        for gate_name, gate in issue_prevention_gates.items():
+            if not isinstance(gate, dict):
+                continue
+            gate_hits = _matching_triggers(task_text, gate.get("triggers", []))
+            if gate_hits:
+                semantic_ambiguity.append(str(gate_name))
+                required_gates.append(str(gate_name))
+                matched_risk_triggers[str(gate_name)] = gate_hits
     if "R3" in triggered_risks:
         semantic_ambiguity.append("governance_or_change_surface")
     semantic_ambiguity = _unique(semantic_ambiguity)
@@ -844,11 +856,14 @@ def intake_router(task_text: str = "", cwd: str | None = None, policy: dict[str,
         semantic_ambiguity.append("feedback_loop_required")
         required_gates.append("feedback_loop_gate")
         matched_risk_triggers["feedback_loop_memory"] = paired_memory_hits
+        if feedback_loop_profile != "explicit_cycle":
+            feedback_loop_profile = "prevention_review"
     if static_knowledge_hits:
         required_gates.append("static_knowledge_index_gate")
 
     explicit_record_hits = _matching_triggers(task_text, contract.get("explicit_record_triggers", []))
     common_error_hits = _matching_triggers(task_text, contract.get("common_error_triggers", []))
+    common_error_prevention_hits = _matching_triggers(task_text, contract.get("common_error_prevention_triggers", []))
     common_error_write_intent = bool(common_error_hits and explicit_record_hits)
     r5_decision_for_memory_intent = risk_context_decisions.get("R5", {})
     r5_candidates_for_memory_intent = (
@@ -860,9 +875,23 @@ def intake_router(task_text: str = "", cwd: str | None = None, policy: dict[str,
         {str(item) for item in r5_candidates_for_memory_intent}.intersection({"write memory", "写入记忆"})
     )
     if common_error_hits:
+        if common_error_write_intent:
+            if feedback_loop_profile == "none":
+                feedback_loop_profile = "record_candidate"
+            matched_risk_triggers["common_error_candidate"] = common_error_hits
+        elif common_error_prevention_hits:
+            semantic_ambiguity.append("feedback_loop_required")
+            required_gates.append("feedback_loop_gate")
+            matched_risk_triggers["feedback_loop_common_error"] = common_error_hits
+            if feedback_loop_profile != "explicit_cycle":
+                feedback_loop_profile = "prevention_review"
+        else:
+            if feedback_loop_profile == "none":
+                feedback_loop_profile = "index_hint"
+            matched_risk_triggers["common_error_index_hint"] = common_error_hits
+    if common_error_hits and common_error_prevention_hits:
         semantic_ambiguity.append("feedback_loop_required")
         required_gates.append("feedback_loop_gate")
-        matched_risk_triggers["feedback_loop_common_error"] = common_error_hits
     semantic_ambiguity = _unique(semantic_ambiguity)
     projectization_signals = _matching_triggers(task_text, contract.get("projectization_signals", []))
     projectization_threshold = int(contract.get("projectization_threshold", 5))
@@ -1021,6 +1050,95 @@ def intake_router(task_text: str = "", cwd: str | None = None, policy: dict[str,
         "explicit_cross_conversation_update",
     }:
         memory_write_profile = "strict_capsule_required"
+
+    def has_any(triggers: list[str]) -> bool:
+        return bool(_matching_triggers(task_text, triggers))
+
+    read_semantic_boundary: list[str] = []
+    if has_any(["continue this conversation", "resume", "handoff", "context compression", "open loops", "current goal", "global goal", "接续", "继续上一段", "上下文压缩", "任务源头", "当前目标", "全局目标", "交接", "未完成事项"]):
+        read_semantic_boundary.append("continuity_goal")
+    if has_any(["exact anchor", "exact wording", "DOI", "commit hash", "hash", "tag", "version marker", "lane id", "path", "精确锚点", "原文", "准确字面", "版本标记", "路径", "哈希", "标签"]):
+        read_semantic_boundary.append("exact_anchor")
+    if has_any(["command log", "tool log", "execution log", "error output", "actually ran", "whether I ran", "whether you ran", "skipped", "self-report", "命令日志", "工具日志", "执行日志", "错误输出", "是否真的运行", "是否执行", "尝试过", "跳过", "事后描述"]):
+        read_semantic_boundary.append("execution_trace")
+    if has_any(["PDF", "HTML", "README", "release", "artifact", "final output", "compiled output", "test output", "diff", "最终输出", "编译产物", "发布产物", "测试输出", "公开文档"]):
+        read_semantic_boundary.append("output_truth")
+    if link_intent != "none" or has_any(["cross lane", "cross project", "merge memory", "backfill", "archive memory", "cold lane", "backup snapshot", "lane ownership", "跨 lane", "跨项目", "合并记忆", "链接记忆", "归属", "回填", "归档记忆", "备份快照", "隔离互联"]):
+        read_semantic_boundary.append("cross_boundary")
+    if has_any(["source validity", "source dependency", "official source", "authority", "conflict", "supersede", "retracted", "external evidence", "源证据", "来源依赖", "官方", "权威", "冲突", "覆盖旧", "失效", "撤回", "外部证据"]):
+        read_semantic_boundary.append("source_validity")
+    if has_any(["causal", "causality", "prove", "proves", "cause", "causes", "long-term", "global effect", "hallucination drift", "validated causality", "future similar cases", "similar future events", "recurrence risk", "prevent similar recurrence", "因果", "证明", "导致", "长期降低", "长期提升", "全局效果", "全局问题", "系统性问题", "后续可能", "后续同类", "同类事件", "类似事件", "复发风险", "预防同类", "幻觉漂移", "能力变化"]):
+        read_semantic_boundary.append("causal_scope")
+    if has_any(["modify", "update", "fix", "patch", "sync", "adapt", "rewrite", "delete", "remove", "configure", "AGENTS", "router", "policy", "修改", "更新", "修复", "补丁", "同步", "适配", "重写", "删除", "移除", "配置"]):
+        read_semantic_boundary.append("change_integrity")
+    debt_hygiene_profile_hits = _matching_triggers(
+        task_text,
+        ["contamination", "pollution", "technical debt", "dirty tree debt", "cleanup grouping", "memory pollution", "target pollution", "污染", "记忆污染", "目标污染", "技术债", "脏树债", "清查分组", "候选技术债"],
+    )
+    if debt_hygiene_profile_hits:
+        read_semantic_boundary.append("contamination_or_debt")
+    if not read_semantic_boundary and (memory_need != "none" or target_surface in {"project_memory", "conversation_ledger", "skill_matrix", "local_harness"}):
+        read_semantic_boundary.append("orientation")
+    read_semantic_boundary = _unique(read_semantic_boundary)
+
+    read_depth_profile = "none"
+    if "contamination_or_debt" in read_semantic_boundary and has_any(["full audit", "full lane", "migration", "backfill", "cleanup", "全量审计", "全面审计", "全 lane", "迁移", "回填", "清查", "清理"]):
+        read_depth_profile = "full_lane_audit"
+    elif "source_validity" in read_semantic_boundary or "causal_scope" in read_semantic_boundary:
+        read_depth_profile = "source_cascade_review"
+    elif "cross_boundary" in read_semantic_boundary:
+        read_depth_profile = "cross_lane_link_review"
+    elif "output_truth" in read_semantic_boundary:
+        read_depth_profile = "artifact_output_window"
+    elif "execution_trace" in read_semantic_boundary or "exact_anchor" in read_semantic_boundary:
+        read_depth_profile = "raw_context_window"
+    elif "change_integrity" in read_semantic_boundary:
+        read_depth_profile = "artifact_output_window"
+    elif "continuity_goal" in read_semantic_boundary:
+        read_depth_profile = "segment_window"
+    elif "orientation" in read_semantic_boundary:
+        read_depth_profile = "capsule_only"
+
+    edit_operation_profile = "none"
+    read_only_task = has_any(["read-only", "readonly", "inspect only", "check only", "do not modify", "do not execute", "report only", "只读", "只检查", "不要修改", "不修改", "不要执行", "不执行", "先检查"])
+    disk_delete_match = re.search(r"(?i)(删除|移除|清理|delete|remove).{0,48}(文件夹|目录|folder|directory|file|文件|旧\s*release|release\s*folder)|\brm\s+-rf\b|Remove-Item", task_text)
+    disk_delete_requested = bool(disk_delete_match and not _is_negated(task_text, disk_delete_match.start()))
+    record_delete_match = re.search(r"(?i)(删掉|删除|移除|去掉|remove|delete).{0,48}(段|描述|行|条目|内容|字段|section|paragraph|line|entry|README\s+中)", task_text)
+    record_delete_requested = bool(record_delete_match and not _is_negated(task_text, record_delete_match.start()))
+    full_rewrite_requested = bool(re.search(r"(?i)(完全|整个|整份|全部|全量).{0,24}(重写|rewrite|replace|rebuild|重新生成)|full\s+rewrite|rewrite\s+the\s+whole|replace\s+the\s+whole", task_text))
+    append_requested = has_any(["append", "append-only", "append delta", "ledger", "jsonl", "changelog", "context backup", "execution log", "追加", "追加写入", "上下文备份", "执行日志", "对话账本", "变更日志"])
+    add_new_requested = has_any(["create new file", "add new file", "new artifact", "新增文件", "新建文件", "创建新文件", "新增产物"])
+    supersede_requested = has_any(["supersede", "superseded", "replace while preserving", "替代并保留", "覆盖旧说法", "标记为 superseded"])
+    archive_requested = has_any(["archive", "move to archive", "quarantine", "归档", "移动到归档", "隔离放入", "冷归档"])
+    section_replace_requested = has_any(["section replace", "replace section", "replace paragraph", "小节替换", "替换这一段", "替换这段", "段落替换"])
+    in_place_patch_requested = has_any(["update", "modify", "fix", "patch", "sync", "adapt", "optimize", "edit", "更新", "修改", "修复", "补丁", "同步", "适配", "优化", "改进"])
+    if disk_delete_requested:
+        edit_operation_profile = "delete_from_disk"
+    elif record_delete_requested:
+        edit_operation_profile = "delete_record_content"
+    elif full_rewrite_requested:
+        edit_operation_profile = "full_rewrite"
+    elif append_requested:
+        edit_operation_profile = "append_delta"
+    elif add_new_requested:
+        edit_operation_profile = "add_new_artifact"
+    elif supersede_requested:
+        edit_operation_profile = "supersede_with_link"
+    elif archive_requested and not read_only_task:
+        edit_operation_profile = "archive_or_move"
+    elif section_replace_requested:
+        edit_operation_profile = "section_replace"
+    elif in_place_patch_requested or risk_level == "R3":
+        edit_operation_profile = "in_place_patch"
+    elif read_only_task or risk_level == "R1":
+        edit_operation_profile = "read_only"
+
+    if read_semantic_boundary:
+        matched_risk_triggers["read_semantic_boundary"] = read_semantic_boundary
+    if read_depth_profile != "none":
+        matched_risk_triggers["read_depth_profile"] = [read_depth_profile]
+    if edit_operation_profile != "none":
+        matched_risk_triggers["edit_operation_profile"] = [edit_operation_profile]
 
     if self_reflection_record_hits or common_error_hits:
         required_skills.append("troubleshooting-skill-matrix")
@@ -1216,6 +1334,10 @@ def intake_router(task_text: str = "", cwd: str | None = None, policy: dict[str,
         "preferred_call_surface": preferred_call_surface,
         "tool_surface_reason": tool_surface_reason,
         "skill_lifecycle_profile": skill_lifecycle_profile,
+        "feedback_loop_profile": feedback_loop_profile,
+        "read_semantic_boundary": read_semantic_boundary,
+        "read_depth_profile": read_depth_profile,
+        "edit_operation_profile": edit_operation_profile,
         "memory_need": memory_need,
         "hybrid_retrieval_profile": hybrid_retrieval_profile,
         "memory_mode": memory_mode,
@@ -1244,6 +1366,10 @@ def intake_router(task_text: str = "", cwd: str | None = None, policy: dict[str,
         "plugin_need": plugin_need,
         "preferred_call_surface": preferred_call_surface,
         "skill_lifecycle_profile": skill_lifecycle_profile,
+        "feedback_loop_profile": feedback_loop_profile,
+        "read_semantic_boundary": read_semantic_boundary,
+        "read_depth_profile": read_depth_profile,
+        "edit_operation_profile": edit_operation_profile,
         "memory_mode": memory_mode,
         "hybrid_retrieval_profile": hybrid_retrieval_profile,
         "memory_write_profile": memory_write_profile,
@@ -1278,6 +1404,10 @@ def intake_router(task_text: str = "", cwd: str | None = None, policy: dict[str,
         "preferred_call_surface": preferred_call_surface,
         "tool_surface_reason": tool_surface_reason,
         "skill_lifecycle_profile": skill_lifecycle_profile,
+        "feedback_loop_profile": feedback_loop_profile,
+        "read_semantic_boundary": read_semantic_boundary,
+        "read_depth_profile": read_depth_profile,
+        "edit_operation_profile": edit_operation_profile,
         "memory_need": memory_need,
         "hybrid_retrieval_profile": hybrid_retrieval_profile,
         "memory_mode": memory_mode,

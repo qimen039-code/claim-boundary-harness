@@ -17,6 +17,12 @@ raw session JSONL
 The ledger keeps raw line/path/hash references. This lane keeps durable
 human-readable state.
 
+If a context-backup memory exists for the same conversation, treat that backup
+as the full-detail surface. The conversation memory lane should keep compact
+event/domain/decision/error/source capsules plus pointers into the backup or
+ledger. Do not duplicate every turn, command, error, or diff in this lane.
+Exact reconstruction should drill down through `evidence_refs`.
+
 ## Position In The Memory Model
 
 ```text

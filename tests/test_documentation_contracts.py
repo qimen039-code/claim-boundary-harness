@@ -45,9 +45,9 @@ def test_bilingual_readme_and_local_overlay_template_are_present() -> None:
 
     assert "[中文版](./README_zh.md) | English" in readme
     assert "[English](./README.md) | 中文" in readme_zh
-    assert "v0.19.11" in readme
-    assert "v0.19.11" in readme_zh
-    assert read_text("VERSION").strip() == "v0.19.11"
+    assert "v0.20.0" in readme
+    assert "v0.20.0" in readme_zh
+    assert read_text("VERSION").strip() == "v0.20.0"
     assert overlay["schema"] == "cbh.project_lane_overlay.v1"
     assert policy["local_project_lane_overlay"]["default_filename"] == "embedded_harness_policy.local.json"
     assert "embedded_harness_policy.local.json" in readme
@@ -83,16 +83,16 @@ def test_citation_notice_are_visible_and_public_report_draft_is_absent() -> None
     assert "claim-boundary-harness-technical-report.md" not in readme_zh
     assert "title: \"Claim Boundary Harness: External Cognition Governance for Agent Workflows\"" in citation
     assert "qimen039-code" in citation
-    assert "version: \"0.19.11\"" in citation
+    assert "version: \"0.20.0\"" in citation
     assert "doi: \"10.5281/zenodo.21189880\"" in citation
     assert "Recommended short attribution" in notice
     assert "submitted arXiv record exists" in notice
     assert "Copyright (c) 2026 qimen039-code" in license_text
     assert "Zenodo DOI trigger release" in changelog
-    assert "## v0.19.11 - 2026-07-09" in changelog
+    assert "## v0.20.0 - 2026-07-09" in changelog
     stale_version = "v0." + "14.0"
     assert stale_version not in changelog
-    assert manifest["harness_version"] == "v0.19.11"
+    assert manifest["harness_version"] == "v0.20.0"
 
 
 def test_memory_feedback_loop_trial_is_optional_and_template_visible() -> None:

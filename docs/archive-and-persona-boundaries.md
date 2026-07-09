@@ -28,6 +28,13 @@ Only check the global archive when:
 - the active lane cannot find a relevant record;
 - the user asks to archive a conversation or project lane.
 
+Backups and recovery copies are even narrower than archive lanes. A backup is a
+point-in-time recovery artifact, not a memory lane and not an archive capsule.
+Use it only for recovery, historical comparison, checksum verification, or
+root-cause analysis. Do not let backup content participate in normal active
+retrieval, latest-memory selection, project ownership inference, or automatic
+backfill.
+
 ## Archive Operations
 
 Default archive operations are file-system operations:
@@ -69,6 +76,8 @@ read source meta first
 ## Archive Hard Rules
 
 - Do not regenerate archived memory content by default.
+- Do not treat a backup or sealed snapshot as current memory without an
+  explicit promotion or recovery route.
 - Do not summarize raw memory as a replacement for source unless the user asks for compression or migration.
 - Do not delete source after creating a summary capsule unless separately confirmed.
 - Move or copy before editing archive indexes.

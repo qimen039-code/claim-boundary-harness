@@ -44,6 +44,33 @@ Use a hybrid model:
 Do not create a full memory lane for every short chat. Do not load or rewrite
 raw session logs during normal retrieval.
 
+## Context Backup Append Rule
+
+When a deployment keeps a detailed context-backup memory, that backup is the
+full-detail continuation surface. It should append the new original context and
+execution evidence for each closed task segment instead of rewriting the whole
+backup file or replacing raw evidence with a summary.
+
+Append the exact new material that makes later reconstruction possible:
+
+- user instruction window for the segment;
+- material agent responses or task-status notes;
+- tool calls, command output, errors, tests, diffs, artifact paths, and
+  verification results;
+- compaction, interruption, stop, resume, and handoff boundaries;
+- unresolved open loops and verification debt.
+
+The append record may store bounded raw text directly, raw-session refs plus
+hashes, or both, depending on host support. The invariant is that later readers
+can recover what happened without trusting a lossy capsule. Summaries, segment
+capsules, and project or conversation rollups remain navigation layers over
+this appended evidence.
+
+Do not re-generate or rewrite the entire context-backup memory for an update.
+Use the same file-operation semantics as normal project edits: update means
+append or patch the selected new section; replacement, archive, or deletion are
+separate higher-risk actions.
+
 ## Required Files
 
 ```text
@@ -207,7 +234,9 @@ When the host emits `context_compacted`, `compacted`, or an equivalent event:
 2. write a `time_anchors.jsonl` record with `anchor_type: compaction_boundary`;
 3. set `compaction_boundary: true` on the affected segment;
 4. retain evidence references to the raw event and nearby turn ids;
-5. prefer raw evidence over the compacted replacement summary when exact detail
+5. append the pre/post-compaction context-backup delta when a context-backup
+   memory is enabled;
+6. prefer raw evidence over the compacted replacement summary when exact detail
    matters.
 
 Never rely only on a compacted summary for:

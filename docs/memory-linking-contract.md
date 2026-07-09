@@ -23,10 +23,10 @@ Every project memory, conversation memory, and archive capsule should expose the
 
 ```yaml
 memory_id: conv_YYYYMMDD_shortid
-memory_type: conversation | project | global_archive | common_error_corpus | self_reflection
+memory_type: conversation | project | global_archive | backup_snapshot | common_error_corpus | self_reflection
 project_lane: PROJECTLESS | example_project | global
 conversation_id: optional_host_thread_or_session_id
-status: active | paused | sealed | archived | merged | superseded | template
+status: active | paused | sealed | archived | merged | superseded | quarantined | template
 title: short human title
 summary: compact current-state summary
 created_at: YYYY-MM-DDTHH:MM:SS+08:00
@@ -55,6 +55,33 @@ current project lane or PROJECTLESS lane
 ```
 
 If the current lane has no match and the user explicitly asks for historical lookup, then check the global archive index. Do not jump from one project lane to another just because another memory has a newer timestamp.
+
+## Cold Evidence And Backup Boundary
+
+Backups, sealed snapshots, and recovery copies are cold evidence, not active
+memory lanes. They may help prove what an instruction, memory, or artifact used
+to say, but they must not be injected as current guidance by default.
+
+Read cold evidence only for explicit recovery, historical audit, comparison, or
+root-cause analysis. When it is read, keep the result read-only and expose the
+boundary in the link or audit record:
+
+```json
+{
+  "source_lane": "backup_snapshot:AGENTS-20260709",
+  "target_lane": "current_global_rules",
+  "purpose": "historical_comparison",
+  "read_mode": "read_only",
+  "write_policy": "no_write_from_backup",
+  "merge_allowed": false,
+  "evidence_boundary": "cold evidence; not active guidance"
+}
+```
+
+Promotion from a backup or archive into an active lane requires a normal memory
+write/update route, source-monitoring metadata, and explicit user or project
+authorization. A backup path, newer timestamp, or matching keyword is never a
+merge decision.
 
 ## Link Ledger
 

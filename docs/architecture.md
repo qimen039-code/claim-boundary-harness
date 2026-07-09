@@ -308,6 +308,16 @@ After the initial receipt, event-triggered re-evaluation should emit a delta rec
 
 See [cost-control-contract.md](cost-control-contract.md).
 
+## Edit Operation Boundary
+
+Content changes are routed as append, in-place patch, bounded section
+replacement, new artifact, supersession, archive/move, full rewrite, in-file
+content deletion, or filesystem deletion. Ordinary "update", "sync", "improve",
+or "adapt" wording defaults to the narrowest anchored edit. Full rewrites and
+deletions require their own triggers and review.
+
+See [edit-operation-contract.md](edit-operation-contract.md).
+
 ## Archive And Persona Boundaries
 
 Global archive is optional cold storage. It is checked after active project or conversation memory, not before. Archive defaults to moving or copying source files/directories so provenance stays intact.

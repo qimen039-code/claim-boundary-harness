@@ -36,6 +36,32 @@ This profile constrains the shape of a memory write. It does not authorize a
 memory write by itself and does not override lane isolation or R5 confirmation
 requirements.
 
+## Rollup Slimming Profile
+
+When a detailed context-backup memory or raw session ledger already preserves
+the full context, project memory and long-conversation memory should not copy
+that detail again. They should store compact rollup capsules with stable
+anchors back to the full-detail layer.
+
+Recommended capsule types:
+
+| Type | Use | Required focus |
+| --- | --- | --- |
+| `event_capsule` | A task segment, incident, release, experiment, or repair happened. | `time_anchor`, `event_id`, `task_goal`, `core_event`, `core_facts`, `status`, `evidence_refs`. |
+| `domain_capsule` | Domain knowledge, concept definition, rule, or reusable principle. | `domain`, `definition_or_rule`, `applies_to`, `does_not_apply_to`, `source_boundary`, `evidence_refs`. |
+| `decision_capsule` | A user/project decision changes future behavior. | `decision`, `scope`, `reason`, `effective_from`, `non_applicable_boundary`, `evidence_refs`. |
+| `error_solution_capsule` | A mistake and its fix should prevent recurrence. | `symptom`, `cause`, `solution`, `validation`, `prevention`, `evidence_refs`. |
+| `source_capsule` | External source or borrowed design was absorbed, rejected, or parked. | `source`, `classification`, `absorbed_part`, `rejected_part`, `risk`, `verification_path`. |
+
+These capsules are retrieval anchors, not full transcripts. They must be
+specific enough to be self-contained, but they should not duplicate the full
+context backup. If a later task needs exact wording, command output, error text,
+or step-by-step history, follow `evidence_refs` back to the context backup,
+ledger segment, raw session, artifact, diff, or test output.
+
+Old memories do not need migration. Apply this profile to new writes and future
+updates only.
+
 ## Structure And Content Language
 
 Use English for stable structure and code-facing fields:

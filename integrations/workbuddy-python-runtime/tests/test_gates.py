@@ -138,6 +138,30 @@ class HarnessGateTests(unittest.TestCase):
         route = self._route("route debug full receipt for this task", policy=self.policy)
         self.assertEqual(route["receipt_profile"], "debug_receipt")
 
+    def test_router_profiles_context_continuity_reading(self) -> None:
+        route = self._route("上下文压缩后继续这个长对话，先回顾当前任务源头和全局目标", policy=self.policy)
+        self.assertIn("continuity_goal", route["read_semantic_boundary"])
+        self.assertEqual(route["read_depth_profile"], "segment_window")
+        self.assertEqual(route["edit_operation_profile"], "read_only")
+
+    def test_router_profiles_in_place_update_without_rewrite(self) -> None:
+        route = self._route("更新 AGENTS.md 中的记忆规则，不要重写整个文件", policy=self.policy)
+        self.assertEqual(route["risk_level"], "R3")
+        self.assertIn("change_integrity", route["read_semantic_boundary"])
+        self.assertEqual(route["read_depth_profile"], "artifact_output_window")
+        self.assertEqual(route["edit_operation_profile"], "in_place_patch")
+
+    def test_router_profiles_filesystem_delete_as_r5(self) -> None:
+        route = self._route("删除旧 release 文件夹", policy=self.policy)
+        self.assertEqual(route["risk_level"], "R5")
+        self.assertEqual(route["edit_operation_profile"], "delete_from_disk")
+        self.assertEqual(route["risk_context_decisions"]["R5"]["action_surface"], "actionable_R5")
+
+    def test_router_profiles_negated_delete_as_read_only(self) -> None:
+        route = self._route("不要删除任何文件，只检查哪些内容可能需要归档", policy=self.policy)
+        self.assertNotEqual(route["risk_level"], "R5")
+        self.assertEqual(route["edit_operation_profile"], "read_only")
+
     def test_router_honors_simple_negation(self) -> None:
         route = self._route("do not delete anything, only inspect files", policy=self.policy)
         self.assertNotEqual(route["risk_level"], "R5")
@@ -153,7 +177,7 @@ class HarnessGateTests(unittest.TestCase):
     def test_router_uses_local_project_lane_overlay(self) -> None:
         with writable_test_dir() as root_text:
             root = Path(root_text)
-            project = root / "AI_Lead_Radar"
+            project = root / "EXAMPLE_PROJECT"
             memory_bank = project / "memory-bank"
             memory_bank.mkdir(parents=True)
             overlay = root / "project_lanes.local.json"
@@ -161,8 +185,8 @@ class HarnessGateTests(unittest.TestCase):
                 json.dumps(
                     {
                         "schema": "cbh.project_lane_overlay.v1",
-                        "project_lanes": {"AI_Lead_Radar": [str(project)]},
-                        "memory_roots": {"AI_Lead_Radar": [str(memory_bank)]},
+                        "project_lanes": {"EXAMPLE_PROJECT": [str(project)]},
+                        "memory_roots": {"EXAMPLE_PROJECT": [str(memory_bank)]},
                     },
                     ensure_ascii=False,
                 ),
@@ -171,14 +195,14 @@ class HarnessGateTests(unittest.TestCase):
             with patch.dict(os.environ, {"CBH_PROJECT_LANES_FILE": str(overlay)}):
                 policy = load_policy()
             route = self._route("只读检查 Memory Bank 已更新和长期记忆状态", cwd=str(project), policy=policy)
-        self.assertEqual(route["project_lane"], "AI_Lead_Radar")
+        self.assertEqual(route["project_lane"], "EXAMPLE_PROJECT")
         self.assertEqual(route["memory_lane"], "current_project")
         self.assertNotEqual(route["risk_level"], "R5")
 
     def test_router_marks_project_long_term_memory_write_as_write_mode(self) -> None:
         with writable_test_dir() as root_text:
             root = Path(root_text)
-            project = root / "AI_Lead_Radar"
+            project = root / "EXAMPLE_PROJECT"
             memory_bank = project / "memory-bank"
             memory_bank.mkdir(parents=True)
             overlay = root / "project_lanes.local.json"
@@ -186,8 +210,8 @@ class HarnessGateTests(unittest.TestCase):
                 json.dumps(
                     {
                         "schema": "cbh.project_lane_overlay.v1",
-                        "project_lanes": {"AI_Lead_Radar": [str(project)]},
-                        "memory_roots": {"AI_Lead_Radar": [str(memory_bank)]},
+                        "project_lanes": {"EXAMPLE_PROJECT": [str(project)]},
+                        "memory_roots": {"EXAMPLE_PROJECT": [str(memory_bank)]},
                     },
                     ensure_ascii=False,
                 ),
@@ -196,7 +220,7 @@ class HarnessGateTests(unittest.TestCase):
             with patch.dict(os.environ, {"CBH_PROJECT_LANES_FILE": str(overlay)}):
                 policy = load_policy()
             route = self._route("写入记忆：记录这个长期记忆修复", cwd=str(project), policy=policy)
-        self.assertEqual(route["project_lane"], "AI_Lead_Radar")
+        self.assertEqual(route["project_lane"], "EXAMPLE_PROJECT")
         self.assertEqual(route["risk_level"], "R5")
         self.assertEqual(route["memory_lane"], "current_project")
         self.assertEqual(route["memory_mode"], "write")
@@ -224,11 +248,33 @@ class HarnessGateTests(unittest.TestCase):
         self.assertIn("observation_scope_required", route["semantic_ambiguity"])
         self.assertIn("observation_scope", route["matched_risk_triggers"])
 
+    def test_router_detects_linked_surface_sync_gate(self) -> None:
+        route = self._route(
+            "这次 router 和 policy 更新要保持环环相扣，只更新 Codex 和 WorkBuddy，不更新 Bash",
+            policy=self.policy,
+        )
+        self.assertEqual(route["risk_level"], "R4")
+        self.assertIn("linked_surface_sync_gate", route["required_gates"])
+        self.assertIn("linked_surface_sync_gate", route["semantic_ambiguity"])
+        self.assertIn("linked_surface_sync_gate", route["matched_risk_triggers"])
+
+    def test_router_detects_novel_recurrence_candidate_without_heavy_gates(self) -> None:
+        route = self._route(
+            "这次表现和旧问题不是同一类，但结构相似，可能是新型异常，先标记为候选复发再轻量复评",
+            policy=self.policy,
+        )
+        self.assertIn("novel_recurrence_candidate_gate", route["required_gates"])
+        self.assertIn("novel_recurrence_candidate_gate", route["semantic_ambiguity"])
+        self.assertIn("novel_recurrence_candidate_gate", route["matched_risk_triggers"])
+        self.assertNotIn("global_task_context_gate", route["required_gates"])
+        self.assertNotIn("feedback_loop_gate", route["required_gates"])
+
     def test_router_detects_feedback_loop_gate(self) -> None:
         route = self._route("为这个同类错误加入记忆-预测-验证-校准反馈闭环，观察下次是否复发", policy=self.policy)
         self.assertIn("feedback_loop_gate", route["required_gates"])
         self.assertIn("feedback_loop_required", route["semantic_ambiguity"])
         self.assertIn("feedback_loop", route["matched_risk_triggers"])
+        self.assertEqual(route["feedback_loop_profile"], "explicit_cycle")
         self.assertEqual(route["memory_need"], "index_only")
 
     def test_router_uses_feedback_loop_for_paired_memory(self) -> None:
@@ -236,6 +282,7 @@ class HarnessGateTests(unittest.TestCase):
         self.assertIn("feedback_loop_gate", route["required_gates"])
         self.assertIn("feedback_loop_required", route["semantic_ambiguity"])
         self.assertEqual(route["memory_need"], "paired_err_sol")
+        self.assertEqual(route["feedback_loop_profile"], "prevention_review")
         self.assertIn("feedback_loop_memory", route["matched_risk_triggers"])
 
     def test_router_uses_feedback_loop_for_common_error_memory(self) -> None:
@@ -245,14 +292,24 @@ class HarnessGateTests(unittest.TestCase):
         self.assertEqual(route["memory_need"], "common_error_corpus")
         self.assertEqual(route["memory_mode"], "read")
         self.assertEqual(route["record_intent"], "no_record")
+        self.assertEqual(route["feedback_loop_profile"], "prevention_review")
         self.assertIn("feedback_loop_common_error", route["matched_risk_triggers"])
 
     def test_router_writes_common_error_only_with_record_intent(self) -> None:
         route = self._route("record this error as a common error after the fix is verified")
-        self.assertIn("feedback_loop_gate", route["required_gates"])
+        self.assertNotIn("feedback_loop_gate", route["required_gates"])
         self.assertEqual(route["memory_need"], "common_error_corpus")
         self.assertEqual(route["memory_mode"], "write")
         self.assertEqual(route["record_intent"], "inferred_reusable_error")
+        self.assertEqual(route["feedback_loop_profile"], "record_candidate")
+
+    def test_router_combines_global_context_and_feedback_prevention(self) -> None:
+        route = self._route("这个全局问题需要从当前事件发散分析后续可能出现的同类事件，并进行预防，避免再只照顾局部")
+        self.assertIn("global_task_context_gate", route["required_gates"])
+        self.assertIn("feedback_loop_gate", route["required_gates"])
+        self.assertIn("global_task_context_gate", route["semantic_ambiguity"])
+        self.assertIn("feedback_loop_required", route["semantic_ambiguity"])
+        self.assertEqual(route["feedback_loop_profile"], "explicit_cycle")
 
     def test_router_detects_static_knowledge_layer_lookup(self) -> None:
         route = self._route("read the project manual and module map before editing", policy=self.policy)

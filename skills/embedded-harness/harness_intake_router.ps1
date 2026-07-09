@@ -945,6 +945,104 @@ if ($recordIntent -in @("explicit_user_request", "explicit_conversation_memory_r
   $memoryWriteProfile = "strict_capsule_required"
 }
 
+$readSemanticBoundary = @()
+if (Test-TaskContainsAny @("continue this conversation", "resume", "handoff", "context compression", "open loops", "current goal", "global goal", "接续", "继续上一段", "上下文压缩", "任务源头", "当前目标", "全局目标", "交接", "未完成事项")) {
+  $readSemanticBoundary += "continuity_goal"
+}
+if (Test-TaskContainsAny @("exact anchor", "exact wording", "DOI", "commit hash", "hash", "tag", "version marker", "lane id", "path", "精确锚点", "原文", "准确字面", "版本标记", "路径", "哈希", "标签")) {
+  $readSemanticBoundary += "exact_anchor"
+}
+if (Test-TaskContainsAny @("command log", "tool log", "execution log", "error output", "actually ran", "whether I ran", "whether you ran", "skipped", "self-report", "命令日志", "工具日志", "执行日志", "错误输出", "是否真的运行", "是否执行", "尝试过", "跳过", "事后描述")) {
+  $readSemanticBoundary += "execution_trace"
+}
+if (Test-TaskContainsAny @("PDF", "HTML", "README", "release", "artifact", "final output", "compiled output", "test output", "diff", "最终输出", "编译产物", "发布产物", "测试输出", "公开文档")) {
+  $readSemanticBoundary += "output_truth"
+}
+if (($linkIntent -ne "none") -or (Test-TaskContainsAny @("cross lane", "cross project", "merge memory", "backfill", "archive memory", "cold lane", "backup snapshot", "lane ownership", "跨 lane", "跨项目", "合并记忆", "链接记忆", "归属", "回填", "归档记忆", "备份快照", "隔离互联"))) {
+  $readSemanticBoundary += "cross_boundary"
+}
+if (Test-TaskContainsAny @("source validity", "source dependency", "official source", "authority", "conflict", "supersede", "retracted", "external evidence", "源证据", "来源依赖", "官方", "权威", "冲突", "覆盖旧", "失效", "撤回", "外部证据")) {
+  $readSemanticBoundary += "source_validity"
+}
+if (Test-TaskContainsAny @("causal", "causality", "prove", "proves", "cause", "causes", "long-term", "global effect", "hallucination drift", "validated causality", "future similar cases", "similar future events", "recurrence risk", "prevent similar recurrence", "因果", "证明", "导致", "长期降低", "长期提升", "全局效果", "全局问题", "系统性问题", "后续可能", "后续同类", "同类事件", "类似事件", "复发风险", "预防同类", "幻觉漂移", "能力变化")) {
+  $readSemanticBoundary += "causal_scope"
+}
+if (Test-TaskContainsAny @("modify", "update", "fix", "patch", "sync", "adapt", "rewrite", "delete", "remove", "configure", "AGENTS", "router", "policy", "修改", "更新", "修复", "补丁", "同步", "适配", "重写", "删除", "移除", "配置")) {
+  $readSemanticBoundary += "change_integrity"
+}
+if (($debtHygieneHits.Count -gt 0) -or (Test-TaskContainsAny @("contamination", "pollution", "technical debt", "dirty tree debt", "cleanup grouping", "memory pollution", "target pollution", "污染", "记忆污染", "目标污染", "技术债", "脏树债", "清查分组", "候选技术债"))) {
+  $readSemanticBoundary += "contamination_or_debt"
+}
+if (($readSemanticBoundary.Count -eq 0) -and (($memoryNeed -ne "none") -or ($targetSurface -in @("project_memory", "conversation_ledger", "skill_matrix", "local_harness")))) {
+  $readSemanticBoundary += "orientation"
+}
+$readSemanticBoundary = @($readSemanticBoundary | Select-Object -Unique)
+
+$readDepthProfile = "none"
+if (($readSemanticBoundary -contains "contamination_or_debt") -and (Test-TaskContainsAny @("full audit", "full lane", "migration", "backfill", "cleanup", "全量审计", "全面审计", "全 lane", "迁移", "回填", "清查", "清理"))) {
+  $readDepthProfile = "full_lane_audit"
+} elseif (($readSemanticBoundary -contains "source_validity") -or ($readSemanticBoundary -contains "causal_scope")) {
+  $readDepthProfile = "source_cascade_review"
+} elseif ($readSemanticBoundary -contains "cross_boundary") {
+  $readDepthProfile = "cross_lane_link_review"
+} elseif ($readSemanticBoundary -contains "output_truth") {
+  $readDepthProfile = "artifact_output_window"
+} elseif (($readSemanticBoundary -contains "execution_trace") -or ($readSemanticBoundary -contains "exact_anchor")) {
+  $readDepthProfile = "raw_context_window"
+} elseif ($readSemanticBoundary -contains "change_integrity") {
+  $readDepthProfile = "artifact_output_window"
+} elseif ($readSemanticBoundary -contains "continuity_goal") {
+  $readDepthProfile = "segment_window"
+} elseif ($readSemanticBoundary -contains "orientation") {
+  $readDepthProfile = "capsule_only"
+}
+
+$editOperationProfile = "none"
+$readOnlyTask = Test-TaskContainsAny @("read-only", "readonly", "inspect only", "check only", "do not modify", "do not execute", "report only", "只读", "只检查", "不要修改", "不修改", "不要执行", "不执行", "先检查")
+$diskDeleteMatch = [regex]::Match($TaskText, "(?i)(删除|移除|清理|delete|remove).{0,48}(文件夹|目录|folder|directory|file|文件|旧\s*release|release\s*folder)|\brm\s+-rf\b|Remove-Item")
+$diskDeleteRequested = ($diskDeleteMatch.Success -and (-not (Test-NegatedMatch -source $TaskText -index $diskDeleteMatch.Index)))
+$recordDeleteMatch = [regex]::Match($TaskText, "(?i)(删掉|删除|移除|去掉|remove|delete).{0,48}(段|描述|行|条目|内容|字段|section|paragraph|line|entry|README\s+中)")
+$recordDeleteRequested = ($recordDeleteMatch.Success -and (-not (Test-NegatedMatch -source $TaskText -index $recordDeleteMatch.Index)))
+$fullRewriteRequested = [regex]::IsMatch($TaskText, "(?i)(完全|整个|整份|全部|全量).{0,24}(重写|rewrite|replace|rebuild|重新生成)|full\s+rewrite|rewrite\s+the\s+whole|replace\s+the\s+whole")
+$appendRequested = Test-TaskContainsAny @("append", "append-only", "append delta", "ledger", "jsonl", "changelog", "context backup", "execution log", "追加", "追加写入", "上下文备份", "执行日志", "对话账本", "变更日志")
+$addNewRequested = Test-TaskContainsAny @("create new file", "add new file", "new artifact", "新增文件", "新建文件", "创建新文件", "新增产物")
+$supersedeRequested = Test-TaskContainsAny @("supersede", "superseded", "replace while preserving", "替代并保留", "覆盖旧说法", "标记为 superseded")
+$archiveRequested = Test-TaskContainsAny @("archive", "move to archive", "quarantine", "归档", "移动到归档", "隔离放入", "冷归档")
+$sectionReplaceRequested = Test-TaskContainsAny @("section replace", "replace section", "replace paragraph", "小节替换", "替换这一段", "替换这段", "段落替换")
+$inPlacePatchRequested = Test-TaskContainsAny @("update", "modify", "fix", "patch", "sync", "adapt", "optimize", "edit", "更新", "修改", "修复", "补丁", "同步", "适配", "优化", "改进")
+
+if ($diskDeleteRequested) {
+  $editOperationProfile = "delete_from_disk"
+} elseif ($recordDeleteRequested) {
+  $editOperationProfile = "delete_record_content"
+} elseif ($fullRewriteRequested) {
+  $editOperationProfile = "full_rewrite"
+} elseif ($appendRequested) {
+  $editOperationProfile = "append_delta"
+} elseif ($addNewRequested) {
+  $editOperationProfile = "add_new_artifact"
+} elseif ($supersedeRequested) {
+  $editOperationProfile = "supersede_with_link"
+} elseif ($archiveRequested -and (-not $readOnlyTask)) {
+  $editOperationProfile = "archive_or_move"
+} elseif ($sectionReplaceRequested) {
+  $editOperationProfile = "section_replace"
+} elseif ($inPlacePatchRequested -or ($risk -eq "R3")) {
+  $editOperationProfile = "in_place_patch"
+} elseif ($readOnlyTask -or ($risk -eq "R1")) {
+  $editOperationProfile = "read_only"
+}
+
+if ($readSemanticBoundary.Count -gt 0) {
+  $matchedRiskTriggers["read_semantic_boundary"] = @($readSemanticBoundary)
+}
+if ($readDepthProfile -ne "none") {
+  $matchedRiskTriggers["read_depth_profile"] = @($readDepthProfile)
+}
+if ($editOperationProfile -ne "none") {
+  $matchedRiskTriggers["edit_operation_profile"] = @($editOperationProfile)
+}
+
 if (($selfReflectionRecordHits.Count -gt 0) -or ($commonErrorHits.Count -gt 0)) {
   $requiredSkills += "troubleshooting-skill-matrix"
 }
@@ -1120,6 +1218,9 @@ $routingReceipt = [ordered]@{
   tool_surface_reason = @($toolSurfaceReason)
   skill_lifecycle_profile = $skillLifecycleProfile
   feedback_loop_profile = $feedbackLoopProfile
+  read_semantic_boundary = @($readSemanticBoundary)
+  read_depth_profile = $readDepthProfile
+  edit_operation_profile = $editOperationProfile
   memory_need = $memoryNeed
   hybrid_retrieval_profile = $hybridRetrievalProfile
   memory_mode = $memoryMode
@@ -1150,6 +1251,9 @@ $compactReceipt = [ordered]@{
   preferred_call_surface = $preferredCallSurface
   skill_lifecycle_profile = $skillLifecycleProfile
   feedback_loop_profile = $feedbackLoopProfile
+  read_semantic_boundary = @($readSemanticBoundary)
+  read_depth_profile = $readDepthProfile
+  edit_operation_profile = $editOperationProfile
   memory_mode = $memoryMode
   hybrid_retrieval_profile = $hybridRetrievalProfile
   memory_write_profile = $memoryWriteProfile
@@ -1185,6 +1289,9 @@ $result = [ordered]@{
   tool_surface_reason = @($toolSurfaceReason)
   skill_lifecycle_profile = $skillLifecycleProfile
   feedback_loop_profile = $feedbackLoopProfile
+  read_semantic_boundary = @($readSemanticBoundary)
+  read_depth_profile = $readDepthProfile
+  edit_operation_profile = $editOperationProfile
   memory_need = $memoryNeed
   hybrid_retrieval_profile = $hybridRetrievalProfile
   memory_mode = $memoryMode

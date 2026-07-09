@@ -418,6 +418,7 @@ Recommended `stage` values:
 | `raw_observation` | Direct event, tool output, user wording, screenshot summary, or log excerpt. | Do not treat as current guidance. Open only as evidence. |
 | `working_memory` | Short-horizon task state, blocker, plan, or current open loop. | Use only inside the current task, conversation, or active lane. |
 | `capsule` | Compact reusable memory with source, provenance, status, and claim boundary. | Eligible for meta-first retrieval. |
+| `quarantined` | Potentially polluted, wrong-lane, conflicted, or overbroad record retained for diagnosis. | Do not inject as guidance; read only for audit, cleanup, or supersession review. |
 | `archive` | Cold record or full historical payload retained for audit, reproduction, or long projects. | Do not open by default; use index and capsule first. |
 
 Recommended `retention_policy` values:
@@ -434,6 +435,9 @@ Rules:
 
 - `stage: raw_observation` should normally have `belief_status: hypothesis`, `source_prior`, or a narrow `bounded_claim`; it should not become `local_validated` without a separate verification record.
 - `stage: capsule` should include `derived_from` unless the capsule is a direct user-maintained note with its own evidence boundary.
+- `stage: quarantined` blocks normal retrieval even if the text matches the
+  query. Reuse requires revalidation, supersession, or explicit user/project
+  recovery instructions.
 - `stage: archive` means default retrieval priority is low, not that the record is untrusted or obsolete.
 - `last_accessed_at` is a retrieval hint for recent-use ranking. It is not evidence strength.
 - `promotion_reason` should say why the record was promoted from raw or working state into a reusable capsule.

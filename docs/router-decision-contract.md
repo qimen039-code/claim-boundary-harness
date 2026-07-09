@@ -20,6 +20,9 @@ memory_need
 hybrid_retrieval_profile
 memory_mode
 memory_write_profile
+read_semantic_boundary
+read_depth_profile
+edit_operation_profile
 memory_lane
 record_intent
 external_need
@@ -48,6 +51,9 @@ Field meanings:
 | `hybrid_retrieval_profile` | Decide whether memory lookup stays unused, uses the normal meta-first surface, or must add the hybrid lexical/original-language enhancement over the already bounded candidate set. |
 | `memory_mode` | Decide whether memory should be skipped, read, written, or updated. |
 | `memory_write_profile` | Decide whether a memory write is absent, context-complete, or strict reusable-capsule shape. |
+| `read_semantic_boundary` | Decide what semantic evidence demand is active before selecting reading depth. |
+| `read_depth_profile` | Decide whether to use capsule-only, segment, raw context, artifact output, cross-lane, source cascade, or full-lane audit reading. |
+| `edit_operation_profile` | Decide whether a mutating task is append, local patch, section replace, new artifact, supersession, archive/move, full rewrite, in-file deletion, or filesystem deletion. |
 | `memory_lane` | Decide whether the memory action belongs to a current project, current conversation, referenced conversation, emergent project candidate, common error corpus, self-reflection matrix, global inbox, or no lane. |
 | `record_intent` | Decide whether there is no record request, explicit user request, inferred reusable error, projectization review, conversation checkpoint, or explicit conversation memory request. |
 | `external_need` | Decide whether external lookup is unnecessary, official-source, GitHub/open-source, general cross-check, source-grounded learning, or local validation. |
@@ -260,6 +266,8 @@ Current generic gates:
 | `unknown_memory_reference_gate` | The user refers to a forgotten prior term, storage point, event, or decision. | Run bounded meta-first memory lookup before providing a named answer; report no hit if none is found. |
 | `hallucination_detection_anchor_gate` | The task asks whether an answer is hallucinated, grounded, complete, unsupported, or a non-answer. | Use source labels or requested-output contract anchors; separate unsupported, incomplete, and non-answer outcomes. |
 | `global_task_context_gate` | A local fix, local causal diagnosis, or narrow edit may depend on upstream goals, active lane, status table, file map, workflow state, or cross-step constraints. | Read the nearest outer context before diagnosing or patching; keep the result scoped and avoid turning local symptoms into root-cause claims. |
+| `novel_recurrence_candidate_gate` | A new-looking failure resembles a prior failure shape but does not match a known narrow gate. | Run only a lightweight re-evaluation and mark candidate recurrence/global issue status; upgrade to global, causal, feedback, memory-write, or R5 paths only when that review justifies it. |
+| `linked_surface_sync_gate` | A router, policy, AGENTS, memory, ledger, adapter, or profile-field change may need matching updates across supported runtime surfaces. | Enumerate target supported surfaces and explicit non-target surfaces before editing; update only user-requested or active supported surfaces, and leave legacy or unnamed adapters as candidate debt. |
 | `public_private_surface_gate` | A public README, docs, release note, citation, package, or other public artifact is being prepared or reviewed. | Scan for private or local-only traces before publishing; keep public surfaces generic unless disclosure is explicitly authorized. |
 | `self_report_log_grounding_gate` | The agent describes what it previously checked, ran, verified, skipped, or failed. | Ground the statement in command/tool/session logs when logs exist; otherwise state that no log evidence exists. |
 | `root_cause_cleanup_gate` | Incident analysis asks what went wrong or how to prevent recurrence. | Prefer logs, diffs, hashes, and source records; keep subjective intent unknown unless proven; produce cleanup/prevention candidates. |
