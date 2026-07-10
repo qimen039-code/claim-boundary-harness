@@ -6,6 +6,20 @@ This project uses `vMAJOR.MINOR.PATCH` version labels while the framework is sti
 
 ## Unreleased
 
+## v0.20.3 - 2026-07-10
+
+- Added deterministic skill safety/redundancy audit and first-principles route
+  profiles with source, PowerShell, and WorkBuddy parity plus negative and
+  long-middle pressure tests.
+- Added a machine-readable WorkBuddy Agent Loop action contract and host-owned
+  consumption receipt validation so hook-only advisory fields cannot be
+  mistaken for executed host behavior.
+- Added minimal WorkBuddy and Codex deployment profiles plus a non-destructive
+  bundle builder that excludes papers, articles, research material, examples,
+  and development tests by default.
+- Clarified hook-only capability boundaries and preserved exact redundancy
+  trigger anchors across authoring, source, and active policy surfaces.
+
 ## v0.20.2 - 2026-07-10
 
 - Added the Research Triage Three Questions method for deciding whether a

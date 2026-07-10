@@ -1,7 +1,7 @@
 {
   "schema_version": "0.1",
   "manifest_type": "agent_memory_lane_compatibility_manifest",
-  "harness_version": "v0.20.2",
+  "harness_version": "v0.20.3",
   "adapter": {
     "name": "example-adapter",
     "version": "unverified",
@@ -17,6 +17,35 @@
     "path_or_setting": "unverified",
     "loaded_by_runtime": "unverified",
     "last_checked": "unverified"
+  },
+  "deployment_profile": {
+    "profile_id": "unverified",
+    "profile_manifest": "integrations/workbuddy-python-runtime/deployment-profiles.json",
+    "full_repository_copy_required": false,
+    "bundle_receipt_required": true,
+    "papers_articles_and_development_tests_excluded_by_default": true
+  },
+  "capability_consumption": {
+    "deployment_mode": "unverified",
+    "hook_enforced_when_wired": [
+      "r5_pre_tool_deny",
+      "memory_path_isolation_on_wired_tool_paths",
+      "final_claim_phrase_gate_when_stop_hook_is_wired"
+    ],
+    "prompt_context_only_without_host_loop": [
+      "memory_mode",
+      "external_need",
+      "claim_risk_route_field",
+      "feedback_loop_profile",
+      "skill_lifecycle_profile",
+      "tool_surface_need",
+      "first_principles_profile",
+      "skill_audit_profile"
+    ],
+    "agent_loop_contract_schema": "cbh.workbuddy_agent_loop_contract.v1",
+    "host_loop_consumer_implemented": "unverified",
+    "host_loop_consumption_receipt_verified": "unverified",
+    "hook_only_must_not_claim_full_route_contract_execution": true
   },
   "hook_schema": {
     "prompt_stage": {

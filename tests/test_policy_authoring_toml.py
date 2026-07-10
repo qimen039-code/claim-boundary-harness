@@ -23,6 +23,19 @@ def test_policy_authoring_toml_is_machine_readable() -> None:
     payload = tomllib.loads(AUTHORING.read_text(encoding="utf-8"))
     assert payload["schema_version"] == "cbh.policy_authoring.v1"
     assert payload["compiled_sections"]
+    router = payload["router_decision_contract"]
+    assert router["skill_audit_contract"]["minimum_risk"] == "R3"
+    assert "skill_audit_gate" in router["skill_audit_contract"]["required_gates"]
+    assert {"功能重叠", "长期未用", "可合并项"}.issubset(
+        set(router["skill_audit_contract"]["redundancy_triggers"])
+    )
+    assert router["first_principles_contract"]["required_gate"] == "first_principles_gate"
+    assert router["first_principles_contract"]["profile_values"] == [
+        "none",
+        "micro_constraints",
+        "constraint_gate",
+        "full_design",
+    ]
     assert payload["runtime_enforcement"]["human_confirmation_permit"]["required_scope"] == "single_event"
     assert payload["runtime_enforcement"]["human_confirmation_permit"]["consume_on_pass"] is True
     assert payload["runtime_enforcement"]["human_confirmation_permit"]["used_ledger_env_var"] == "CBH_R5_PERMIT_USE_LEDGER"

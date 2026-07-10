@@ -247,6 +247,90 @@ ROUTER_CASES = [
         },
     },
     {
+        "id": "TC-005g-zh-combined",
+        "task": "审计当前安装技能是否存在隐藏安全风险、重复功能和可合并项",
+        "risk": "R3",
+        "gates": ["skill_audit_gate", "change_contract_gate", "first_principles_gate"],
+        "expect": {
+            "target_surface": "skill_matrix",
+            "skill_audit_profile": "safety_and_redundancy_audit",
+            "first_principles_profile": "constraint_gate",
+        },
+        "expect_contains": {
+            "module_need": "skill_matrix",
+        },
+    },
+    {
+        "id": "TC-005g-zh-safety-paraphrase",
+        "task": "检查这些技能有没有偷偷联网、越权读写或相互覆盖",
+        "gates": ["skill_audit_gate", "change_contract_gate"],
+        "expect": {
+            "target_surface": "skill_matrix",
+            "skill_audit_profile": "safety_audit",
+        },
+        "expect_in": {
+            "risk_level": ["R3", "R4", "R5"],
+        },
+    },
+    {
+        "id": "TC-005g-zh-redundancy-paraphrase",
+        "task": "把功能重叠且长期未用的能力模块整理一下，看看哪些该合并",
+        "risk": "R3",
+        "gates": ["skill_audit_gate", "change_contract_gate"],
+        "expect": {
+            "target_surface": "skill_matrix",
+            "skill_audit_profile": "redundancy_audit",
+        },
+    },
+    {
+        "id": "TC-005g-non-skill-negative",
+        "task": "审计这个 Python 文件的安全问题",
+        "not_gates": ["skill_audit_gate"],
+        "expect": {
+            "skill_audit_profile": "none",
+        },
+    },
+    {
+        "id": "TC-005g-first-principles-constraint",
+        "task": "修改全局路由器的记忆写入策略",
+        "gates": ["first_principles_gate"],
+        "expect": {
+            "first_principles_profile": "constraint_gate",
+        },
+    },
+    {
+        "id": "TC-005g-first-principles-full-design",
+        "task": "设计一个新的跨客户端权限机制",
+        "gates": ["first_principles_gate"],
+        "expect": {
+            "first_principles_profile": "full_design",
+        },
+    },
+    {
+        "id": "TC-005g-first-principles-recurrence",
+        "task": "修复这个重复出现的数据一致性 bug",
+        "gates": ["first_principles_gate"],
+        "expect": {
+            "first_principles_profile": "constraint_gate",
+        },
+    },
+    {
+        "id": "TC-005g-first-principles-typo-negative",
+        "task": "修正文档里的一个错别字",
+        "not_gates": ["first_principles_gate"],
+        "expect": {
+            "first_principles_profile": "none",
+        },
+    },
+    {
+        "id": "TC-005g-first-principles-version-negative",
+        "task": "同步版本号",
+        "not_gates": ["first_principles_gate"],
+        "expect": {
+            "first_principles_profile": "none",
+        },
+    },
+    {
         "id": "TC-005h",
         "task": "查找 GitHub 上 Yuan1z0825/nature-skills 仓库并读取 SKILL.md",
         "risk": "R4",
@@ -723,6 +807,19 @@ def test_router_contract_cases(case: dict) -> None:
         assert contains(payload.get(field), expected_value)
     for trigger_key, expected_value in case.get("expect_trigger_contains", {}).items():
         assert contains(payload.get("matched_risk_triggers", {}).get(trigger_key), expected_value)
+
+
+def test_router_skill_audit_and_first_principles_survive_long_middle_distractors() -> None:
+    skill_task = "普通背景说明。" * 120 + "请审计这些技能是否存在隐藏风险、重复功能和可合并项。" + "其余背景。" * 120
+    skill_payload = run_router(skill_task)
+    assert skill_payload["target_surface"] == "skill_matrix"
+    assert skill_payload["skill_audit_profile"] == "safety_and_redundancy_audit"
+    assert contains(skill_payload["required_gates"], "skill_audit_gate")
+
+    principle_task = "普通实现背景。" * 120 + "需要修改全局路由器的记忆写入策略并保留现有边界。" + "其余背景。" * 120
+    principle_payload = run_router(principle_task)
+    assert principle_payload["first_principles_profile"] == "constraint_gate"
+    assert contains(principle_payload["required_gates"], "first_principles_gate")
 
 
 def test_router_combines_global_context_and_feedback_prevention() -> None:

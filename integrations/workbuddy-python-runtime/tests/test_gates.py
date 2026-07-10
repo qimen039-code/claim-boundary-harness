@@ -85,6 +85,36 @@ class HarnessGateTests(unittest.TestCase):
         self.assertEqual(route["risk_level"], "R5")
         self.assertIn("R5", route["triggered_risks"])
 
+    def test_router_profiles_skill_audit_and_first_principles_boundaries(self) -> None:
+        cases = [
+            (
+                "审计当前安装技能是否存在隐藏安全风险、重复功能和可合并项",
+                "safety_and_redundancy_audit",
+                "constraint_gate",
+                True,
+            ),
+            ("检查这些技能有没有偷偷联网、越权读写或相互覆盖", "safety_audit", "constraint_gate", True),
+            ("把功能重叠且长期未用的能力模块整理一下，看看哪些该合并", "redundancy_audit", "constraint_gate", True),
+            ("审计这个 Python 文件的安全问题", "none", "constraint_gate", False),
+            ("修正文档里的一个错别字", "none", "none", False),
+            ("设计一个新的跨客户端权限机制", "none", "full_design", False),
+        ]
+        for task, skill_profile, principle_profile, skill_gate in cases:
+            with self.subTest(task=task):
+                route = self._route(task)
+                self.assertEqual(route["skill_audit_profile"], skill_profile)
+                self.assertEqual(route["first_principles_profile"], principle_profile)
+                self.assertEqual("skill_audit_gate" in route["required_gates"], skill_gate)
+
+        long_skill_task = (
+            "普通背景说明。" * 120
+            + "请审计这些技能是否存在隐藏风险、重复功能和可合并项。"
+            + "其余背景。" * 120
+        )
+        long_route = self._route(long_skill_task)
+        self.assertEqual(long_route["skill_audit_profile"], "safety_and_redundancy_audit")
+        self.assertEqual(long_route["target_surface"], "skill_matrix")
+
     def test_adapter_manifest_declares_optional_quality_reference_surfaces(self) -> None:
         manifest_path = ROOT.parents[1] / "templates" / "adapter-contract" / "compatibility.manifest.json"
         manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
@@ -117,6 +147,15 @@ class HarnessGateTests(unittest.TestCase):
         external_delivery = manifest["external_model_delivery"]
         self.assertEqual(external_delivery["structured_json_filler_mode_supported"], "unverified")
         self.assertFalse(external_delivery["advisory_issues_trigger_repair"])
+
+        deployment = manifest["deployment_profile"]
+        self.assertFalse(deployment["full_repository_copy_required"])
+        self.assertTrue(deployment["papers_articles_and_development_tests_excluded_by_default"])
+
+        consumption = manifest["capability_consumption"]
+        self.assertTrue(consumption["hook_only_must_not_claim_full_route_contract_execution"])
+        self.assertIn("memory_mode", consumption["prompt_context_only_without_host_loop"])
+        self.assertEqual(consumption["agent_loop_contract_schema"], "cbh.workbuddy_agent_loop_contract.v1")
 
     def test_router_detects_plain_commit_and_push_as_r5(self) -> None:
         route = self._route("commit and push the current repository update", policy=self.policy)

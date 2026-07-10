@@ -46,6 +46,8 @@ TRACKED_PATHS: list[tuple[str, ...]] = [
     ("router_decision_contract", "common_error_prevention_triggers"),
     ("router_decision_contract", "explicit_record_triggers"),
     ("router_decision_contract", "conversation_lane_declaration_triggers"),
+    ("router_decision_contract", "skill_audit_contract"),
+    ("router_decision_contract", "first_principles_contract"),
     ("router_decision_contract", "causal_attribution_contract"),
     ("router_decision_contract", "causal_attribution_triggers"),
     ("router_decision_contract", "issue_prevention_gates"),
@@ -237,6 +239,28 @@ def _normal_conversation_lane_declaration_triggers(authoring: dict[str, Any]) ->
     return _string_list(triggers, "router_decision_contract.conversation_lane_declaration_triggers")
 
 
+def _normal_router_profile_contract(authoring: dict[str, Any], name: str) -> dict[str, Any] | None:
+    router = authoring.get("router_decision_contract", {})
+    if not isinstance(router, dict):
+        raise ValueError("router_decision_contract must be a table")
+    contract = router.get(name)
+    if contract is None:
+        return None
+    if not isinstance(contract, dict) or not contract:
+        raise ValueError(f"router_decision_contract.{name} must be a non-empty table")
+    normalized: dict[str, Any] = {}
+    for key, value in contract.items():
+        if isinstance(value, list):
+            normalized[str(key)] = _string_list(value, f"router_decision_contract.{name}.{key}")
+        elif isinstance(value, str) and value:
+            normalized[str(key)] = value
+        else:
+            raise ValueError(
+                f"router_decision_contract.{name}.{key} must be a non-empty string or string array"
+            )
+    return normalized
+
+
 def _normal_causal_attribution_triggers(authoring: dict[str, Any]) -> dict[str, Any] | None:
     router = authoring.get("router_decision_contract", {})
     if not isinstance(router, dict):
@@ -343,6 +367,14 @@ def compile_policy(base_policy: dict[str, Any], authoring: dict[str, Any]) -> di
             ("router_decision_contract", "conversation_lane_declaration_triggers"),
             conversation_lane_declaration_triggers,
         )
+
+    skill_audit_contract = _normal_router_profile_contract(authoring, "skill_audit_contract")
+    if skill_audit_contract is not None:
+        _set_path(compiled, ("router_decision_contract", "skill_audit_contract"), skill_audit_contract)
+
+    first_principles_contract = _normal_router_profile_contract(authoring, "first_principles_contract")
+    if first_principles_contract is not None:
+        _set_path(compiled, ("router_decision_contract", "first_principles_contract"), first_principles_contract)
 
     causal_contract = _normal_causal_attribution_contract(authoring)
     if causal_contract is not None:

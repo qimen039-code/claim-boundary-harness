@@ -12,6 +12,47 @@ This adapter has not been fully tested across WorkBuddy versions, operating syst
 
 Treat it as a starting point. Before relying on it as a hard control path, test it inside the exact WorkBuddy version, workspace, tool schema, permission mode, and hook or loop entry point you use.
 
+## Deployment Profiles: Do Not Copy The Repository
+
+Use `deployment-profiles.json` as the machine-readable deployment source. The
+default WorkBuddy profile contains only the Python hook runtime, wrappers,
+root instruction entry, and compiled policy; it excludes papers, articles,
+research notes, examples, changelog material, and development tests.
+
+List the exact files without writing anything:
+
+```bash
+python integrations/workbuddy-python-runtime/scripts/build-deployment-bundle.py --profile workbuddy-hook-minimal --list
+```
+
+Stage a clean bundle into an empty directory:
+
+```bash
+python integrations/workbuddy-python-runtime/scripts/build-deployment-bundle.py --profile workbuddy-hook-minimal --output ./cbh-workbuddy-bundle
+```
+
+The output receipt records the profile and exact file list. Copying the entire
+repository is a source/development operation, not the supported runtime
+deployment path.
+
+## Hook-Only Versus Agent-Loop Integration
+
+Hook-only mode hard-enforces only the WorkBuddy paths that actually call the
+hook: the wired pre-tool R5/path checks and, when present, the Stop/final-claim
+check. Route fields such as `memory_mode`, `external_need`,
+`feedback_loop_profile`, `skill_lifecycle_profile`, `tool_surface_need`,
+`first_principles_profile`, and `skill_audit_profile` remain prompt context
+unless the host Agent Loop consumes them.
+
+`build_agent_loop_contract(route)` converts those fields into explicit host
+actions using schema `cbh.workbuddy_agent_loop_contract.v1`.
+`validate_agent_loop_receipt(contract, receipt)` checks a host-owned
+consumption receipt. These functions make the missing integration testable;
+they do not claim that stock WorkBuddy calls the consumer. Use the
+`workbuddy-loop-integration-sdk` profile only when the host team will wire that
+consumer into its real planning, memory, search, tool-selection, skill, and
+final-review surfaces.
+
 ## Scope
 
 - Reuse the public `embedded_harness_policy.json` as the policy source.
@@ -60,6 +101,12 @@ loop keep idle skills listing-only, open selected active frames, write
 meta-first path, and enforce context-complete write shape when a durable memory
 write/update has already been selected. They are advisory unless the host owns
 the relevant skill context or memory read/write execution path.
+
+The prompt hook now records an `agent_loop_contract` in
+`workbuddy_hook_state.json` and emits compact `loop_actions=...` plus
+`loop_consumer=required` context when host-loop work is needed. This remains
+advisory until the WorkBuddy Agent Loop reads the contract and returns a
+consumption receipt.
 
 Route output may also include `tool_surface_need`,
 `tool_discovery_status`, `skill_or_tool_need`, `plugin_need`, and

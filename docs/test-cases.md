@@ -1,5 +1,24 @@
 # Test Cases
 
+## Skill Audit And First-Principles Routing
+
+The deterministic PowerShell and Python routers must actively expose two
+profiles instead of relying on the model to remember prose instructions:
+
+- `skill_audit_profile`: `none`, `safety_audit`, `redundancy_audit`, or
+  `safety_and_redundancy_audit`. It requires a skill/capability subject, an
+  audit/check/cleanup intent, and at least one safety or redundancy signal.
+  Positive routes require `skill_audit_gate`, `change_contract_gate`, and the
+  skill matrix. A generic Python-file security audit is a negative control.
+- `first_principles_profile`: `none`, `micro_constraints`, `constraint_gate`,
+  or `full_design`. Systemic and persistent-risk changes require
+  `first_principles_gate`; explicit design/first-principles requests use
+  `full_design`; typos and simple version sync remain `none`.
+
+Regression coverage includes Chinese and English paraphrases, non-skill and
+trivial-edit negative controls, and long distractor prompts whose decisive
+signal appears in the middle rather than at the beginning or end.
+
 These are reference acceptance cases for adopters. They are not a complete
 compatibility matrix. Run the cases that match the agent runtime, operating
 system, and hook surface you are adopting.

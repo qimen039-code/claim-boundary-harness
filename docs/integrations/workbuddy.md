@@ -21,6 +21,39 @@ Hard enforcement requires WorkBuddy or a WorkBuddy-compatible host to call the a
 
 If the host still has any execution path that bypasses this function or hook, enforcement for that path is advisory.
 
+## Choose A Deployment Profile First
+
+Do not deploy the repository as one undifferentiated package. Resolve a named
+profile from
+`integrations/workbuddy-python-runtime/deployment-profiles.json` and stage it
+with `scripts/build-deployment-bundle.py`. `workbuddy-hook-minimal` excludes
+papers, articles, research material, examples, changelog content, and tests.
+Those files are useful to maintainers and reviewers but are not runtime
+dependencies.
+
+Use `workbuddy-loop-integration-sdk` only when the adopting host will call
+`build_agent_loop_contract(route)` and consume every required action in the
+real Agent Loop. The generated `cbh-deployment-receipt.json` is the deployment
+evidence; repository presence alone is not deployment evidence.
+
+## Capability Status In Hook-Only Mode
+
+| Capability | Hook-only status | Full activation requirement |
+| --- | --- | --- |
+| R5 command stop | hard on matched `PreToolUse` paths | host honors `permissionDecision: deny` |
+| Memory path isolation | hard on wired tool paths | tool payload exposes the path and passes through the hook |
+| Strong-claim phrase gate | hard only when `Stop` sees final text | host exposes and honors the Stop hook |
+| `memory_mode`, `external_need` | advisory context | Agent Loop calls memory/search consumers |
+| feedback, skill lifecycle, tool discovery | advisory context | Agent Loop calls the matching host-owned surfaces |
+| first-principles and skill-audit profiles | advisory context | Agent Loop performs and receipts the routed review |
+
+The prompt hook writes a `cbh.workbuddy_agent_loop_contract.v1` object into
+`workbuddy_hook_state.json` and emits compact `loop_actions`. This makes
+unconsumed fields visible and testable, but it does not convert stock
+WorkBuddy into a full-loop integration. Do not report full route-contract
+execution until `validate_agent_loop_receipt(...)` passes on a host-owned
+receipt.
+
 ## Recommended WorkBuddy Hook Deployment
 
 The most practical public deployment is a three-layer hook chain:

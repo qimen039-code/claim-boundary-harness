@@ -10,7 +10,7 @@ agent workflows. It provides claim verification, memory continuity, risk
 routing, correction accumulation, and adapter contracts as structural
 enforcement, not advisory prompts.
 
-Current version: `v0.20.2`
+Current version: `v0.20.3`
 
 Citation and attribution: if you use, adapt, evaluate, or productize CBH,
 please cite this repository with `CITATION.cff` and retain `NOTICE.md` plus the
@@ -570,6 +570,14 @@ The package includes generic synthetic examples that show the intended record sh
    entry points, conventions, and interface notes.
 6. Register the skill folders using whatever skill or command mechanism your agent supports.
 7. Run the intake router before nontrivial work.
+
+For deployment, do not copy the repository wholesale. Resolve one of the
+machine-readable profiles in
+`integrations/workbuddy-python-runtime/deployment-profiles.json` and use
+`scripts/build-deployment-bundle.py` to list or stage the exact runtime files.
+The minimal profiles exclude papers, articles, research material, examples,
+and development tests. WorkBuddy hook-only deployments must also report route
+fields that lack an Agent Loop consumer as advisory rather than deployed.
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\skills\embedded-harness\harness_intake_router.ps1 -TaskText "fix the script and run benchmark" -Cwd "C:\path\to\project"

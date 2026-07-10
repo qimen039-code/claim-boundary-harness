@@ -273,6 +273,54 @@ def _conversation_full_lane_groups(task_text: str, contract: dict[str, Any]) -> 
     return result, triggered
 
 
+def _skill_audit_decision(task_text: str, contract: dict[str, Any]) -> dict[str, Any]:
+    subject_hits = _matching_triggers(task_text, contract.get("subject_triggers", []))
+    intent_hits = _matching_triggers(task_text, contract.get("audit_intent_triggers", []))
+    safety_hits = _matching_triggers(task_text, contract.get("safety_triggers", []))
+    redundancy_hits = _matching_triggers(task_text, contract.get("redundancy_triggers", []))
+    profile = "none"
+    if subject_hits and intent_hits:
+        if safety_hits and redundancy_hits:
+            profile = "safety_and_redundancy_audit"
+        elif safety_hits:
+            profile = "safety_audit"
+        elif redundancy_hits:
+            profile = "redundancy_audit"
+    return {
+        "profile": profile,
+        "signals": _unique([*subject_hits, *intent_hits, *safety_hits, *redundancy_hits]),
+    }
+
+
+def _first_principles_decision(
+    task_text: str,
+    *,
+    risk_level: str,
+    target_surface: str,
+    contract: dict[str, Any],
+) -> dict[str, Any]:
+    full_hits = _matching_triggers(task_text, contract.get("full_design_triggers", []))
+    constraint_hits = _matching_triggers(task_text, contract.get("constraint_gate_triggers", []))
+    none_hits = _matching_triggers(task_text, contract.get("none_triggers", []))
+    profile = "none"
+    if full_hits:
+        profile = "full_design"
+    elif none_hits:
+        profile = "none"
+    elif (
+        constraint_hits
+        or risk_level == "R5"
+        or target_surface in set(_as_list(contract.get("high_impact_target_surfaces")))
+    ):
+        profile = "constraint_gate"
+    elif risk_level in set(_as_list(contract.get("micro_constraint_risks"))):
+        profile = "micro_constraints"
+    return {
+        "profile": profile,
+        "signals": _unique([*full_hits, *constraint_hits, *none_hits]),
+    }
+
+
 def _unique(items: list[str]) -> list[str]:
     return sorted(set(items), key=items.index)
 
@@ -803,6 +851,21 @@ def intake_router(task_text: str = "", cwd: str | None = None, policy: dict[str,
         required_gates.extend(["memory_isolation_gate", "project_agents_gate"])
         required_skills.append(f"{lane} project AGENTS/router")
 
+    contract = policy.get("router_decision_contract", {})
+    skill_audit = _skill_audit_decision(task_text, contract.get("skill_audit_contract", {}))
+    skill_audit_profile = str(skill_audit["profile"])
+    skill_audit_signals = list(skill_audit["signals"])
+    if skill_audit_profile != "none":
+        audit_contract = contract.get("skill_audit_contract", {})
+        required_gates.extend(str(item) for item in _as_list(audit_contract.get("required_gates")))
+        required_skill = str(audit_contract.get("required_skill") or "")
+        if required_skill:
+            required_skills.append(required_skill)
+        risk_level = _higher_risk(risk_level, str(audit_contract.get("minimum_risk") or "R3"), policy)
+        if "R3" not in triggered_risks:
+            triggered_risks.append("R3")
+        matched_risk_triggers["skill_audit"] = skill_audit_signals
+
     skill_matches = _trigger_matches(task_text, policy.get("skill_matrix_triggers", []))
     if skill_matches["positive"]:
         required_skills.append("troubleshooting-skill-matrix")
@@ -814,14 +877,29 @@ def intake_router(task_text: str = "", cwd: str | None = None, policy: dict[str,
     if external_matches["negated"]:
         negated_risk_triggers["external_research"] = external_matches["negated"]
 
-    contract = policy.get("router_decision_contract", {})
-    target_surface = _first_matching_rule(
-        task_text,
-        contract.get("target_surface_trigger_rules", {}),
-        ["git_action", "tool_call", "adapter", "public_docs", "conversation_ledger", "conversation_memory", "private_rule", "local_harness", "skill_matrix", "project_memory"],
-    ) or "current_chat"
+    target_surface = "skill_matrix" if skill_audit_profile != "none" else (
+        _first_matching_rule(
+            task_text,
+            contract.get("target_surface_trigger_rules", {}),
+            ["git_action", "tool_call", "adapter", "public_docs", "conversation_ledger", "conversation_memory", "private_rule", "local_harness", "skill_matrix", "project_memory"],
+        ) or "current_chat"
+    )
     if target_surface == "current_chat" and "R3" in triggered_risks:
         target_surface = "local_harness"
+
+    first_principles = _first_principles_decision(
+        task_text,
+        risk_level=risk_level,
+        target_surface=target_surface,
+        contract=contract.get("first_principles_contract", {}),
+    )
+    first_principles_profile = str(first_principles["profile"])
+    first_principles_signals = list(first_principles["signals"])
+    first_principles_contract = contract.get("first_principles_contract", {})
+    if first_principles_profile in set(_as_list(first_principles_contract.get("gate_profiles"))):
+        required_gate = str(first_principles_contract.get("required_gate") or "")
+        if required_gate:
+            required_gates.append(required_gate)
 
     audience = _first_matching_rule(
         task_text,
@@ -1363,7 +1441,11 @@ def intake_router(task_text: str = "", cwd: str | None = None, policy: dict[str,
         "preferred_call_surface": preferred_call_surface,
         "tool_surface_reason": tool_surface_reason,
         "skill_lifecycle_profile": skill_lifecycle_profile,
+        "skill_audit_profile": skill_audit_profile,
+        "skill_audit_signals": skill_audit_signals,
         "feedback_loop_profile": feedback_loop_profile,
+        "first_principles_profile": first_principles_profile,
+        "first_principles_signals": first_principles_signals,
         "read_semantic_boundary": read_semantic_boundary,
         "read_depth_profile": read_depth_profile,
         "edit_operation_profile": edit_operation_profile,
@@ -1395,7 +1477,9 @@ def intake_router(task_text: str = "", cwd: str | None = None, policy: dict[str,
         "plugin_need": plugin_need,
         "preferred_call_surface": preferred_call_surface,
         "skill_lifecycle_profile": skill_lifecycle_profile,
+        "skill_audit_profile": skill_audit_profile,
         "feedback_loop_profile": feedback_loop_profile,
+        "first_principles_profile": first_principles_profile,
         "read_semantic_boundary": read_semantic_boundary,
         "read_depth_profile": read_depth_profile,
         "edit_operation_profile": edit_operation_profile,
@@ -1433,7 +1517,11 @@ def intake_router(task_text: str = "", cwd: str | None = None, policy: dict[str,
         "preferred_call_surface": preferred_call_surface,
         "tool_surface_reason": tool_surface_reason,
         "skill_lifecycle_profile": skill_lifecycle_profile,
+        "skill_audit_profile": skill_audit_profile,
+        "skill_audit_signals": skill_audit_signals,
         "feedback_loop_profile": feedback_loop_profile,
+        "first_principles_profile": first_principles_profile,
+        "first_principles_signals": first_principles_signals,
         "read_semantic_boundary": read_semantic_boundary,
         "read_depth_profile": read_depth_profile,
         "edit_operation_profile": edit_operation_profile,

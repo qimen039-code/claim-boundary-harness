@@ -11,6 +11,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
+from .agent_loop_contract import build_agent_loop_contract
 from .gates import (
     build_single_event_human_confirmation_permit,
     flush_logs,
@@ -508,6 +509,7 @@ def _remember_prompt(
         "latest_user_prompt": task_text,
         "updated_at": _now(),
         "compact_receipt": route.get("compact_receipt", {}),
+        "agent_loop_contract": build_agent_loop_contract(route),
         "consumed_confirmation_ids": list(previous.get("consumed_confirmation_ids") or [])[
             -MAX_CONSUMED_CONFIRMATION_IDS:
         ],
@@ -618,6 +620,7 @@ def _context_output(route: dict[str, Any]) -> dict[str, Any]:
     memory_lane = str(receipt.get("memory_lane", route.get("memory_lane", "none")))
     claim_risk = str(receipt.get("claim_risk", route.get("claim_risk", "none")))
     link_intent = str(receipt.get("link_intent", route.get("link_intent", "none")))
+    loop_contract = build_agent_loop_contract(route)
 
     parts: list[str] = []
     if str(route.get("classification_confidence")) == "low":
@@ -635,6 +638,9 @@ def _context_output(route: dict[str, Any]) -> dict[str, Any]:
         parts.append(f"external={','.join(external_need)}")
     if claim_risk != "none":
         parts.append(f"claim={claim_risk}")
+    if loop_contract["host_loop_required"]:
+        parts.append(f"loop_actions={','.join(loop_contract['action_ids'])}")
+        parts.append("loop_consumer=required")
 
     context = "Claim Boundary Harness boundary: " + "; ".join(parts) + "."
     return {
