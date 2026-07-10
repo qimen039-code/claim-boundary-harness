@@ -9,7 +9,7 @@ Claim Boundary Harness（CBH）是一套面向 agent 工作流的外部认知治
 harness。它把声明验证、记忆连续性、风险路由、纠错沉淀和客户端适配契约
 组合成结构性约束，而不是再写一段普通提示词。
 
-当前版本：`v0.20.1`
+当前版本：`v0.20.2`
 
 引用与署名：如果你在研究、工具、产品或评测中使用、改编或讨论 CBH，请优先使用
 `CITATION.cff` 引用本仓库，并保留 `NOTICE.md` 与 MIT license notice。
@@ -75,6 +75,8 @@ CBH 给编码 agent 增加一个低成本外部认知层。这个仓库已经包
 | 检索与读取 | `docs/hybrid-memory-retrieval-contract.md`、`docs/content-reading-contract.md` | meta-first、保留来源、有界窗口 |
 | skill 生命周期 | `docs/skill-lifecycle-contract.md`、`templates/skill-lifecycle/` | active-frame 与 release receipt |
 | 反馈与因果复核 | `docs/memory-feedback-loop-trial.md`、`docs/router-decision-contract.md` | CE 复用与过度归因边界 |
+| 科研路线分诊 | `docs/research-triage-three-questions.md` | 区分机械裁判、裁判审计和治理路径 |
+| 交互错误路由 | `docs/interaction-error-corpus.md` | 单语料库、四条隔离控制表面车道 |
 
 ## 架构概览
 
@@ -275,6 +277,7 @@ CBH 应在每个采用者自己的本地 lane 中成长。项目专属记忆、f
 - [docs/skill-lifecycle-contract.md](docs/skill-lifecycle-contract.md)
 - [docs/correction-and-reflection-guide.md](docs/correction-and-reflection-guide.md)
 - [docs/common-error-corpus.md](docs/common-error-corpus.md)
+- [docs/interaction-error-corpus.md](docs/interaction-error-corpus.md)
 - [docs/common-issues-and-solutions.md](docs/common-issues-and-solutions.md)
 - [docs/deployment-risk-patterns.md](docs/deployment-risk-patterns.md)
 - [docs/influences-and-attribution.md](docs/influences-and-attribution.md)

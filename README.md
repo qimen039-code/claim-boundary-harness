@@ -10,7 +10,7 @@ agent workflows. It provides claim verification, memory continuity, risk
 routing, correction accumulation, and adapter contracts as structural
 enforcement, not advisory prompts.
 
-Current version: `v0.20.1`
+Current version: `v0.20.2`
 
 Citation and attribution: if you use, adapt, evaluate, or productize CBH,
 please cite this repository with `CITATION.cff` and retain `NOTICE.md` plus the
@@ -84,6 +84,8 @@ Fast paths:
 | Retrieval and reading | `docs/hybrid-memory-retrieval-contract.md`, `docs/content-reading-contract.md` | Meta-first, source-preserving, bounded windows |
 | Skill lifecycle | `docs/skill-lifecycle-contract.md`, `templates/skill-lifecycle/` | Active-frame plus release receipt |
 | Feedback and causal review | `docs/memory-feedback-loop-trial.md`, `docs/router-decision-contract.md` | CE reuse plus overclaim boundary |
+| Research route triage | `docs/research-triage-three-questions.md` | Separates mechanical verifiers from governance paths |
+| Interaction error routing | `docs/interaction-error-corpus.md` | One corpus with four isolated control-surface lanes |
 
 ## Architecture At A Glance
 
@@ -365,6 +367,7 @@ unbounded context growth.
 |   +-- content-reading-contract.md
 |   +-- skill-lifecycle-contract.md
 |   +-- common-error-corpus.md
+|   +-- interaction-error-corpus.md
 |   +-- common-issues-and-solutions.md
 |   +-- conversation-memory-lane.md
 |   +-- conversation-ledger-contract.md
@@ -411,6 +414,7 @@ unbounded context growth.
 +-- templates/
     +-- adapter-contract/
     +-- common-error-corpus/
+    +-- interaction-error-corpus/
     +-- conversation-memory/
     +-- conversation-ledger/
     +-- global-memory-archive/
@@ -476,6 +480,7 @@ The runtime rules live in `AGENTS.md` and the detailed contracts under `docs/`. 
 - **Keep memory lane-scoped:** project, conversation, common-error, and archive memories should not write into each other unless the user explicitly asks for a cross-lane action.
 - **Bound cleanup debt:** when memory pollution, target pollution, dirty-tree debt, or technical debt accumulates, group it, clean the must-fix set, and mark deferred items as `candidate_technical_debt`.
 - **Let small fixes become lessons:** fixed, reusable, low-risk mistakes can become lane-scoped `CE-*` common-error records; router/policy changes, high-impact incidents, public claims, and R5 actions still need human review.
+- **Isolate interaction lessons:** structured tools, browsers, desktop apps, and keyboard/mouse control share one corpus but use separate lane indexes and bounded adjacent-surface fallback.
 - **Keep two reasoning loops separate:** feedback loops store memory -> prediction -> verification -> calibration lessons; causal-attribution review prevents empirical records, cases, or hypotheses from becoming causal proof.
 - **Profile feedback-loop cost:** common-error lookup can stay at `index_hint`, CE writes at `record_candidate`, selected prevention at `prevention_review`, and explicit requests at `explicit_cycle`.
 - **Bound final claims:** do not turn source-prior notes, retrieved snippets, mocks, partial runs, or single smoke tests into `validated` claims.
@@ -490,6 +495,7 @@ Detailed contracts:
 - [docs/deployment-risk-patterns.md](docs/deployment-risk-patterns.md)
 - [docs/correction-and-reflection-guide.md](docs/correction-and-reflection-guide.md)
 - [docs/common-error-corpus.md](docs/common-error-corpus.md)
+- [docs/interaction-error-corpus.md](docs/interaction-error-corpus.md)
 - [docs/common-issues-and-solutions.md](docs/common-issues-and-solutions.md)
 
 ## Field Use Boundary

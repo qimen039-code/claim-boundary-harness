@@ -145,6 +145,28 @@ decision = runtime_enforcer(
 
 The permit must use schema `cbh.r5_human_confirmation_permit.v1`, `scope="single_event"`, an unexpired timestamp, and hashes for the exact task text plus command-scoped tool text. After a concrete tool event passes, the used-ledger blocks replay of the same permit/task/tool combination.
 
+The hook runner also includes a WorkBuddy confirmation bridge. A host-owned
+permission prompt can attach a `cbh.workbuddy_human_confirmation.v1` envelope
+to the exact `PreToolUse` payload, or use the compact
+`runtime_human_confirmation="confirmed"`, `runtime_confirmation_ts`, and
+`runtime_confirmation_id` fields. The hook trusts those fields only as a host
+contract: the WorkBuddy adapter must set them after an actual human response,
+not from model-generated text.
+
+An explicit user reply in the conversation can also arm the next matching R5
+tool event. Full phrases such as `允许执行`, `授权完整清除`, or `确认放行` are
+accepted; a short `允许` or `确认` is accepted only when the stored session route
+was already waiting for human confirmation. The bridge creates the exact
+task/tool permit only at `PreToolUse`, stores its use in the configured
+workspace log directory, and removes the pending confirmation after one pass.
+Keep every hook stage on the same absolute `--log-dir`; do not use a
+`LOCALAPPDATA` confirmation file as cross-account IPC.
+
+This is a CBH hook release only. It does not grant administrator privileges or
+bypass UAC. A command that passes CBH can still fail with an operating-system
+permission error and then needs WorkBuddy's real elevation path or manual
+execution in an administrator-owned terminal.
+
 For conversation-memory continuation or merge tasks, run meta-first lookup and link selection before the first protected tool call. Then pass `conversation_link_resolved=True` to the in-process adapter or `--conversation-link-resolved` to the hook runner. Without that flag, `PreToolUse` blocks with `conversation_link_decision_required`.
 
 Optional quality-reference and claim-artifact surfaces are outside the current hard gate path. A WorkBuddy host may pass `domain_aesthetic_rubric` or `domain_source_tier_catalog` records to its planner as advisory context, but the Python runtime should still treat them as source-prior metadata rather than execution permissions or validated facts. If the host adds a claim-artifact renderer, prefer a JSON file handoff with original evidence refs and a bounded repair loop; do not pass large nested artifacts through shell arguments.

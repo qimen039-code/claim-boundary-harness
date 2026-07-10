@@ -2,14 +2,22 @@ from __future__ import annotations
 
 import argparse
 from contextlib import contextmanager
+import hashlib
 import json
 import os
+import re
 import sys
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
-from .gates import flush_logs, intake_router, runtime_enforcer, sanitize_json_value
+from .gates import (
+    build_single_event_human_confirmation_permit,
+    flush_logs,
+    intake_router,
+    runtime_enforcer,
+    sanitize_json_value,
+)
 from .policy import load_policy
 
 
@@ -19,6 +27,9 @@ STATE_LOCK_FILENAME = STATE_FILENAME + ".lock"
 MAX_EXTRACTED_TEXT_CHARS = 12000
 MAX_EXTRACTED_TEXT_PARTS = 16
 MAX_EXTRACT_DEPTH = 6
+CONFIRMATION_TTL_SECONDS = 300
+MAX_CONFIRMATION_TEXT_CHARS = 500
+MAX_CONSUMED_CONFIRMATION_IDS = 100
 EVENT_STAGE_MAP = {
     "UserPromptSubmit": "user_prompt",
     "PreToolUse": "pre_tool",
@@ -77,10 +88,151 @@ RAW_MEDIA_KEY_NAMES = {
     "raw",
     "video",
 }
+CONFIRMATION_DENIAL_RE = re.compile(
+    r"(?:不允许|不授权|不同意|不要执行|别执行|停止执行|取消|拒绝|do\s+not|don't|deny|denied|reject|cancel|stop)",
+    re.IGNORECASE,
+)
+CONFIRMATION_QUESTION_RE = re.compile(
+    r"(?:是否|能否|可否|可以吗|允许吗|确认吗|执行吗|放行吗|[?？]|can\s+(?:you|i)|should\s+(?:you|i)|may\s+i)",
+    re.IGNORECASE,
+)
+CONFIRMATION_EXPLICIT_RE = re.compile(
+    r"(?:确认(?:执行|继续|放行)|允许(?:执行|继续|放行|删除|清理|安装|提交|推送|发布|提权)|"
+    r"同意(?:执行|继续|放行|删除|清理|安装|提交|推送|发布|提权)|"
+    r"授权(?:执行|继续|放行|完整清除|删除|清理|安装|提交|推送|发布|提权)|"
+    r"批准(?:执行|继续|放行)|可以(?:执行|继续|放行)|继续执行|执行吧|放行吧|"
+    r"(?:i\s+)?(?:approve|authorize|confirm)(?:\s+(?:this|it|the\s+action|execution))?|"
+    r"go\s+ahead|proceed(?:\s+with\s+(?:it|the\s+action))?)",
+    re.IGNORECASE,
+)
+CONFIRMATION_SHORT_REPLY_RE = re.compile(
+    r"^(?:允许|确认|同意|授权|批准|可以|继续|执行|放行|是|好的|好|yes|y|ok|okay|approved?|confirmed?|proceed|go\s+ahead)[。.!！\s]*$",
+    re.IGNORECASE,
+)
 
 
 def _now() -> str:
     return datetime.now(timezone.utc).astimezone().isoformat()
+
+
+def _utc_now() -> datetime:
+    return datetime.now(timezone.utc)
+
+
+def _sha256_text(value: str) -> str:
+    return hashlib.sha256(value.encode("utf-8")).hexdigest()
+
+
+def _parse_confirmation_time(value: Any) -> datetime | None:
+    if value is None or value == "":
+        return None
+    try:
+        if isinstance(value, (int, float)) or str(value).strip().replace(".", "", 1).isdigit():
+            return datetime.fromtimestamp(float(value), tz=timezone.utc)
+        parsed = datetime.fromisoformat(str(value).strip().replace("Z", "+00:00"))
+        if parsed.tzinfo is None:
+            parsed = parsed.replace(tzinfo=timezone.utc)
+        return parsed.astimezone(timezone.utc)
+    except (OSError, OverflowError, TypeError, ValueError):
+        return None
+
+
+def _confirmation_window(confirmed_at: datetime) -> tuple[str, str]:
+    confirmed = confirmed_at.astimezone(timezone.utc)
+    expires = confirmed + timedelta(seconds=CONFIRMATION_TTL_SECONDS)
+    return confirmed.isoformat().replace("+00:00", "Z"), expires.isoformat().replace("+00:00", "Z")
+
+
+def _route_waits_for_human_confirmation(session: dict[str, Any]) -> bool:
+    receipt = session.get("compact_receipt", {}) if isinstance(session, dict) else {}
+    return bool(isinstance(receipt, dict) and receipt.get("human_confirmation_need"))
+
+
+def _conversation_confirmation_signal(
+    *,
+    text: str,
+    session_id: str,
+    previous_session: dict[str, Any],
+) -> dict[str, Any] | None:
+    normalized = " ".join(text.strip().split())
+    if not normalized or len(normalized) > MAX_CONFIRMATION_TEXT_CHARS:
+        return None
+    if CONFIRMATION_DENIAL_RE.search(normalized) or CONFIRMATION_QUESTION_RE.search(normalized):
+        return None
+    short_reply_after_request = bool(
+        _route_waits_for_human_confirmation(previous_session) and CONFIRMATION_SHORT_REPLY_RE.fullmatch(normalized)
+    )
+    if not short_reply_after_request and not CONFIRMATION_EXPLICIT_RE.search(normalized):
+        return None
+    confirmed_at = _utc_now()
+    confirmed_at_text, expires_at_text = _confirmation_window(confirmed_at)
+    confirmation_id = "WB-CONV-" + _sha256_text(
+        "\n".join([session_id, confirmed_at_text, normalized])
+    )[:32]
+    return {
+        "schema": "cbh.workbuddy_human_confirmation.v1",
+        "confirmation_id": confirmation_id,
+        "status": "confirmed",
+        "scope": "single_event",
+        "confirmed_by": "human",
+        "source": "conversation_explicit_approval",
+        "confirmed_at_utc": confirmed_at_text,
+        "expires_at_utc": expires_at_text,
+        "confirmation_text_sha256": _sha256_text(normalized),
+    }
+
+
+def _payload_confirmation_signal(payload: dict[str, Any], session_id: str) -> dict[str, Any] | None:
+    raw_signal: Any = payload.get("cbh_human_confirmation") or payload.get("workbuddy_human_confirmation")
+    if isinstance(raw_signal, dict):
+        if raw_signal.get("schema") != "cbh.workbuddy_human_confirmation.v1":
+            return None
+        status = str(raw_signal.get("status") or "").lower()
+        scope = str(raw_signal.get("scope") or "").lower()
+        confirmed_by = str(raw_signal.get("confirmed_by") or "").lower()
+        source = str(raw_signal.get("source") or "").lower()
+        confirmed_at = _parse_confirmation_time(raw_signal.get("confirmed_at_utc"))
+        confirmation_id = str(raw_signal.get("confirmation_id") or "")
+        if (
+            status != "confirmed"
+            or scope != "single_event"
+            or confirmed_by != "human"
+            or source not in {"workbuddy_permission_prompt", "conversation_explicit_approval"}
+            or not confirmed_at
+            or not confirmation_id
+        ):
+            return None
+    elif str(payload.get("runtime_human_confirmation") or "").lower() == "confirmed":
+        confirmed_at = _parse_confirmation_time(
+            payload.get("runtime_confirmation_ts") or payload.get("runtime_confirmation_at_utc")
+        )
+        if not confirmed_at:
+            return None
+        source = "workbuddy_permission_prompt"
+        confirmation_id = str(payload.get("runtime_confirmation_id") or "")
+        if not confirmation_id:
+            confirmation_id = "WB-HOST-" + _sha256_text(
+                "\n".join([session_id, confirmed_at.isoformat(), source])
+            )[:32]
+    else:
+        return None
+
+    now = _utc_now()
+    if confirmed_at > now + timedelta(seconds=30):
+        return None
+    if now - confirmed_at > timedelta(seconds=CONFIRMATION_TTL_SECONDS):
+        return None
+    confirmed_at_text, expires_at_text = _confirmation_window(confirmed_at)
+    return {
+        "schema": "cbh.workbuddy_human_confirmation.v1",
+        "confirmation_id": confirmation_id,
+        "status": "confirmed",
+        "scope": "single_event",
+        "confirmed_by": "human",
+        "source": source,
+        "confirmed_at_utc": confirmed_at_text,
+        "expires_at_utc": expires_at_text,
+    }
 
 
 def _read_hook_payload() -> dict[str, Any]:
@@ -331,14 +483,70 @@ def _remember_prompt(
     cwd: str,
     task_text: str,
     route: dict[str, Any],
+    confirmation_signal: dict[str, Any] | None = None,
 ) -> None:
     sessions = state.setdefault("sessions", {})
+    previous = sessions.get(session_id, {})
+    if not isinstance(previous, dict):
+        previous = {}
+    if confirmation_signal:
+        updated = dict(previous)
+        updated.update(
+            {
+                "cwd": cwd,
+                "task_text": str(previous.get("task_text") or task_text),
+                "latest_user_prompt": task_text,
+                "updated_at": _now(),
+                "pending_human_confirmation": confirmation_signal,
+            }
+        )
+        sessions[session_id] = updated
+        return
     sessions[session_id] = {
         "cwd": cwd,
         "task_text": task_text,
+        "latest_user_prompt": task_text,
         "updated_at": _now(),
         "compact_receipt": route.get("compact_receipt", {}),
+        "consumed_confirmation_ids": list(previous.get("consumed_confirmation_ids") or [])[
+            -MAX_CONSUMED_CONFIRMATION_IDS:
+        ],
     }
+
+
+def _pending_confirmation_signal(state: dict[str, Any], session_id: str) -> dict[str, Any] | None:
+    session = state.get("sessions", {}).get(session_id, {})
+    if not isinstance(session, dict):
+        return None
+    signal = session.get("pending_human_confirmation")
+    if not isinstance(signal, dict):
+        return None
+    expires_at = _parse_confirmation_time(signal.get("expires_at_utc"))
+    if not expires_at or expires_at < _utc_now():
+        session.pop("pending_human_confirmation", None)
+        return None
+    return signal
+
+
+def _confirmation_already_consumed(state: dict[str, Any], session_id: str, confirmation_id: str) -> bool:
+    session = state.get("sessions", {}).get(session_id, {})
+    if not isinstance(session, dict):
+        return False
+    return confirmation_id in {str(item) for item in session.get("consumed_confirmation_ids") or []}
+
+
+def _consume_confirmation(state: dict[str, Any], session_id: str, confirmation_id: str) -> None:
+    session = state.get("sessions", {}).get(session_id, {})
+    if not isinstance(session, dict):
+        return
+    pending = session.get("pending_human_confirmation")
+    if isinstance(pending, dict) and str(pending.get("confirmation_id") or "") == confirmation_id:
+        session.pop("pending_human_confirmation", None)
+    consumed = [str(item) for item in session.get("consumed_confirmation_ids") or []]
+    if confirmation_id not in consumed:
+        consumed.append(confirmation_id)
+    session["consumed_confirmation_ids"] = consumed[-MAX_CONSUMED_CONFIRMATION_IDS:]
+    session["updated_at"] = _now()
 
 
 def _decision_reason(decision: dict[str, Any]) -> str:
@@ -480,7 +688,23 @@ def _handle_user_prompt(
 ) -> tuple[int, dict[str, Any]]:
     task_text = _prompt_text(payload)
     route = intake_router(task_text, cwd, policy)
-    _remember_prompt(state=state, session_id=_session_id(payload), cwd=cwd, task_text=task_text, route=route)
+    session_id = _session_id(payload)
+    previous_session = state.get("sessions", {}).get(session_id, {})
+    if not isinstance(previous_session, dict):
+        previous_session = {}
+    confirmation_signal = _conversation_confirmation_signal(
+        text=task_text,
+        session_id=session_id,
+        previous_session=previous_session,
+    )
+    _remember_prompt(
+        state=state,
+        session_id=session_id,
+        cwd=cwd,
+        task_text=task_text,
+        route=route,
+        confirmation_signal=confirmation_signal,
+    )
     _save_state(log_dir, state)
     _log_event(
         log_dir,
@@ -509,23 +733,70 @@ def _handle_pre_tool(
 ) -> tuple[int, dict[str, Any]]:
     session_id = _session_id(payload)
     task_text = _stored_task_text(state, session_id) or _prompt_text(payload, include_nested_text=False)
+    tool_name = _tool_name(payload)
+    tool_input = _tool_input(payload)
+    permit_json = args.human_confirmation_permit_json
+    permit_path = args.human_confirmation_permit_path
+    permit_use_ledger_path = args.human_confirmation_permit_use_ledger_path
+    bridge_signal: dict[str, Any] | None = None
+
+    if not permit_json and not permit_path and not args.human_confirmed:
+        probe = runtime_enforcer(
+            stage="pre_tool",
+            task_text=task_text,
+            cwd=cwd,
+            tool_name=tool_name,
+            tool_input=tool_input,
+            boundary_reviewed=args.boundary_reviewed,
+            conversation_link_resolved=args.conversation_link_resolved,
+            constitution_reviewed=args.constitution_reviewed,
+            constitution_path=args.constitution_path,
+            policy=policy,
+        )
+        confirmation_needed = bool(
+            {"human_confirmation_required_for_R5", "tool_call_requires_human_confirmation"}
+            & set(probe.get("blocked_reasons") or [])
+        )
+        if confirmation_needed:
+            bridge_signal = _payload_confirmation_signal(payload, session_id) or _pending_confirmation_signal(
+                state, session_id
+            )
+            confirmation_id = str((bridge_signal or {}).get("confirmation_id") or "")
+            if bridge_signal and not _confirmation_already_consumed(state, session_id, confirmation_id):
+                permit = build_single_event_human_confirmation_permit(
+                    task_text=task_text,
+                    tool_name=tool_name,
+                    tool_input=tool_input,
+                    permit_id=confirmation_id,
+                    confirmed_at_utc=str(bridge_signal["confirmed_at_utc"]),
+                    expires_at_utc=str(bridge_signal["expires_at_utc"]),
+                    confirmation_source=str(bridge_signal["source"]),
+                )
+                permit_json = json.dumps(permit, ensure_ascii=False, separators=(",", ":"))
+                permit_use_ledger_path = permit_use_ledger_path or str(log_dir / "r5-permit-uses.jsonl")
+
     decision = runtime_enforcer(
         stage="pre_tool",
         task_text=task_text,
         cwd=cwd,
-        tool_name=_tool_name(payload),
-        tool_input=_tool_input(payload),
+        tool_name=tool_name,
+        tool_input=tool_input,
         human_confirmed=args.human_confirmed,
-        human_confirmation_permit_path=args.human_confirmation_permit_path,
-        human_confirmation_permit_json=args.human_confirmation_permit_json,
-        human_confirmation_permit_use_ledger_path=args.human_confirmation_permit_use_ledger_path,
-        boundary_reviewed=args.boundary_reviewed,
+        human_confirmation_permit_path=permit_path,
+        human_confirmation_permit_json=permit_json,
+        human_confirmation_permit_use_ledger_path=permit_use_ledger_path,
+        boundary_reviewed=bool(args.boundary_reviewed or (bridge_signal and permit_json)),
         conversation_link_resolved=args.conversation_link_resolved,
         constitution_reviewed=args.constitution_reviewed,
         constitution_path=args.constitution_path,
         log_dir=log_dir,
         policy=policy,
     )
+    if decision["status"] == "pass" and bridge_signal:
+        confirmation_id = str(bridge_signal.get("confirmation_id") or "")
+        if confirmation_id:
+            _consume_confirmation(state, session_id, confirmation_id)
+            _save_state(log_dir, state)
     if decision["status"] == "blocked":
         return 2, _deny_output(decision)
     return 0, _allow_output()

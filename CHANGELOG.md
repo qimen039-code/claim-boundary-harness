@@ -6,6 +6,20 @@ This project uses `vMAJOR.MINOR.PATCH` version labels while the framework is sti
 
 ## Unreleased
 
+## v0.20.2 - 2026-07-10
+
+- Added the Research Triage Three Questions method for deciding whether a
+  research or evaluator problem should follow a mechanical-verifier,
+  verifier-audit, governance, or mixed path.
+- Added a WorkBuddy bridge that converts verified host or conversation approval
+  into one exact, expiring, non-replayable R5 tool-event permit.
+- Added primary-goal and consolidated-verification boundaries to avoid
+  non-blocking execution expansion and repeated unchanged smoke checks.
+- Added one interaction error corpus with isolated structured-tool, browser,
+  desktop-app, and keyboard/mouse lanes plus bounded fallback.
+- Tightened the CE boundary so only fixed, validated, reusable, source-grounded
+  small mistakes remain CE records; severe or repeated incidents use ERR/SOL.
+
 ## v0.20.1 - 2026-07-09
 
 - Added a model-facing local LLM adapter brief for OpenAI-compatible local

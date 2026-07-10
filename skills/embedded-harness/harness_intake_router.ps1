@@ -339,6 +339,63 @@ function Get-R5ContextDecision {
   }
 }
 
+function Get-R3ContextDecision {
+  param(
+    [string]$SourceText,
+    [object[]]$PositiveTermsInput = @(),
+    [object[]]$NegatedTermsInput = @()
+  )
+  $candidateTerms = @($PositiveTermsInput | Select-Object -Unique)
+  $negatedTerms = @($NegatedTermsInput | Select-Object -Unique)
+  if ($candidateTerms.Count -eq 0) {
+    return [pscustomobject]@{
+      decision = "none"
+      action_surface = "none"
+      promote_to_risk = $false
+      candidate_terms = @()
+      negated_terms = @($negatedTerms)
+      diagnostic_terms = @()
+      reason = "no_R3_candidate"
+    }
+  }
+
+  $contextRules = Get-ObjectPropertyValue $policy "r3_context_decision_rules"
+  if ($null -eq $contextRules) {
+    $contextRules = [pscustomobject]@{
+      diagnostic_intent_terms = @("read-only", "inspect", "check", "detect", "只读", "检查", "核查", "检测")
+      explicit_mutation_phrases = @("please update", "please modify", "please fix", "update config", "modify config", "请更新", "请修改", "请修复", "更新配置", "修改配置")
+      strong_mutation_terms = @("implement", "fix", "patch", "edit", "sync", "实现", "修复", "补丁", "落地", "同步")
+    }
+  }
+
+  $diagnosticHits = Get-SourceMatchedTerms -source $SourceText -terms $contextRules.diagnostic_intent_terms
+  $explicitMutationMatchSet = Get-TriggerMatchSet $contextRules.explicit_mutation_phrases
+  $explicitMutationHits = @($explicitMutationMatchSet.positive)
+  $strongMutationHits = Get-TermIntersection -leftTerms $candidateTerms -rightTerms $contextRules.strong_mutation_terms
+
+  if (($diagnosticHits.Count -gt 0) -and ($explicitMutationHits.Count -eq 0) -and ($strongMutationHits.Count -eq 0)) {
+    return [pscustomobject]@{
+      decision = "contextual_read_only"
+      action_surface = "read_only_diagnostic"
+      promote_to_risk = $false
+      candidate_terms = @($candidateTerms)
+      negated_terms = @($negatedTerms)
+      diagnostic_terms = @($diagnosticHits)
+      reason = "R3_terms_are_diagnostic_context_not_mutation"
+    }
+  }
+
+  return [pscustomobject]@{
+    decision = "change_context"
+    action_surface = "actionable_R3"
+    promote_to_risk = $true
+    candidate_terms = @($candidateTerms)
+    negated_terms = @($negatedTerms)
+    diagnostic_terms = @($diagnosticHits)
+    reason = if ($explicitMutationHits.Count -gt 0) { "explicit_mutation_phrase_detected" } elseif ($strongMutationHits.Count -gt 0) { "strong_mutation_term_detected" } else { "R3_candidate_without_read_only_context" }
+  }
+}
+
 function Get-TargetSurface {
   $rules = $policy.router_decision_contract.target_surface_trigger_rules
   if ($null -ne $rules) {
@@ -431,6 +488,7 @@ $matchedRiskTriggers = [ordered]@{}
 $negatedRiskTriggers = [ordered]@{}
 $riskCandidates = [ordered]@{}
 $risk_context_decisions = [ordered]@{}
+$diagnosticR1FallbackHits = @()
 $fallbackModelJudgmentRecommended = $false
 $classificationConfidence = "high"
 $riskRules = $policy.risk_trigger_rules
@@ -464,6 +522,22 @@ foreach ($riskName in (ConvertTo-Array $policy.risk_order_high_to_low)) {
       }
     }
   }
+  if ([string]$riskName -eq "R3") {
+    $r3DecisionArgs = @{
+      SourceText = [string]$TaskText
+      PositiveTermsInput = @($matched)
+      NegatedTermsInput = @($matchSet.negated)
+    }
+    $r3Decision = Get-R3ContextDecision @r3DecisionArgs
+    if ($matched.Count -gt 0) {
+      $riskCandidates["R3"] = @($matched)
+      $risk_context_decisions["R3"] = $r3Decision
+      if (-not $r3Decision.promote_to_risk) {
+        $diagnosticR1FallbackHits += @($r3Decision.diagnostic_terms)
+        continue
+      }
+    }
+  }
   if ($matched.Count -gt 0) {
     $triggeredRisks += [string]$riskName
     $matchedRiskTriggers[[string]$riskName] = @($matched)
@@ -477,6 +551,18 @@ foreach ($riskName in (ConvertTo-Array $policy.risk_order_high_to_low)) {
     foreach ($approvalRule in (ConvertTo-Array $approvalRules)) {
       $approval += [string]$approvalRule
     }
+  }
+}
+
+if ($diagnosticR1FallbackHits.Count -gt 0) {
+  $triggeredRisks += "R1"
+  $existingR1Hits = @()
+  if ($matchedRiskTriggers.Contains("R1")) {
+    $existingR1Hits = @($matchedRiskTriggers["R1"])
+  }
+  $matchedRiskTriggers["R1"] = @($existingR1Hits + $diagnosticR1FallbackHits | Select-Object -Unique)
+  foreach ($gate in (ConvertTo-Array (Get-ObjectPropertyValue $policy.risk_gate_rules "R1"))) {
+    $requiredGates += [string]$gate
   }
 }
 
@@ -674,6 +760,30 @@ $explicitRecordHits = Get-MatchedTriggers $explicitRecordTriggers
 $commonErrorHits = Get-MatchedTriggers $commonErrorTriggers
 $commonErrorPreventionHits = Get-MatchedTriggers $commonErrorPreventionTriggers
 $commonErrorWriteIntent = (($commonErrorHits.Count -gt 0) -and ($explicitRecordHits.Count -gt 0))
+if (($explicitRecordHits.Count -gt 0) -and ($projectLane -ne "PROJECTLESS") -and ($risk -in @("R0", "R1", "R2"))) {
+  $risk = "R3"
+  $fallbackModelJudgmentRecommended = $false
+  $classificationConfidence = "high"
+  $requiredGates = @($requiredGates | Where-Object { $_ -ne "model_boundary_review_gate" })
+  if ($matchedRiskTriggers.Contains("fallback_boundary")) {
+    $matchedRiskTriggers.Remove("fallback_boundary")
+  }
+  $triggeredRisks += "R3"
+  $riskCandidates["R3"] = @($explicitRecordHits)
+  $matchedRiskTriggers["R3"] = @($explicitRecordHits)
+  $risk_context_decisions["R3"] = [pscustomobject]@{
+    decision = "project_memory_write"
+    action_surface = "actionable_R3"
+    promote_to_risk = $true
+    candidate_terms = @($explicitRecordHits)
+    negated_terms = @()
+    diagnostic_terms = @()
+    reason = "explicit_project_record_request"
+  }
+  foreach ($gate in (ConvertTo-Array (Get-ObjectPropertyValue $policy.risk_gate_rules "R3"))) {
+    $requiredGates += [string]$gate
+  }
+}
 $r5DecisionForMemoryIntent = $null
 if ($risk_context_decisions.Contains("R5")) {
   $r5DecisionForMemoryIntent = $risk_context_decisions["R5"]
@@ -712,9 +822,17 @@ $conversationSignalTriggers = $policy.router_decision_contract.conversation_memo
 if ($null -eq $conversationSignalTriggers) {
   $conversationSignalTriggers = @("long conversation", "context compression", "continue later", "open loops", "unresolved", "decision", "checkpoint", "handoff", "ordinary conversation", "projectless")
 }
+$conversationLaneDeclarationTriggers = $policy.router_decision_contract.conversation_lane_declaration_triggers
+if ($null -eq $conversationLaneDeclarationTriggers) {
+  $conversationLaneDeclarationTriggers = @("independent long conversation", "long single conversation lane", "this conversation is not a project", "独立的长单对话", "单长对话", "当前对话不是项目")
+}
 $projectizationSignals = Get-MatchedTriggers $projectizationTriggers
 $conversationExplicitHits = Get-MatchedTriggers $conversationExplicitTriggers
 $conversationSignals = Get-MatchedTriggers $conversationSignalTriggers
+$conversationLaneDeclarationHits = Get-MatchedTriggers $conversationLaneDeclarationTriggers
+if ($conversationLaneDeclarationHits.Count -gt 0) {
+  $requiredGates += "lane_ownership_gate"
+}
 $selfReflectionRecordHits = @($explicitRecordHits)
 if ($conversationExplicitHits.Count -gt 0) {
   $selfReflectionRecordHits = @()
@@ -886,6 +1004,8 @@ if ($commonErrorHits.Count -gt 0) {
   $memoryLane = "current_conversation"
 } elseif ($explicitLongTermMemoryWriteIntent) {
   $memoryLane = "global_inbox"
+} elseif (($projectLane -eq "PROJECTLESS") -and ($conversationLaneDeclarationHits.Count -gt 0)) {
+  $memoryLane = "current_conversation"
 } elseif (($conversationMemoryDecision -ne "none") -and ($hasActiveConversationMemoryLane -or ($conversationExplicitHits.Count -gt 0))) {
   $memoryLane = "current_conversation"
 } elseif ($selfReflectionRecordHits.Count -gt 0) {
@@ -998,7 +1118,7 @@ if (($readSemanticBoundary -contains "contamination_or_debt") -and (Test-TaskCon
 }
 
 $editOperationProfile = "none"
-$readOnlyTask = Test-TaskContainsAny @("read-only", "readonly", "inspect only", "check only", "do not modify", "do not execute", "report only", "只读", "只检查", "不要修改", "不修改", "不要执行", "不执行", "先检查")
+$readOnlyTask = Test-TaskContainsAny @("read-only", "readonly", "inspect only", "check only", "verify whether", "detect", "do not modify", "do not execute", "report only", "只读", "只检查", "检测", "核对", "不要修改", "不修改", "不要执行", "不执行", "先检查")
 $diskDeleteMatch = [regex]::Match($TaskText, "(?i)(删除|移除|清理|delete|remove).{0,48}(文件夹|目录|folder|directory|file|文件|旧\s*release|release\s*folder)|\brm\s+-rf\b|Remove-Item")
 $diskDeleteRequested = ($diskDeleteMatch.Success -and (-not (Test-NegatedMatch -source $TaskText -index $diskDeleteMatch.Index)))
 $recordDeleteMatch = [regex]::Match($TaskText, "(?i)(删掉|删除|移除|去掉|remove|delete).{0,48}(段|描述|行|条目|内容|字段|section|paragraph|line|entry|README\s+中)")
@@ -1027,10 +1147,10 @@ if ($diskDeleteRequested) {
   $editOperationProfile = "archive_or_move"
 } elseif ($sectionReplaceRequested) {
   $editOperationProfile = "section_replace"
+} elseif (($readOnlyTask -or ($risk -eq "R1")) -and ($risk -ne "R3")) {
+  $editOperationProfile = "read_only"
 } elseif ($inPlacePatchRequested -or ($risk -eq "R3")) {
   $editOperationProfile = "in_place_patch"
-} elseif ($readOnlyTask -or ($risk -eq "R1")) {
-  $editOperationProfile = "read_only"
 }
 
 if ($readSemanticBoundary.Count -gt 0) {
@@ -1234,7 +1354,7 @@ $routingReceipt = [ordered]@{
   link_intent = $linkIntent
   receipt_profile = $receiptProfile
   projectization_signals = @($projectizationSignals)
-  conversation_signals = @(@($conversationExplicitHits) + @($conversationSignals) | Select-Object -Unique)
+  conversation_signals = @(@($conversationExplicitHits) + @($conversationSignals) + @($conversationLaneDeclarationHits) | Select-Object -Unique)
   conversation_full_lane_triggered = [bool]$conversationFullLaneTriggered
   conversation_full_lane_groups = $conversationFullLaneGroups
   required_gates = @($requiredGates | Select-Object -Unique)
@@ -1304,7 +1424,7 @@ $result = [ordered]@{
   conversation_memory_decision = $conversationMemoryDecision
   link_intent = $linkIntent
   projectization_signals = @($projectizationSignals)
-  conversation_signals = @(@($conversationExplicitHits) + @($conversationSignals) | Select-Object -Unique)
+  conversation_signals = @(@($conversationExplicitHits) + @($conversationSignals) + @($conversationLaneDeclarationHits) | Select-Object -Unique)
   conversation_full_lane_triggered = [bool]$conversationFullLaneTriggered
   conversation_full_lane_groups = $conversationFullLaneGroups
   triggered_risks = @($triggeredRisks | Select-Object -Unique)

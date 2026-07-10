@@ -14,7 +14,9 @@ Use a `CE-*` common error record when:
 - the mistake is small but likely to recur;
 - it helps future routing or tool-call preflight;
 - the user calls it a common error or useful sample;
-- the issue is fixed immediately and the solution can be recorded without needing a full incident pair.
+- the issue is fixed immediately and the solution can be recorded without needing a full incident pair;
+- the observed log, applied solution, validation result, and reusable prevention
+  rule are all available without exposing private project material.
 
 Do not use it for:
 
@@ -33,6 +35,11 @@ does not authorize public documentation changes, router-policy changes,
 trigger-list edits, cross-lane memory writes, or high-risk incident records.
 Mentioning or reading a common-error record only selects this corpus for reuse;
 it does not by itself authorize a durable CE write.
+
+Interaction-specific mistakes should stay in the isolated four-lane
+[interaction error corpus](interaction-error-corpus.md). Link one of those
+records into the general CE index only when the prevention rule applies across
+multiple tools or control surfaces.
 
 Use `feedback_loop_profile` to keep this path cheap:
 

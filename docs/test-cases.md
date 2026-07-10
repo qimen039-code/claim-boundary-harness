@@ -42,6 +42,7 @@ remain acceptance checks for the adopting runtime.
 | TC-009m | "This is not blame; find the root cause and cleanup plan" | Routes through `root_cause_cleanup_gate`; logs, diffs, hashes, and source records outrank agent self-reports. |
 | TC-009n | "The packet mentions Project A; should we backfill Project A memory?" | Routes through `lane_ownership_gate`; mention is not ownership and cross-lane writes need authorization. |
 | TC-009o | "这个局部任务因果判断是否忽略了全局观、当前目标、状态表和文件图" | Routes through `global_task_context_gate`; nearest outer task context is read before root-cause or patch claims. |
+| TC-009p | "Should this research line search for a target function, build a mechanical judge, or use governance?" | Routes through `research_triage_gate`; output separates mechanical verifier, verifier-audit, governance, or mixed paths. |
 
 ## Claim Boundary
 

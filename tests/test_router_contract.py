@@ -323,6 +323,34 @@ ROUTER_CASES = [
         "gates": ["change_contract_gate", "scope_reassessment_gate"],
     },
     {
+        "id": "TC-008c",
+        "task": "检测框架是否还在生效，是否因为 Codex 版本大更新而漂移",
+        "risk": "R1",
+        "not_risk": "R3",
+        "gates": ["read_only_context_gate"],
+        "r3_context_surface": "read_only_diagnostic",
+        "promote_r3": False,
+        "expect": {
+            "edit_operation_profile": "read_only",
+        },
+    },
+    {
+        "id": "TC-008d",
+        "task": "进行修复，同时检测 Codex 更新后的框架状态",
+        "risk": "R3",
+        "gates": ["change_contract_gate"],
+        "r3_context_surface": "actionable_R3",
+        "promote_r3": True,
+    },
+    {
+        "id": "TC-008e",
+        "task": "检测后更新配置并验证结果",
+        "risk": "R3",
+        "gates": ["change_contract_gate"],
+        "r3_context_surface": "actionable_R3",
+        "promote_r3": True,
+    },
+    {
         "id": "TC-009",
         "task": "从 6 月 15 日以来整体上是否一直更稳定",
         "gates": ["observation_scope_gate"],
@@ -379,6 +407,17 @@ ROUTER_CASES = [
         },
         "expect_trigger_contains": {
             "novel_recurrence_candidate_gate": "新型异常",
+        },
+    },
+    {
+        "id": "TC-009s",
+        "task": "Should this research line use a target function, a mechanical judge, or external governance?",
+        "gates": ["research_triage_gate"],
+        "expect_contains": {
+            "semantic_ambiguity": "research_triage_gate",
+        },
+        "expect_trigger_contains": {
+            "research_triage_gate": "target function",
         },
     },
     {
@@ -672,6 +711,10 @@ def test_router_contract_cases(case: dict) -> None:
         assert payload.get("risk_context_decisions", {}).get("R5", {}).get("action_surface") == case["context_surface"]
     if "promote_r5" in case:
         assert bool(payload.get("risk_context_decisions", {}).get("R5", {}).get("promote_to_risk")) is case["promote_r5"]
+    if "r3_context_surface" in case:
+        assert payload.get("risk_context_decisions", {}).get("R3", {}).get("action_surface") == case["r3_context_surface"]
+    if "promote_r3" in case:
+        assert bool(payload.get("risk_context_decisions", {}).get("R3", {}).get("promote_to_risk")) is case["promote_r3"]
     for field, expected in case.get("expect", {}).items():
         assert payload.get(field) == expected
     for field, expected_values in case.get("expect_in", {}).items():
@@ -715,6 +758,52 @@ def test_router_uses_local_project_lane_overlay(tmp_path: Path) -> None:
     assert payload["project_lane"] == "EXAMPLE_PROJECT"
     assert payload["memory_lane"] == "current_project"
     assert payload["risk_level"] != "R5"
+
+
+def test_router_promotes_explicit_project_record_request_to_r3(tmp_path: Path) -> None:
+    project = tmp_path / "EXAMPLE_PROJECT"
+    memory_bank = project / "memory-bank"
+    memory_bank.mkdir(parents=True)
+    overlay = tmp_path / "project_lanes.local.json"
+    overlay.write_text(
+        json.dumps(
+            {
+                "schema": "cbh.project_lane_overlay.v1",
+                "project_lanes": {"EXAMPLE_PROJECT": [str(project)]},
+                "memory_roots": {"EXAMPLE_PROJECT": [str(memory_bank)]},
+            },
+            ensure_ascii=False,
+        ),
+        encoding="utf-8",
+    )
+    env = dict(os.environ)
+    env["CBH_PROJECT_LANES_FILE"] = str(overlay)
+
+    payload = run_router_with_cwd("record this problem", project, env=env)
+
+    assert payload["project_lane"] == "EXAMPLE_PROJECT"
+    assert payload["risk_level"] == "R3"
+    assert payload["risk_context_decisions"]["R3"]["action_surface"] == "actionable_R3"
+    assert payload["memory_lane"] == "current_project"
+    assert payload["memory_mode"] == "write"
+    assert payload["record_intent"] == "explicit_user_request"
+    assert payload["fallback_model_judgment_recommended"] is False
+
+
+def test_router_recognizes_isolated_long_conversation_lane_without_writing_memory() -> None:
+    payload = run_router(
+        "当前对话是独立的长单对话，不属于任何项目内容，"
+        "这是相互隔离的，但是有互联通道"
+    )
+
+    assert payload["project_lane"] == "PROJECTLESS"
+    assert payload["projectization_decision"] == "not_project"
+    assert payload["memory_lane"] == "current_conversation"
+    assert payload["memory_mode"] == "none"
+    assert payload["record_intent"] == "no_record"
+    assert payload["conversation_memory_decision"] == "none"
+    assert payload["link_intent"] == "none"
+    assert contains(payload.get("required_gates"), "lane_ownership_gate")
 
 
 def test_router_marks_project_long_term_memory_write_as_write_mode(tmp_path: Path) -> None:

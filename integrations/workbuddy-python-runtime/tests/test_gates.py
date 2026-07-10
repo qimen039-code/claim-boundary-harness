@@ -7,6 +7,7 @@ import os
 import shutil
 import subprocess
 import sys
+import time
 import unittest
 import uuid
 from contextlib import contextmanager, redirect_stdout
@@ -998,6 +999,171 @@ class HarnessGateTests(unittest.TestCase):
                 and event.get("human_confirmation_permit", {}).get("issues") == ["permit_already_used"]
             ]
             self.assertTrue(replay_events)
+
+    def test_workbuddy_direct_conversation_approval_allows_one_r5_tool_event(self) -> None:
+        with writable_test_dir() as tmp:
+            session_id = "session-direct-approval"
+            self._run_hook(
+                {
+                    "hook_event_name": "UserPromptSubmit",
+                    "session_id": session_id,
+                    "cwd": tmp,
+                    "prompt": "delete the stale build directory after review",
+                },
+                "--stage",
+                "user_prompt",
+                log_dir=tmp,
+            )
+            self._run_hook(
+                {
+                    "hook_event_name": "UserPromptSubmit",
+                    "session_id": session_id,
+                    "cwd": tmp,
+                    "prompt": "授权完整清除，允许执行",
+                },
+                "--stage",
+                "user_prompt",
+                log_dir=tmp,
+            )
+            payload = {
+                "hook_event_name": "PreToolUse",
+                "session_id": session_id,
+                "cwd": tmp,
+                "tool_name": "Bash",
+                "tool_input": {"command": "rm -rf build"},
+            }
+            first = self._run_hook(
+                payload,
+                "--stage",
+                "pre_tool",
+                "--constitution-reviewed",
+                log_dir=tmp,
+            )
+            second = self._run_hook(
+                payload,
+                "--stage",
+                "pre_tool",
+                "--constitution-reviewed",
+                log_dir=tmp,
+            )
+            self.assertEqual(first.returncode, 0, first.stderr)
+            self.assertEqual(second.returncode, 2, second.stderr)
+            self.assertTrue(json.loads(first.stdout)["continue"])
+            self.assertIn(
+                "tool_call_requires_human_confirmation",
+                json.loads(second.stdout)["hookSpecificOutput"]["permissionDecisionReason"],
+            )
+            used_records = [
+                json.loads(line)
+                for line in (Path(tmp) / "r5-permit-uses.jsonl").read_text(encoding="utf-8").splitlines()
+            ]
+            self.assertEqual(len(used_records), 1)
+
+    def test_workbuddy_short_confirmation_reply_requires_prior_confirmation_need(self) -> None:
+        with writable_test_dir() as tmp:
+            session_id = "session-short-approval"
+            self._run_hook(
+                {
+                    "hook_event_name": "UserPromptSubmit",
+                    "session_id": session_id,
+                    "cwd": tmp,
+                    "prompt": "inspect files and summarize findings",
+                },
+                "--stage",
+                "user_prompt",
+                log_dir=tmp,
+            )
+            self._run_hook(
+                {
+                    "hook_event_name": "UserPromptSubmit",
+                    "session_id": session_id,
+                    "cwd": tmp,
+                    "prompt": "允许",
+                },
+                "--stage",
+                "user_prompt",
+                log_dir=tmp,
+            )
+            state = json.loads((Path(tmp) / "workbuddy_hook_state.json").read_text(encoding="utf-8"))
+            self.assertNotIn("pending_human_confirmation", state["sessions"][session_id])
+
+    def test_workbuddy_host_permission_signal_allows_one_r5_tool_event(self) -> None:
+        with writable_test_dir() as tmp:
+            session_id = "session-host-approval"
+            confirmation_id = "WB-PERMISSION-PROMPT-001"
+            self._run_hook(
+                {
+                    "hook_event_name": "UserPromptSubmit",
+                    "session_id": session_id,
+                    "cwd": tmp,
+                    "prompt": "delete the stale build directory after review",
+                },
+                "--stage",
+                "user_prompt",
+                log_dir=tmp,
+            )
+            payload = {
+                "hook_event_name": "PreToolUse",
+                "session_id": session_id,
+                "cwd": tmp,
+                "tool_name": "Bash",
+                "tool_input": {"command": "rm -rf build"},
+                "runtime_human_confirmation": "confirmed",
+                "runtime_confirmation_ts": time.time(),
+                "runtime_confirmation_id": confirmation_id,
+            }
+            first = self._run_hook(
+                payload,
+                "--stage",
+                "pre_tool",
+                "--constitution-reviewed",
+                log_dir=tmp,
+            )
+            second = self._run_hook(
+                payload,
+                "--stage",
+                "pre_tool",
+                "--constitution-reviewed",
+                log_dir=tmp,
+            )
+            self.assertEqual(first.returncode, 0, first.stderr)
+            self.assertEqual(second.returncode, 2, second.stderr)
+
+    def test_workbuddy_stale_host_permission_signal_does_not_release_r5(self) -> None:
+        with writable_test_dir() as tmp:
+            session_id = "session-stale-host-approval"
+            self._run_hook(
+                {
+                    "hook_event_name": "UserPromptSubmit",
+                    "session_id": session_id,
+                    "cwd": tmp,
+                    "prompt": "delete the stale build directory after review",
+                },
+                "--stage",
+                "user_prompt",
+                log_dir=tmp,
+            )
+            result = self._run_hook(
+                {
+                    "hook_event_name": "PreToolUse",
+                    "session_id": session_id,
+                    "cwd": tmp,
+                    "tool_name": "Bash",
+                    "tool_input": {"command": "rm -rf build"},
+                    "runtime_human_confirmation": "confirmed",
+                    "runtime_confirmation_ts": time.time() - 301,
+                    "runtime_confirmation_id": "WB-STALE-001",
+                },
+                "--stage",
+                "pre_tool",
+                "--constitution-reviewed",
+                log_dir=tmp,
+            )
+            self.assertEqual(result.returncode, 2, result.stderr)
+            self.assertIn(
+                "tool_call_requires_human_confirmation",
+                json.loads(result.stdout)["hookSpecificOutput"]["permissionDecisionReason"],
+            )
 
     def test_workbuddy_pre_tool_hook_does_not_block_write_content_examples(self) -> None:
         with writable_test_dir() as tmp:

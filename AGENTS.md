@@ -40,6 +40,17 @@ Use the action-relevant rule: if a field will not change the next action, do not
 
 Re-evaluation is required after trigger events: new evidence, missing files, tool errors, scope changes, user corrections, cross-project terminology, currentness/version claims, GitHub/open-source mechanism intake, risk/cost escalation, broad observation-scope claims, strong claims, R5 actions, or memory writes.
 
+Keep the primary goal ahead of non-blocking discoveries. Separate required
+outputs and blocking findings from deferred findings before expanding scope.
+New findings may be recorded as candidates, but they should not trigger extra
+tools or edits unless they block acceptance, safety, data integrity, or the
+user's explicit goal.
+
+Verify a coherent change batch once after the required work is complete.
+Intermediate checks are reserved for syntax blockers, dependency failures,
+irreversible or R5 risk, or an observed test failure. Do not repeat the same
+unchanged smoke check after every small edit.
+
 Final boundary check must verify claim scope, causal-attribution scope, memory scope, unresolved verification debt, and whether version metadata or paired ERR/SOL records need updates.
 
 Use issue-prevention gates when a task matches a known repeated failure shape:
@@ -118,6 +129,13 @@ one receipt or delta
 ```
 
 Memory use is routed. Ordinary chat should not write memory by default. Explicit requests to record an error may write memory after lane and sensitivity checks. Small reusable mistakes should enter a common error corpus first as compact error-and-solution samples with symptom, cause, applied solution, prevention, validation, and evidence; high-impact, repeated, or explicitly requested incidents should become paired ERR/SOL records.
+
+Interaction failures use one common-error corpus with four isolated retrieval
+lanes: structured tool control, browser control, desktop-app control, and
+keyboard/mouse control. Open the corpus meta index, then one lane index, then
+at most two matching records. Cross into one adjacent lane only when the
+current fallback changes control surface. Prefer the highest-semantic control
+surface that can complete the task, and never let surface selection lower R5.
 
 Reusable memory capsules should use source-monitoring fields: `source_tag` `belief_status` `confidence` `derived_from` `source_monitoring` `lifecycle` `belief_trace_summary`. `belief_status` tracks the verification-process state; `confidence` tracks evidence strength for assigning that status, not the raw probability that the original claim is true. Compressed or synthesized capsules must preserve `derived_from`.
 

@@ -250,6 +250,29 @@ causal attribution gate can both apply to one event, but they do not authorize
 each other. A feedback prediction remains a hypothesis until verified; a causal
 hypothesis remains a hypothesis until controlled evidence supports it.
 
+## Research Triage Gate
+
+`research_triage_gate` is a method-selection gate. It applies before proposing
+target functions, reinforcement-learning loops, automated evaluators, semantic
+judges, causal evaluators, benchmark conclusions, or claims that a system can
+self-correct toward an objective optimum.
+
+The gate asks three questions:
+
+1. Does this task type have an external verification signal that is independent
+   of human preference and not self-circular?
+2. If such a signal exists, is it a mechanical judge or human judgment wrapped
+   in a technical surface?
+3. If no independent verifier exists, what governance structure should manage
+   the uncertainty?
+
+The possible route outcomes are `mechanical_verifier_path`,
+`verifier_audit_path`, `governance_path`, and `mixed_path`. See
+[research-triage-three-questions.md](research-triage-three-questions.md).
+
+This gate is not for ordinary implementation, direct lookup, or local
+debugging. It is for choosing the research or evaluator path itself.
+
 ## Issue Prevention Gates
 
 Issue-prevention gates are narrow recurrence guards for failure classes that are

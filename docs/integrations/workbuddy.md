@@ -187,6 +187,61 @@ unexpired timestamp, and task/tool SHA-256 hashes for the exact event. Use
 block the same permit/task/tool combination after it passes. A broad session
 confirmation should still be treated as unsafe.
 
+### 5. WorkBuddy Human-Confirmation Bridge
+
+The hook runner can turn two human-owned confirmation surfaces into the same
+short-lived, hash-bound `single_event` permit:
+
+1. a WorkBuddy permission or elevation prompt result carried in the exact
+   `PreToolUse` stdin payload; or
+2. the latest explicit user reply in the conversation after the current
+   session has requested R5 confirmation.
+
+For a host-owned permission prompt, prefer the explicit envelope:
+
+```json
+{
+  "cbh_human_confirmation": {
+    "schema": "cbh.workbuddy_human_confirmation.v1",
+    "confirmation_id": "host-generated-unique-id",
+    "status": "confirmed",
+    "scope": "single_event",
+    "confirmed_by": "human",
+    "source": "workbuddy_permission_prompt",
+    "confirmed_at_utc": "2026-07-10T03:35:00Z"
+  }
+}
+```
+
+A compact host adapter may instead provide
+`runtime_human_confirmation: "confirmed"`, `runtime_confirmation_ts`, and a
+stable `runtime_confirmation_id`. Do not derive these fields from model output.
+The host must set them only after a real human accepts the permission prompt.
+Generic fields such as `permissionDecision: allow` are intentionally not
+trusted because they do not prove who made the decision.
+
+For conversation replies, the runner accepts explicit action authorization
+such as `允许执行`, `授权完整清除`, `确认放行`, `approve`, or `go ahead`.
+A bare short reply such as `允许` or `确认` is accepted only when the immediately
+stored session route already required human confirmation. Negated, stale,
+question-shaped, or long explanatory text is not treated as authorization.
+
+The bridge does not create a broad boolean bypass. It waits until the exact
+`PreToolUse` event exists, binds a permit to the stored task text and the
+command-scoped tool text, writes the used record to
+`.harness-logs/r5-permit-uses.jsonl`, and consumes the confirmation after one
+allowed tool event. A second command, a replay, a confirmation older than five
+minutes, or a changed session requires fresh human approval. Use the same
+absolute workspace `--log-dir` for all hook stages; do not exchange approval
+through `%LOCALAPPDATA%` or another account-dependent confirmation file.
+
+The confirmation also satisfies the low-confidence boundary review for that
+one exact event, but it does not resolve unrelated conversation-link or
+constitution gates. It only releases the CBH hook. It does not grant a Windows
+administrator token, bypass UAC, or make an OS-denied command succeed. If the
+allowed command still returns `Access Denied`, use WorkBuddy's real elevation
+flow or give the user a command to run in an administrator-owned terminal.
+
 For nested claim payloads, prefer a file-based claim handoff such as `--ClaimFile` in the PowerShell reference scripts or a JSON file path in custom adapters. Passing deeply nested JSON directly through multiple shells is fragile because each shell has different quote and escape rules.
 
 ## Optional Quality Reference And Claim Artifacts

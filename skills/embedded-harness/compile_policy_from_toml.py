@@ -31,12 +31,21 @@ R5_CONTEXT_FIELDS = [
     "documentation_context_terms",
 ]
 
+R3_CONTEXT_FIELDS = [
+    "diagnostic_intent_terms",
+    "explicit_mutation_phrases",
+    "strong_mutation_terms",
+]
+
 TRACKED_PATHS: list[tuple[str, ...]] = [
     ("risk_trigger_rules", "R5"),
     ("r5_context_decision_rules",),
+    ("r3_context_decision_rules",),
     ("router_decision_contract", "observation_scope_triggers"),
     ("router_decision_contract", "feedback_loop_triggers"),
     ("router_decision_contract", "common_error_prevention_triggers"),
+    ("router_decision_contract", "explicit_record_triggers"),
+    ("router_decision_contract", "conversation_lane_declaration_triggers"),
     ("router_decision_contract", "causal_attribution_contract"),
     ("router_decision_contract", "causal_attribution_triggers"),
     ("router_decision_contract", "issue_prevention_gates"),
@@ -113,6 +122,18 @@ def _normal_r5_context(authoring: dict[str, Any]) -> dict[str, Any] | None:
     if missing:
         raise ValueError("r5_context_decision_rules missing fields: " + ", ".join(missing))
     return {field: _string_list(rules[field], f"r5_context_decision_rules.{field}") for field in R5_CONTEXT_FIELDS}
+
+
+def _normal_r3_context(authoring: dict[str, Any]) -> dict[str, Any] | None:
+    rules = authoring.get("r3_context_decision_rules")
+    if rules is None:
+        return None
+    if not isinstance(rules, dict):
+        raise ValueError("r3_context_decision_rules must be a table")
+    missing = [field for field in R3_CONTEXT_FIELDS if field not in rules]
+    if missing:
+        raise ValueError("r3_context_decision_rules missing fields: " + ", ".join(missing))
+    return {field: _string_list(rules[field], f"r3_context_decision_rules.{field}") for field in R3_CONTEXT_FIELDS}
 
 
 def _normal_full_lane(authoring: dict[str, Any]) -> dict[str, Any] | None:
@@ -196,6 +217,26 @@ def _normal_common_error_prevention_triggers(authoring: dict[str, Any]) -> list[
     return _string_list(triggers, "router_decision_contract.common_error_prevention_triggers")
 
 
+def _normal_explicit_record_triggers(authoring: dict[str, Any]) -> list[str] | None:
+    router = authoring.get("router_decision_contract", {})
+    if not isinstance(router, dict):
+        raise ValueError("router_decision_contract must be a table")
+    triggers = router.get("explicit_record_triggers")
+    if triggers is None:
+        return None
+    return _string_list(triggers, "router_decision_contract.explicit_record_triggers")
+
+
+def _normal_conversation_lane_declaration_triggers(authoring: dict[str, Any]) -> list[str] | None:
+    router = authoring.get("router_decision_contract", {})
+    if not isinstance(router, dict):
+        raise ValueError("router_decision_contract must be a table")
+    triggers = router.get("conversation_lane_declaration_triggers")
+    if triggers is None:
+        return None
+    return _string_list(triggers, "router_decision_contract.conversation_lane_declaration_triggers")
+
+
 def _normal_causal_attribution_triggers(authoring: dict[str, Any]) -> dict[str, Any] | None:
     router = authoring.get("router_decision_contract", {})
     if not isinstance(router, dict):
@@ -271,6 +312,10 @@ def compile_policy(base_policy: dict[str, Any], authoring: dict[str, Any]) -> di
     if r5_context is not None:
         _set_path(compiled, ("r5_context_decision_rules",), r5_context)
 
+    r3_context = _normal_r3_context(authoring)
+    if r3_context is not None:
+        _set_path(compiled, ("r3_context_decision_rules",), r3_context)
+
     observation_scope_triggers = _normal_observation_scope_triggers(authoring)
     if observation_scope_triggers is not None:
         _set_path(compiled, ("router_decision_contract", "observation_scope_triggers"), observation_scope_triggers)
@@ -285,6 +330,18 @@ def compile_policy(base_policy: dict[str, Any], authoring: dict[str, Any]) -> di
             compiled,
             ("router_decision_contract", "common_error_prevention_triggers"),
             common_error_prevention_triggers,
+        )
+
+    explicit_record_triggers = _normal_explicit_record_triggers(authoring)
+    if explicit_record_triggers is not None:
+        _set_path(compiled, ("router_decision_contract", "explicit_record_triggers"), explicit_record_triggers)
+
+    conversation_lane_declaration_triggers = _normal_conversation_lane_declaration_triggers(authoring)
+    if conversation_lane_declaration_triggers is not None:
+        _set_path(
+            compiled,
+            ("router_decision_contract", "conversation_lane_declaration_triggers"),
+            conversation_lane_declaration_triggers,
         )
 
     causal_contract = _normal_causal_attribution_contract(authoring)

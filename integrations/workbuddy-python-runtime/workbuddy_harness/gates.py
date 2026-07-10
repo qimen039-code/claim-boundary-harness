@@ -517,6 +517,7 @@ def _confirmation_permit_result(
         "use_ledger_path": None,
         "consumed": False,
         "pending_consume": False,
+        "confirmation_source": None,
         "rule": "short-lived single-event scoped permit only; natural-language approval is not sufficient; a concrete tool-event permit is recorded as used before the caller proceeds",
     }
     if not permit_path and not permit_json:
@@ -538,6 +539,7 @@ def _confirmation_permit_result(
             issues.append("permit_missing")
     else:
         result["permit_id"] = permit.get("permit_id")
+        result["confirmation_source"] = permit.get("confirmation_source")
         if permit.get("schema") != "cbh.r5_human_confirmation_permit.v1":
             issues.append("unsupported_permit_schema")
         if permit.get("status") != "active":
@@ -577,6 +579,33 @@ def _confirmation_permit_result(
     result["issues"] = sorted(set(issues))
     result["status"] = "pass" if not issues else "blocked"
     return result
+
+
+def build_single_event_human_confirmation_permit(
+    *,
+    task_text: str,
+    tool_name: str = "",
+    tool_input: Any = None,
+    permit_id: str,
+    confirmed_at_utc: str,
+    expires_at_utc: str,
+    confirmation_source: str,
+) -> dict[str, Any]:
+    """Build an exact-event permit using the same command-text binding as runtime_enforcer."""
+    tool_text = _risk_relevant_tool_text(tool_name, tool_input)
+    return {
+        "schema": "cbh.r5_human_confirmation_permit.v1",
+        "permit_id": permit_id,
+        "status": "active",
+        "scope": "single_event",
+        "risk_level": "R5",
+        "confirmed_by": "human",
+        "confirmed_at_utc": confirmed_at_utc,
+        "expires_at_utc": expires_at_utc,
+        "task_sha256": _sha256_hex(task_text),
+        "tool_sha256": _sha256_hex(tool_text),
+        "confirmation_source": confirmation_source,
+    }
 
 
 def _apply_risk_override(route: dict[str, Any], risk_level: str, policy: dict[str, Any]) -> dict[str, Any]:
