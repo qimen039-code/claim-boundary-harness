@@ -89,7 +89,7 @@ def test_citation_notice_are_visible_and_public_report_draft_is_absent() -> None
     assert "submitted arXiv record exists" in notice
     assert "Copyright (c) 2026 qimen039-code" in license_text
     assert "Zenodo DOI trigger release" in changelog
-    assert "## v0.20.3 - 2026-07-10" in changelog
+    assert "## v0.20.3 - 2026-07-11" in changelog
     stale_version = "v0." + "14.0"
     assert stale_version not in changelog
     assert manifest["harness_version"] == "v0.20.3"

@@ -5,16 +5,14 @@ description: Router skill for a project-neutral agent self-improvement matrix. U
 
 # Troubleshooting Skill Matrix Router
 
-This router coordinates four components:
+This router coordinates the four-skill core:
 
 1. `troubleshooting-skill-matrix`: this router.
 2. `agent-error-memory`: records agent-caused execution or process errors.
 3. `bug-solution-memory`: records practical solutions and validation paths.
 4. `shared-semantic-anchors`: records user-confirmed meanings and boundaries.
-5. `embedded-harness`: low-cost intake, memory isolation, external research, and claim gates.
-6. `skillopt-training-layer`: offline candidate-edit, validation-gate, rejected-edit, and slow-update assistant layer.
 
-The SkillOpt-style layer is subordinate to this matrix. It may propose and validate candidate edits, but it must not replace the multi-skill architecture, directly write long-term memory, or mutate primary routers without an accepted gate result and required approval.
+`embedded-harness` is an adjacent low-cost intake, memory-isolation, external-research, claim-gate, and selective-enforcement layer. It is not a fifth core skill.
 
 ## Invocation
 
@@ -25,7 +23,6 @@ Use this router when a task involves:
 - semantic anchor definitions;
 - project router manifest design;
 - external mechanism intake;
-- SkillOpt-style skill optimization or candidate-edit review;
 - deciding whether an existing skill/tool/plugin should be used.
 
 ## Retrieval Workflow
@@ -119,8 +116,6 @@ trigger detected by dynamic evaluation
 ```
 
 For GitHub or open-source projects, inspect the surfaces that match the claim: README for stated intent, source tree for implementation facts, release notes or changelog for version facts, issues/discussions for known failures, and license/provenance for reuse boundaries. If a source cannot be reached or cross-checked, mark the resulting statement as `unverified` or `source_prior`, not as validated.
-
-For SkillOpt-style projects, route absorption through `skillopt-training-layer` by default. Translate useful mechanisms into candidate-edit packets, validation gates, rejected-edit buffers, textual learning-rate limits, and slow-update rules. Keep official benchmark claims as `source_prior` until locally reproduced or gated against local regression probes.
 
 ## Recording Workflow
 

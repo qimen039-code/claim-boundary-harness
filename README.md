@@ -145,7 +145,7 @@ those slices into one low-cost contract:
   instead of relying on long-lived rendered skill text.
 - **Bounded improvement, not skill pileup:** recurring mistakes can become
   `CE-*`, `ERR-*` / `SOL-*`, feedback-loop calibration, or candidate
-  SkillOpt-style edits, but each path keeps scope, validation, and rejection
+  skill edits, but each path keeps scope, validation, and rejection
   boundaries. The goal is an agent that gets more practiced in the current
   workflow, not a heavier context that degrades over time.
 - **Hallucination drift control, not hallucination removal:** source-tagged
@@ -319,8 +319,8 @@ their runtime can actually honor:
   `cbh_doctor`. Retrieved snippets and external reading remain evidence inputs
   until local checks support stronger claims.
 - **Improvement loop:** common-error corpus, paired incident records,
-  feedback-loop trial fields, debt-hygiene routing, skill lifecycle receipts,
-  and a default-off SkillOpt-style candidate-edit runner. Improvement is
+  feedback-loop trial fields, debt-hygiene routing, and skill lifecycle
+  receipts. Improvement is
   staged, scoped, reviewable, and rejectable; it is not always-on
   self-rewriting.
 
@@ -353,7 +353,6 @@ unbounded context growth.
 |       +-- claim-boundary-harness-design.md
 |   +-- examples.md
 |   +-- influences-and-attribution.md
-|   +-- skillopt-runtime.md
 |   +-- static-knowledge-layer.md
 |   +-- test-cases.md
 |   +-- declarative-governance-contract.md
@@ -405,12 +404,9 @@ unbounded context growth.
 |   |   +-- harness_tool_proxy.ps1
 |   |   +-- codex_session_ledger.py
 |   +-- shared-semantic-anchors/
-|   +-- skillopt-training-layer/
 |   +-- troubleshooting-skill-matrix/
 +-- tools/
 |   +-- cbh_doctor.py
-|   +-- skillopt/
-|       +-- skillopt_cycle.py
 +-- templates/
     +-- adapter-contract/
     +-- common-error-corpus/
@@ -419,7 +415,6 @@ unbounded context growth.
     +-- conversation-ledger/
     +-- global-memory-archive/
     +-- skill-lifecycle/
-    +-- skillopt/
     +-- static-knowledge-layer/
     +-- project/
 ```
@@ -546,7 +541,6 @@ The package includes generic synthetic examples that show the intended record sh
 - [docs/static-knowledge-layer.md](docs/static-knowledge-layer.md): optional wiki-style project manual layer with source-prior retrieval boundaries.
 - [docs/common-error-corpus.md](docs/common-error-corpus.md): lightweight common-error sample format.
 - [docs/common-issues-and-solutions.md](docs/common-issues-and-solutions.md): reusable issue classes and applied solutions from adaptation, release, and CI work.
-- [docs/skillopt-runtime.md](docs/skillopt-runtime.md): optional external SkillOpt-style candidate-edit runner and gate workflow.
 - [docs/influences-and-attribution.md](docs/influences-and-attribution.md): public GitHub and engineering-pattern influences versus project contributions.
 - [CITATION.cff](CITATION.cff) and [NOTICE.md](NOTICE.md): recommended citation metadata, attribution wording, and publication boundary.
 - [docs/test-cases.md](docs/test-cases.md): acceptance cases for adopters to run against their own runtime.
@@ -570,6 +564,8 @@ The package includes generic synthetic examples that show the intended record sh
    entry points, conventions, and interface notes.
 6. Register the skill folders using whatever skill or command mechanism your agent supports.
 7. Run the intake router before nontrivial work.
+
+Optional skill tuning: adopters may install [Microsoft SkillOpt](https://github.com/microsoft/SkillOpt) separately. CBH does not bundle or deploy it.
 
 For deployment, do not copy the repository wholesale. Resolve one of the
 machine-readable profiles in
@@ -600,12 +596,6 @@ On Bash environments with `jq`:
 ```bash
 bash ./skills/embedded-harness/bash/validate_policy.sh
 bash ./skills/embedded-harness/bash/harness_intake_router.sh --task-text "fix the script and run benchmark" --cwd "/path/to/project"
-```
-
-Run the optional SkillOpt-style external module smoke test when Python is available:
-
-```bash
-python tools/skillopt/skillopt_cycle.py self-test
 ```
 
 Run the read-only adoption diagnostic before trusting a new adapter or after a
@@ -647,7 +637,6 @@ The whiteboard package was smoke-tested locally with:
 - Bash smoke checks when `jq` is available;
 - cbh-doctor adoption diagnostics;
 - pytest contract checks for the automatically verifiable `TC-xxx` route cases and machine-readable credits;
-- optional SkillOpt-style external module self-test;
 - WorkBuddy Python adapter unit tests as a standalone decision layer, including prompt routing, command blocking, single-event permit replay blocking, Stop/final claim blocking, surrogate-safe payloads, recording transcript extraction, and non-command file-content false-positive guards;
 - package content scan for local project terms and sensitive field names.
 

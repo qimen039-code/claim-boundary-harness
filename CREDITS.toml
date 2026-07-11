@@ -1,28 +1,6 @@
 schema_version = "credits/v1"
 
 [[influence]]
-id = "microsoft-skillopt"
-name = "Microsoft SkillOpt"
-url = "https://github.com/microsoft/SkillOpt"
-source_type = "public_github"
-used_for = [
-  "candidate skill edits",
-  "validation-gated updates",
-  "rejected edit buffers",
-  "textual learning-rate boundaries",
-  "default-off skill improvement cycles",
-]
-not_adopted = [
-  "upstream code vendoring",
-  "training loops",
-  "datasets",
-  "model backends",
-  "benchmark claims",
-]
-boundary = "source-prior design influence; tools/skillopt/skillopt_cycle.py is an independent lightweight implementation"
-docs_ref = "docs/influences-and-attribution.md"
-
-[[influence]]
 id = "rohitg00-agentmemory"
 name = "rohitg00/agentmemory"
 url = "https://github.com/rohitg00/agentmemory"

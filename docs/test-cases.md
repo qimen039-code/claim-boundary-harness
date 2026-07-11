@@ -126,11 +126,3 @@ remain acceptance checks for the adopting runtime.
 | TC-052 | JSON quoting breaks through nested shells | Prefer file-based JSON handoff such as `-ClaimFile`. |
 | TC-053 | Script parameter drift | Read the script `param()` block or `--help` before writing tests. |
 | TC-054 | Windows PowerShell receives Bash heredoc syntax such as `<<'PY'` | Detect the actual shell before generating multiline commands; use PowerShell here-strings, temporary files, `-File`, or pipe-safe forms under PowerShell. |
-
-## Periodic Skill Improvement
-
-| Case | Action | Expected result |
-| --- | --- | --- |
-| TC-060 | Run `python tools/skillopt/skillopt_cycle.py self-test` | Candidate packet and gate report are generated; temporary test output is cleaned by default. |
-| TC-061 | Candidate lacks evidence or rollback | Gate result is deferred or rejected; no target skill file is patched. |
-| TC-062 | Candidate is accepted | Candidate may enter human-reviewed change flow; it is not automatically applied. |

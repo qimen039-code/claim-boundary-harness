@@ -15,12 +15,11 @@ Claude Code note: this package has not yet completed a full deployment validatio
 - `cbh-doctor` read-only adoption diagnostics;
 - TOML policy-authoring drift checks;
 - pytest contract checks for automatically verifiable `TC-xxx` cases and machine-readable credits;
-- SkillOpt-style external module self-test;
 - WorkBuddy Python adapter unit tests.
 
 The workflow is intentionally not a full OS/runtime compatibility matrix. It is a low-cost guard that checks the reference package still runs and returns expected gate decisions.
 
-For broader manual acceptance coverage, use [test-cases.md](test-cases.md). It includes route, claim, memory-lane, adapter, shell-robustness, and SkillOpt-cycle cases.
+For broader manual acceptance coverage, use [test-cases.md](test-cases.md). It includes route, claim, memory-lane, adapter, and shell-robustness cases.
 
 ## 0a. Adoption Doctor
 
@@ -326,22 +325,6 @@ Expected highlights:
 - intake router records the negated `delete` trigger without direct `R5`;
 - external research gate returns `needs_external_research: false`.
 
-## 7. SkillOpt-Style External Module
-
-Run this if Python is available:
-
-```bash
-python tools/skillopt/skillopt_cycle.py self-test
-```
-
-Expected highlight:
-
-- output includes `status`: `pass`;
-- the temporary `.tmp-skillopt-smoke` work directory is removed unless `--keep` is used.
-
-This proves only that the optional module can create and gate a candidate edit
-packet. It does not prove a candidate improves the target skill, because the
-module never patches primary skill files by itself.
 
 ## 8. WorkBuddy Python Runtime Adapter
 

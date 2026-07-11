@@ -6,7 +6,7 @@ This project uses `vMAJOR.MINOR.PATCH` version labels while the framework is sti
 
 ## Unreleased
 
-## v0.20.3 - 2026-07-10
+## v0.20.3 - 2026-07-11
 
 - Added deterministic skill safety/redundancy audit and first-principles route
   profiles with source, PowerShell, and WorkBuddy parity plus negative and
@@ -19,6 +19,9 @@ This project uses `vMAJOR.MINOR.PATCH` version labels while the framework is sti
   and development tests by default.
 - Clarified hook-only capability boundaries and preserved exact redundancy
   trigger anchors across authoring, source, and active policy surfaces.
+- Removed the bundled SkillOpt-style implementation from the public package;
+  adopters may install Microsoft SkillOpt separately, while local/private
+  optimization tooling remains outside CBH release surfaces.
 
 ## v0.20.2 - 2026-07-10
 
