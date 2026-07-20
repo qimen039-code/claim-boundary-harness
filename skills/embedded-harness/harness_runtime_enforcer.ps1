@@ -489,28 +489,29 @@ $resolvedConstitution = Get-FirstExistingPath $constitutionCandidates
 
 $blocked = @()
 $warnings = @()
+$preExecutionStage = (($Stage -eq "pre_task") -or ($Stage -eq "pre_tool"))
 
-if ($route.risk_level -eq "R5" -and -not $effectiveHumanConfirmed) {
+if ($preExecutionStage -and $route.risk_level -eq "R5" -and -not $effectiveHumanConfirmed) {
   $blocked += "human_confirmation_required_for_R5"
 }
 
-if ($hardHits.Count -gt 0 -and -not $effectiveHumanConfirmed) {
+if ($preExecutionStage -and $hardHits.Count -gt 0 -and -not $effectiveHumanConfirmed) {
   $blocked += "tool_call_requires_human_confirmation"
 }
 
-if ($route.fallback_model_judgment_recommended -and -not $BoundaryReviewed) {
+if ($preExecutionStage -and $route.fallback_model_judgment_recommended -and -not $BoundaryReviewed) {
   $blocked += "boundary_review_required_for_low_confidence_route"
 }
 
 $linkRequiredIntents = ConvertTo-Array $policy.conversation_linking_contract.link_required_intents
 $linkIntent = [string]$route.link_intent
-if ((($Stage -eq "pre_task") -or ($Stage -eq "pre_tool")) -and ($linkRequiredIntents -contains $linkIntent) -and -not $ConversationLinkResolved) {
+if ($preExecutionStage -and ($linkRequiredIntents -contains $linkIntent) -and -not $ConversationLinkResolved) {
   $reason = [string]$policy.conversation_linking_contract.unresolved_block_reason
   if ([string]::IsNullOrWhiteSpace($reason)) { $reason = "conversation_link_decision_required" }
   $blocked += $reason
 }
 
-if (($route.risk_level -ne "R0") -and [string]::IsNullOrWhiteSpace($resolvedConstitution) -and -not $ConstitutionReviewed) {
+if ($preExecutionStage -and ($route.risk_level -ne "R0") -and [string]::IsNullOrWhiteSpace($resolvedConstitution) -and -not $ConstitutionReviewed) {
   $blocked += "constitution_entry_missing_or_unreviewed"
 }
 
@@ -539,7 +540,7 @@ if ($changeHits.Count -gt 0 -and $route.risk_level -eq "R0") {
   $warnings += "tool_looks_mutating_but_route_is_R0"
 }
 
-if (($blocked.Count -eq 0) -and ([bool](Get-ObjectPropertyValue $permitResult "pending_consume"))) {
+if (($Stage -eq "pre_tool") -and ($blocked.Count -eq 0) -and ([bool](Get-ObjectPropertyValue $permitResult "pending_consume"))) {
   try {
     Add-HumanConfirmationPermitUse ([string](Get-ObjectPropertyValue $permitResult "use_ledger_path")) ([ordered]@{
       schema = "cbh.r5_human_confirmation_permit_use.v1"

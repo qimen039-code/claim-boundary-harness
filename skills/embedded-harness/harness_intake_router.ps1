@@ -495,7 +495,7 @@ function Find-ActiveConversationMemoryLane([string]$path) {
             $indexText = Get-Content -LiteralPath $indexPath -Raw -Encoding UTF8
           }
           $combined = "$metaText`n$indexText"
-          if (($combined -match "status[`"']?\s*[:=]\s*[`"']?ACTIVE") -or ($combined -match "single_conversation_project_shaped_lane")) {
+          if (($combined -match "(?im)(?:lane_state|status)[`"']?\s*[:=]\s*[`"']?active") -or ($combined -match "single_conversation_project_shaped_lane")) {
             return $lane.FullName
           }
         }
@@ -1338,6 +1338,44 @@ if (($risk -eq "R5") -or ($classificationConfidence -eq "low")) { $moduleNeed +=
 if ($moduleNeed.Count -eq 0) { $moduleNeed += "none" }
 $moduleNeed = @($moduleNeed | Select-Object -Unique)
 
+$actionBindings = @()
+if ($memoryNeed -ne "none") {
+  $actionBindings += [pscustomobject]@{
+    action = "retrieve_matching_memory"
+    completion_evidence = "selected_record_id_and_provenance"
+  }
+}
+if (($externalNeed.Count -gt 0) -and ($externalNeed[0] -ne "none")) {
+  $actionBindings += [pscustomobject]@{
+    action = "perform_external_research_route"
+    completion_evidence = "source_ledger_or_citations"
+  }
+}
+$actionBindingIds = @($actionBindings | ForEach-Object { [string]$_.action } | Select-Object -Unique)
+
+$memorySourceHints = @()
+if (($memoryNeed -ne "none") -and $hasActiveConversationMemoryLane) {
+  $memorySourceHints += [pscustomobject]@{
+    lane = "current_conversation"
+    root_path = $activeConversationMemoryLanePath
+    meta_path = (Join-Path $activeConversationMemoryLanePath "_META_INDEX.md")
+    isolation = "exact_active_conversation_lane"
+  }
+}
+if (($memoryNeed -ne "none") -and ($projectLane -ne "PROJECTLESS")) {
+  $projectMemoryRoots = ConvertTo-Array (Get-ObjectPropertyValue $policy.memory_roots $projectLane)
+  foreach ($root in $projectMemoryRoots) {
+    if (-not [string]::IsNullOrWhiteSpace([string]$root)) {
+      $memorySourceHints += [pscustomobject]@{
+        lane = "current_project"
+        root_path = [string]$root
+        meta_path = (Join-Path ([string]$root) "_META_INDEX.md")
+        isolation = "registered_project_lane_root"
+      }
+    }
+  }
+}
+
 $debugTriggers = Get-ObjectPropertyValue $policy.receipt_profiles "debug_triggers"
 $debugHits = Get-MatchedTriggers $debugTriggers
 $receiptProfile = "compact_runtime"
@@ -1405,6 +1443,8 @@ $routingReceipt = [ordered]@{
   memory_mode = $memoryMode
   memory_write_profile = $memoryWriteProfile
   memory_lane = $memoryLane
+  memory_source_hints = @($memorySourceHints)
+  action_bindings = @($actionBindings)
   record_intent = $recordIntent
   external_need = @($externalNeed)
   claim_risk = $claimRisk
@@ -1439,6 +1479,8 @@ $compactReceipt = [ordered]@{
   hybrid_retrieval_profile = $hybridRetrievalProfile
   memory_write_profile = $memoryWriteProfile
   memory_lane = $memoryLane
+  memory_source_hints = @($memorySourceHints)
+  action_binding_ids = @($actionBindingIds)
   conversation_memory_decision = $conversationMemoryDecision
   conversation_full_lane_triggered = [bool]$conversationFullLaneTriggered
   link_intent = $linkIntent
@@ -1482,6 +1524,9 @@ $result = [ordered]@{
   memory_mode = $memoryMode
   memory_write_profile = $memoryWriteProfile
   memory_lane = $memoryLane
+  memory_source_hints = @($memorySourceHints)
+  action_bindings = @($actionBindings)
+  action_binding_ids = @($actionBindingIds)
   record_intent = $recordIntent
   external_need = @($externalNeed)
   claim_risk = $claimRisk

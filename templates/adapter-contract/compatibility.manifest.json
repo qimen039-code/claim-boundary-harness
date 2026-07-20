@@ -1,7 +1,7 @@
 {
   "schema_version": "0.1",
   "manifest_type": "agent_memory_lane_compatibility_manifest",
-  "harness_version": "v0.20.3",
+  "harness_version": "v1.0.0",
   "adapter": {
     "name": "example-adapter",
     "version": "unverified",
@@ -34,6 +34,8 @@
     ],
     "prompt_context_only_without_host_loop": [
       "memory_mode",
+      "memory_source_hints",
+      "action_bindings",
       "external_need",
       "claim_risk_route_field",
       "feedback_loop_profile",
@@ -43,6 +45,8 @@
       "skill_audit_profile"
     ],
     "agent_loop_contract_schema": "cbh.workbuddy_agent_loop_contract.v1",
+    "action_consumer_schema": "cbh.model_context_consumption.v1",
+    "task_execution_owner": "host_model_agent",
     "host_loop_consumer_implemented": "unverified",
     "host_loop_consumption_receipt_verified": "unverified",
     "hook_only_must_not_claim_full_route_contract_execution": true
@@ -96,6 +100,8 @@
     "requires_confidence": true,
     "requires_derived_from": true,
     "requires_score_method": true,
+    "exact_index_match_remains_selected_when_weaker_candidates_exist": true,
+    "selected_context_returns_to_model_agent": true,
     "text_only_results_are_unbounded": true
   },
   "memory_write_granularity": {

@@ -68,6 +68,20 @@ class DeploymentProfileTests(unittest.TestCase):
             except OSError:
                 pass
 
+    def test_workbuddy_minimal_profile_keeps_stop_hook_disabled_by_default(self) -> None:
+        profile_path = ADAPTER_ROOT / "deployment-profiles.json"
+        profile = json.loads(profile_path.read_text(encoding="utf-8"))["profiles"]["workbuddy-hook-minimal"]
+        self.assertIn("Stop", profile["disabled_by_default_hooks"])
+        self.assertNotIn(
+            "final_claim_phrase_gate_when_stop_hook_is_wired",
+            profile["hard_capabilities"],
+        )
+        conditional = profile["conditional_capabilities"]["final_claim_phrase_gate"]
+        self.assertEqual(conditional["hook"], "Stop")
+        self.assertEqual(conditional["status"], "opt_in_after_host_compatibility_validation")
+        self.assertIn("no_user_prompt_injection", conditional["required_checks"])
+        self.assertIn("no_partial_stream_fragment", conditional["required_checks"])
+
     def test_agent_loop_contract_exposes_unconsumed_route_actions(self) -> None:
         route = intake_router(
             "查找最新官方资料，更新当前对话记忆，并审计技能安全和可合并项",
@@ -84,6 +98,44 @@ class DeploymentProfileTests(unittest.TestCase):
         context = output["hookSpecificOutput"]["additionalContext"]
         self.assertIn("loop_consumer=required", context)
         self.assertIn("loop_actions=", context)
+
+    def test_workbuddy_routes_active_lane_context_to_the_model_agent_loop(self) -> None:
+        temp_root = ADAPTER_ROOT / ".test-tmp"
+        temp_root.mkdir(parents=True, exist_ok=True)
+        workspace = Path(tempfile.mkdtemp(prefix="memory-route-", dir=temp_root))
+        try:
+            lane = workspace / "local-conversation-memory" / "active-lane"
+            lane.mkdir(parents=True)
+            (lane / "_META_INDEX.md").write_text(
+                "# Current Conversation\n\nlane_state: ACTIVE\n",
+                encoding="utf-8",
+            )
+            (lane / "index.json").write_text(
+                json.dumps({"lane_state": "ACTIVE", "record_families": {}}, ensure_ascii=False),
+                encoding="utf-8",
+            )
+            route = intake_router(
+                "关于我们的记忆机制中的检索机制，确认它能在复合任务中实际触发。",
+                cwd=str(workspace),
+                policy=self.policy,
+            )
+            self.assertEqual(route["memory_source_hints"][0]["lane"], "current_conversation")
+            self.assertIn("retrieve_matching_memory", route["action_binding_ids"])
+
+            contract = build_agent_loop_contract(route)
+            self.assertEqual(contract["task_execution_owner"], "host_model_agent")
+            self.assertIn("memory_context_retrieval", contract["action_ids"])
+            action = next(
+                item for item in contract["actions"] if item["action_id"] == "memory_context_retrieval"
+            )
+            self.assertEqual(action["value"]["result_target"], "model_agent_additional_context")
+            self.assertEqual(action["value"]["source_hints"][0]["lane"], "current_conversation")
+        finally:
+            shutil.rmtree(workspace, ignore_errors=True)
+            try:
+                temp_root.rmdir()
+            except OSError:
+                pass
 
     def test_agent_loop_receipt_must_cover_every_action(self) -> None:
         contract = {

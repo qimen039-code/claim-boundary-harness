@@ -903,6 +903,31 @@ def test_router_recognizes_isolated_long_conversation_lane_without_writing_memor
     assert contains(payload.get("required_gates"), "lane_ownership_gate")
 
 
+def test_router_exposes_active_conversation_source_for_compound_memory_retrieval(tmp_path: Path) -> None:
+    workspace = tmp_path / "workspace"
+    lane = workspace / "local-conversation-memory" / "active-lane"
+    lane.mkdir(parents=True)
+    (lane / "_META_INDEX.md").write_text(
+        "# Current Conversation\n\nlane_state: ACTIVE\n",
+        encoding="utf-8",
+    )
+    (lane / "index.json").write_text(
+        json.dumps({"lane_state": "ACTIVE", "record_families": {}}, ensure_ascii=False),
+        encoding="utf-8",
+    )
+
+    payload = run_router_with_cwd(
+        "关于我们的记忆机制中的检索机制，以及外部求索深度学习机制，是否能实际在触发时自动调用并实际生效。",
+        workspace,
+    )
+
+    hints = payload["memory_source_hints"]
+    assert len(hints) == 1
+    assert hints[0]["lane"] == "current_conversation"
+    assert Path(hints[0]["root_path"]).resolve() == lane.resolve()
+    assert contains(payload["action_binding_ids"], "retrieve_matching_memory")
+
+
 def test_router_marks_project_long_term_memory_write_as_write_mode(tmp_path: Path) -> None:
     project = tmp_path / "EXAMPLE_PROJECT"
     memory_bank = project / "memory-bank"
@@ -1153,6 +1178,32 @@ def test_powershell_runtime_preserves_original_task_text_and_risk_override() -> 
     assert payload["route"]["risk_level"] == "R5"
     assert payload["task_text_for_route"] == "delete stale files after review"
     assert "human_confirmation_required_for_R5" in payload["blocked_reasons"]
+
+
+def test_powershell_runtime_final_does_not_reapply_pre_execution_gates() -> None:
+    if not POWERSHELL:
+        pytest.skip("PowerShell is not available on PATH")
+    code, payload = run_json(
+        [
+            POWERSHELL,
+            "-NoProfile",
+            "-ExecutionPolicy",
+            "Bypass",
+            "-File",
+            "skills/embedded-harness/harness_runtime_enforcer.ps1",
+            "-Stage",
+            "final",
+            "-TaskText",
+            "R5",
+            "-FinalText",
+            "I inspected the files and found no matching errors.",
+            "-Cwd",
+            str(ROOT),
+        ]
+    )
+    assert code == 0
+    assert payload["status"] == "pass"
+    assert payload["blocked_reasons"] == []
 
 
 def test_powershell_runtime_ignores_non_command_tool_content_for_hard_patterns() -> None:

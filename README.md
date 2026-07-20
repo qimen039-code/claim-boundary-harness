@@ -5,23 +5,24 @@
 [![Smoke checks](https://github.com/qimen039-code/claim-boundary-harness/actions/workflows/smoke.yml/badge.svg?branch=main)](https://github.com/qimen039-code/claim-boundary-harness/actions/workflows/smoke.yml)
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.21189879.svg)](https://doi.org/10.5281/zenodo.21189879)
 
-Claim Boundary Harness (CBH) is an external cognition governance harness for
-agent workflows. It provides claim verification, memory continuity, risk
-routing, correction accumulation, and adapter contracts as structural
-enforcement, not advisory prompts.
+Claim Boundary Harness (CBH) is a model-facing capability harness for
+Codex-class LLM agents. It helps the active model route a task, retrieve only
+the relevant memory or evidence, preserve claim boundaries, and reuse verified
+corrections without flooding its context.
 
-Current version: `v0.20.3`
+Current version: `v1.0.0`
 
 Citation and attribution: if you use, adapt, evaluate, or productize CBH,
 please cite this repository with `CITATION.cff` and retain `NOTICE.md` plus the
 MIT license notice. The Zenodo concept DOI is
 [10.5281/zenodo.21189879](https://doi.org/10.5281/zenodo.21189879).
 
-The project exists to make capable agents more reliable without replacing the
-model, training a new model, or forcing every task through a heavy memory
-backend. CBH keeps the leverage small: route first, open only the needed memory
-or evidence window, preserve source boundaries, and stop high-risk actions or
-strong claims only when the adopting runtime exposes a real interception point.
+The host model remains the planner, tool user, semantic decision-maker, and
+author of the final answer. CBH does not run the user's task independently of
+that model. Its deterministic helpers are deliberately narrow: they compile a
+compact route, select indexed context, or verify a declared boundary, then hand
+the result back to the model agent. A host-called guard may stop a protected
+event only when the adopting runtime exposes a real interception point.
 
 It is designed to improve with real use. Repeated mistakes, adapter drift,
 memory pollution, and routing gaps should become bounded records, tests, or
@@ -29,11 +30,12 @@ small policy updates. They should not become an uncontrolled pile of active
 skills, prompts, or summaries that slowly pollute the model context.
 
 It is not tied to one agent runtime. It is a neutral starting point that can be
-mapped into any agent that can read workspace instructions, run local scripts,
-use command or skill folders, or call hooks before tools.
+mapped into any model-agent host that can read workspace instructions, run
+local helpers, use command or skill folders, or call hooks before tools.
 
 CBH is not:
 
+- a standalone autonomous task engine or background workflow runner;
 - a vector database or semantic-memory backend;
 - a replacement for the host model's reasoning ability;
 - a broad safety sandbox;
@@ -46,7 +48,7 @@ lane configuration, and verification tests run by the adopter.
 
 ## At A Glance
 
-Claim Boundary Harness is a small external cognition layer for coding agents.
+Claim Boundary Harness is a small model-facing cognition layer for coding agents.
 This repository already contains:
 
 - routing receipts and R0-R5 risk handling before work starts;
@@ -81,6 +83,7 @@ Fast paths:
 | Policy and adoption checks | `compile_policy_from_toml.py`, `validate_policy.ps1`, `tools/cbh_doctor.py` | Drift and preflight checks |
 | WorkBuddy adapter | `integrations/workbuddy-python-runtime/` | Unit-tested reference adapter; adopter must verify hook wiring |
 | Memory lanes and ledgers | `templates/project/memory-library/`, `templates/conversation-memory/`, `codex_session_ledger.py` | Templates and evidence indexes |
+| Model context selection | `harness_action_consumer.py`, router `memory_source_hints` | Exact indexed matches become compact, provenance-bearing agent context |
 | Retrieval and reading | `docs/hybrid-memory-retrieval-contract.md`, `docs/content-reading-contract.md` | Meta-first, source-preserving, bounded windows |
 | Skill lifecycle | `docs/skill-lifecycle-contract.md`, `templates/skill-lifecycle/` | Active-frame plus release receipt |
 | Feedback and causal review | `docs/memory-feedback-loop-trial.md`, `docs/router-decision-contract.md` | CE reuse plus overclaim boundary |
@@ -90,20 +93,17 @@ Fast paths:
 ## Architecture At A Glance
 
 ```mermaid
-flowchart TD
-    U[User task] --> K[L0 microkernel]
-    K --> R[Intake router]
-    R --> P{Routing receipt}
-    P --> C[Compact runtime receipt]
-    P --> G[Extended governance receipt]
-    P --> D[Debug receipt]
-    C --> M[Meta-first memory gate]
-    G --> M
-    D --> M
-    M --> S[Search and learning gate]
-    S --> Q[Claim boundary gate]
-    Q --> H[Selective runtime hard gates]
-    H --> E[Execution and final answer]
+flowchart LR
+    U[User task] --> A[Host LLM agent]
+    A --> R[CBH microkernel and router]
+    R --> C[Compact context and action bindings]
+    C --> A
+    A --> H{Host-called guard when available}
+    H --> T[Tools and evidence]
+    T --> A
+    A --> V[Bounded claim and evidence checks]
+    V --> A
+    A --> F[Final answer]
 ```
 
 ## What CBH Adds
@@ -510,7 +510,7 @@ Current client boundary:
 
 The PowerShell, Bash, and WorkBuddy Python adapters are also not complete compatibility claims.
 PowerShell and the WorkBuddy Python decision layer are covered by repository-side tests and smoke contracts; Bash/mac-style scripts are reference adapters and still need target-shell verification on the adopter's machine.
-The WorkBuddy Python adapter includes a hook runner tested through local unit tests, including prompt routing, command-tool denial, Stop/final claim checks, and transcript extraction. Real hard enforcement still depends on each adopter's WorkBuddy version honoring hook denial, exit code `2`, final-hook blocking, and the configured matcher scope.
+The WorkBuddy Python adapter includes a hook runner tested through local unit tests, including prompt routing, command-tool denial, optional Stop/final claim checks, and transcript extraction. The minimal WorkBuddy profile keeps `Stop` disabled because some hosts stream partial output and inject Stop feedback into the conversation. Real hard enforcement is limited to paths whose hook result the exact host version honors.
 
 The Claude Code integration page is currently a reference mapping, not a completed client-deployment validation. Adopters should confirm which instruction file the installed client reads, whether a pre-tool or command hook exists, whether blocked results are honored, and which surfaces can bypass the wrapper. If any of those checks fail, follow the deployment troubleshooting guide and let the adopting agent localize the problem before claiming hard enforcement.
 
@@ -637,7 +637,7 @@ The whiteboard package was smoke-tested locally with:
 - Bash smoke checks when `jq` is available;
 - cbh-doctor adoption diagnostics;
 - pytest contract checks for the automatically verifiable `TC-xxx` route cases and machine-readable credits;
-- WorkBuddy Python adapter unit tests as a standalone decision layer, including prompt routing, command blocking, single-event permit replay blocking, Stop/final claim blocking, surrogate-safe payloads, recording transcript extraction, and non-command file-content false-positive guards;
+- WorkBuddy Python adapter unit tests as an in-process model-loop decision helper, including prompt routing, command blocking, single-event permit replay blocking, conditional Stop/final claim checks, surrogate-safe payloads, recording transcript extraction, and non-command file-content false-positive guards;
 - package content scan for local project terms and sensitive field names.
 
 See [docs/reproduction.md](docs/reproduction.md) for commands and expected results.

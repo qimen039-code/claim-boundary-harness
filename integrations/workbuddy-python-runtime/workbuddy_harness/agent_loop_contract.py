@@ -21,11 +21,11 @@ def _text_list(value: Any) -> list[str]:
 
 
 def build_agent_loop_contract(route: dict[str, Any]) -> dict[str, Any]:
-    """Translate advisory route fields into explicit host-loop actions.
+    """Translate route fields into explicit actions for the host model loop.
 
-    Building this contract does not execute the actions. A WorkBuddy-compatible
-    host must call the corresponding memory, search, tool-selection, skill, and
-    final-review surfaces and record its own consumption receipt.
+    Building this contract does not execute the user's task. A WorkBuddy-compatible
+    host feeds bounded retrieval or review results to its model agent, which keeps
+    ownership of planning, tool use, semantic judgment, and the final answer.
     """
 
     actions: list[dict[str, Any]] = []
@@ -37,13 +37,29 @@ def build_agent_loop_contract(route: dict[str, Any]) -> dict[str, Any]:
                 "stage": stage,
                 "source_fields": fields,
                 "value": value,
-                "consumer": "workbuddy_agent_loop",
+                "consumer": "workbuddy_model_agent_loop",
                 "hook_only_status": "advisory_context_only",
             }
         )
 
     memory_mode = str(_route_value(route, "memory_mode"))
     memory_lane = str(_route_value(route, "memory_lane"))
+    memory_need = str(_route_value(route, "memory_need"))
+    memory_source_hints = _route_value(route, "memory_source_hints", [])
+    if not isinstance(memory_source_hints, list):
+        memory_source_hints = []
+    if memory_need != "none":
+        add(
+            "memory_context_retrieval",
+            "before_model_planning",
+            ["memory_need", "hybrid_retrieval_profile", "memory_source_hints"],
+            {
+                "need": memory_need,
+                "profile": str(_route_value(route, "hybrid_retrieval_profile")),
+                "source_hints": memory_source_hints,
+                "result_target": "model_agent_additional_context",
+            },
+        )
     if memory_mode != "none":
         add("memory_operation", "before_or_after_task", ["memory_mode", "memory_lane"], {
             "mode": memory_mode,
@@ -89,6 +105,8 @@ def build_agent_loop_contract(route: dict[str, Any]) -> dict[str, Any]:
     return {
         "schema": SCHEMA,
         "consumer_status": "unbound_until_host_loop_calls_consumer",
+        "task_execution_owner": "host_model_agent",
+        "cbh_role": "bounded_context_compiler_and_verifier",
         "hook_only_mode": True,
         "host_loop_required": bool(actions),
         "actions": actions,

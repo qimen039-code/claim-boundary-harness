@@ -338,7 +338,7 @@ Expected highlight:
 
 - all tests pass.
 
-This validates the standalone Python decision layer only. It does not prove that WorkBuddy has wired the adapter into its internal action execution loop, and it does not prove compatibility across WorkBuddy versions.
+This validates the in-process Python decision helper only. It does not prove that WorkBuddy has wired the adapter into its internal model action loop, and it does not prove compatibility across WorkBuddy versions.
 
 The test suite also covers the reference WorkBuddy hook runner:
 

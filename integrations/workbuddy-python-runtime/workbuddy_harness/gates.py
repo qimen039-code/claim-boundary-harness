@@ -418,7 +418,7 @@ def _active_conversation_memory_lane(cwd: str) -> str:
                         except OSError:
                             continue
                 combined = "\n".join(parts)
-                if re.search(r"status[\"']?\s*[:=]\s*[\"']?ACTIVE", combined) or "single_conversation_project_shaped_lane" in combined:
+                if re.search(r"(?:lane_state|status)[\"']?\s*[:=]\s*[\"']?active", combined, re.IGNORECASE) or "single_conversation_project_shaped_lane" in combined:
                     return str(lane)
         if current.parent == current:
             break
@@ -1397,6 +1397,46 @@ def intake_router(task_text: str = "", cwd: str | None = None, policy: dict[str,
         module_need.append("none")
     module_need = _unique(module_need)
 
+    action_bindings: list[dict[str, str]] = []
+    if memory_need != "none":
+        action_bindings.append(
+            {
+                "action": "retrieve_matching_memory",
+                "completion_evidence": "selected_record_id_and_provenance",
+            }
+        )
+    if external_need and external_need[0] != "none":
+        action_bindings.append(
+            {
+                "action": "perform_external_research_route",
+                "completion_evidence": "source_ledger_or_citations",
+            }
+        )
+    action_binding_ids = [item["action"] for item in action_bindings]
+
+    memory_source_hints: list[dict[str, str]] = []
+    if memory_need != "none" and has_active_conversation_memory_lane:
+        memory_source_hints.append(
+            {
+                "lane": "current_conversation",
+                "root_path": active_conversation_memory_lane_path,
+                "meta_path": str(Path(active_conversation_memory_lane_path) / "_META_INDEX.md"),
+                "isolation": "exact_active_conversation_lane",
+            }
+        )
+    if memory_need != "none" and lane != "PROJECTLESS":
+        for root in _as_list(policy.get("memory_roots", {}).get(lane)):
+            if not str(root):
+                continue
+            memory_source_hints.append(
+                {
+                    "lane": "current_project",
+                    "root_path": str(root),
+                    "meta_path": str(Path(str(root)) / "_META_INDEX.md"),
+                    "isolation": "registered_project_lane_root",
+                }
+            )
+
     receipt_profile = "compact_runtime"
     profile_reason = ["default_compact_runtime"]
     debug_hits = _matching_triggers(task_text, policy.get("receipt_profiles", {}).get("debug_triggers", []))
@@ -1454,6 +1494,8 @@ def intake_router(task_text: str = "", cwd: str | None = None, policy: dict[str,
         "memory_mode": memory_mode,
         "memory_write_profile": memory_write_profile,
         "memory_lane": memory_lane,
+        "memory_source_hints": memory_source_hints,
+        "action_bindings": action_bindings,
         "record_intent": record_intent,
         "external_need": external_need,
         "claim_risk": claim_risk,
@@ -1487,6 +1529,8 @@ def intake_router(task_text: str = "", cwd: str | None = None, policy: dict[str,
         "hybrid_retrieval_profile": hybrid_retrieval_profile,
         "memory_write_profile": memory_write_profile,
         "memory_lane": memory_lane,
+        "memory_source_hints": memory_source_hints,
+        "action_binding_ids": action_binding_ids,
         "conversation_memory_decision": conversation_memory_decision,
         "conversation_full_lane_triggered": conversation_full_lane_triggered,
         "link_intent": link_intent,
@@ -1530,6 +1574,9 @@ def intake_router(task_text: str = "", cwd: str | None = None, policy: dict[str,
         "memory_mode": memory_mode,
         "memory_write_profile": memory_write_profile,
         "memory_lane": memory_lane,
+        "memory_source_hints": memory_source_hints,
+        "action_bindings": action_bindings,
+        "action_binding_ids": action_binding_ids,
         "record_intent": record_intent,
         "external_need": external_need,
         "claim_risk": claim_risk,
@@ -1710,14 +1757,15 @@ def runtime_enforcer(
 
     blocked: list[str] = []
     warnings: list[str] = []
+    pre_execution_stage = stage in {"pre_task", "pre_tool"}
 
-    if route["risk_level"] == "R5" and not effective_human_confirmed:
+    if pre_execution_stage and route["risk_level"] == "R5" and not effective_human_confirmed:
         blocked.append("human_confirmation_required_for_R5")
-    if hard_hits and not effective_human_confirmed:
+    if pre_execution_stage and hard_hits and not effective_human_confirmed:
         blocked.append("tool_call_requires_human_confirmation")
-    if route["fallback_model_judgment_recommended"] and not boundary_reviewed:
+    if pre_execution_stage and route["fallback_model_judgment_recommended"] and not boundary_reviewed:
         blocked.append("boundary_review_required_for_low_confidence_route")
-    if stage in {"pre_task", "pre_tool"} and conversation_link_required and not conversation_link_resolved:
+    if pre_execution_stage and conversation_link_required and not conversation_link_resolved:
         reason = str(policy.get("conversation_linking_contract", {}).get("unresolved_block_reason") or "conversation_link_decision_required")
         blocked.append(reason)
 
@@ -1727,7 +1775,7 @@ def runtime_enforcer(
         if candidate and Path(candidate).exists():
             resolved_constitution = str(Path(candidate).resolve())
             break
-    if route["risk_level"] != "R0" and not resolved_constitution and not constitution_reviewed:
+    if pre_execution_stage and route["risk_level"] != "R0" and not resolved_constitution and not constitution_reviewed:
         blocked.append("constitution_entry_missing_or_unreviewed")
 
     if stage == "final":
@@ -1739,7 +1787,7 @@ def runtime_enforcer(
     if change_hits and route["risk_level"] == "R0":
         warnings.append("tool_looks_mutating_but_route_is_R0")
 
-    if not blocked and permit_result.get("pending_consume"):
+    if stage == "pre_tool" and not blocked and permit_result.get("pending_consume"):
         try:
             _append_permit_use(
                 Path(str(permit_result["use_ledger_path"])),

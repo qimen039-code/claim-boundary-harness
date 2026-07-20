@@ -1,6 +1,9 @@
 # Embedded Agent Harness
 
-A low-cost control layer for agent workflows. It routes each task through only the gates it needs: intake classification, project/memory isolation, external research triggers, and claim-schema checks.
+A low-cost, model-facing control and context layer for agent workflows. It
+routes each task through only the capabilities it needs, then returns compact
+context and boundary receipts to the host model agent. The model still plans,
+uses tools, handles errors, and writes the final answer.
 
 Default chain:
 
@@ -13,6 +16,7 @@ root AGENTS.md microkernel
 -> optional project router / project AGENTS / project memory
 -> static knowledge index / selected manual page, if project navigation is needed
 -> memory meta summary / category index / matching capsule, if memory is needed
+-> bounded action consumer context returned to the model agent
 -> selective hard runtime gates only for critical risks
 -> final claim and memory boundary check
 ```
@@ -29,6 +33,8 @@ Design boundaries:
 - Receipt profiles keep runtime cost low: `compact_runtime` is used only when fields change the next action, `extended_governance` expands for public/framework/project-boundary work, and `debug_receipt` is only for route diagnosis or explicit full-receipt requests.
 - Do not wrap every tool call by default; use runtime hard gates only for R5, high-risk tool calls, strong final claims, long-term memory writes, and low-confidence boundaries.
 - Memory retrieval is meta-first: read `_META_INDEX.md`, a memory summary, or a router manifest before opening category indexes or capsule payloads.
+- `memory_source_hints` bind retrieval to exact active roots. `harness_action_consumer.py` promotes exact record or anchor matches into compact model context; bounded weaker candidates are returned to the host model for semantic reranking and do not demote an exact match into mandatory manual review.
+- `action_bindings` describe work for the host model agent. They do not make CBH an autonomous task runner and are not completion evidence until the matching model/tool path returns a receipt.
 - Static knowledge retrieval is index-first: read `_STATIC_KNOWLEDGE_INDEX.md` before opening a project manual page, and treat static notes as `source_tag: static_knowledge` / `belief_status: source_prior` until checked.
 - Runtime enforcement is available through hook/wrapper/tool proxy scripts. A `blocked` JSON result exits nonzero and should stop the caller when these scripts are placed before task or tool execution.
 - These scripts cannot stop a caller that bypasses the runtime entry scripts.
@@ -46,7 +52,7 @@ routing receipt
 -> selective runtime hard gate when a critical risk appears
 ```
 
-Receipt fields: task type, target surface, audience, project lane, risk level, semantic ambiguity, module need, memory need, memory mode, memory lane, record intent, external need, claim risk, projectization decision, conversation memory decision, link intent, receipt profile, and required gates. Runtime adapters can expose `compact_runtime` by default and expand only for governance or debug cases.
+Receipt fields: task type, target surface, audience, project lane, risk level, semantic ambiguity, module need, memory need, memory mode, memory lane, memory source hints, action bindings, record intent, external need, claim risk, projectization decision, conversation memory decision, link intent, receipt profile, and required gates. Runtime adapters can expose `compact_runtime` by default and expand only for governance or debug cases.
 
 If this control plane cannot be completed, the final response must say so and must not present the result as fully verified.
 
@@ -85,6 +91,7 @@ Scripts:
 
 ```powershell
 .\harness_intake_router.ps1 -TaskText "fix the build and run benchmark" -Cwd "<PROJECT_ROOT>"
+python .\harness_action_consumer.py --route-json '<ROUTE_JSON>' --prompt '<USER_TASK>'
 .\validate_policy.ps1
 .\harness_runtime_enforcer.ps1 -Stage pre_task -TaskText "fix the build and run benchmark" -Cwd "<PROJECT_ROOT>"
 .\harness_tool_proxy.ps1 -Stage pre_tool -TaskText "commit changes" -ToolName "shell_command" -ToolInputJson '{"command":"git commit"}'

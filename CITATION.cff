@@ -1,10 +1,10 @@
 cff-version: 1.2.0
 message: "If you use or adapt Claim Boundary Harness, please cite this repository."
-title: "Claim Boundary Harness: External Cognition Governance for Agent Workflows"
+title: "Claim Boundary Harness: A Model-Facing Capability Harness for LLM Agent Workflows"
 authors:
   - name: "qimen039-code"
-version: "0.20.3"
-date-released: "2026-07-11"
+version: "1.0.0"
+date-released: "2026-07-20"
 doi: "10.5281/zenodo.21189879"
 repository-code: "https://github.com/qimen039-code/claim-boundary-harness"
 url: "https://github.com/qimen039-code/claim-boundary-harness"
@@ -16,4 +16,5 @@ keywords:
   - risk routing
   - provenance
   - correction accumulation
-abstract: "Claim Boundary Harness is an external cognition governance harness for agent workflows. It combines claim verification, memory continuity, risk routing, correction accumulation, and adapter-boundary documentation into a portable reference framework with explicit evidence and runtime-enforcement boundaries."
+  - model-agent context
+abstract: "Claim Boundary Harness is a model-facing capability harness for LLM agent workflows. It helps the host model route tasks, retrieve bounded source-preserving context, reuse verified corrections, and check claim or risk boundaries while the model retains planning, tool-use, semantic-judgment, recovery, and final-answer ownership."

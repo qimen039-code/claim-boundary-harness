@@ -752,6 +752,16 @@ class HarnessGateTests(unittest.TestCase):
         self.assertEqual(decision["status"], "blocked")
         self.assertIn("claim_schema_verifier_blocked", decision["blocked_reasons"])
 
+    def test_runtime_final_does_not_reapply_pre_execution_gates(self) -> None:
+        decision = runtime_enforcer(
+            stage="final",
+            task_text="R5",
+            final_text="I inspected the files and found no matching errors.",
+            policy=self.policy,
+        )
+        self.assertEqual(decision["status"], "pass")
+        self.assertEqual(decision["blocked_reasons"], [])
+
     def test_flush_logs_appends_default_file_inside_log_dir(self) -> None:
         with writable_test_dir() as tmp:
             result = flush_logs(log_dir=tmp, events=[{"phase": "test", "status": "pass"}])
@@ -1356,8 +1366,10 @@ class HarnessGateTests(unittest.TestCase):
             self.assertEqual(result.returncode, 2, result.stderr)
             output = json.loads(result.stdout)
             self.assertFalse(output["continue"])
-            self.assertEqual(output["hookSpecificOutput"]["hookEventName"], "Stop")
-            self.assertIn("claim_schema_verifier_blocked", output["systemMessage"])
+            self.assertTrue(output["suppressOutput"])
+            self.assertIn("claim_schema_verifier_blocked", output["reason"])
+            self.assertNotIn("systemMessage", output)
+            self.assertNotIn("hookSpecificOutput", output)
 
     def test_workbuddy_stop_hook_allows_plain_final_text(self) -> None:
         with writable_test_dir() as tmp:
@@ -1371,6 +1383,34 @@ class HarnessGateTests(unittest.TestCase):
                 "--stage",
                 "final",
                 "--constitution-reviewed",
+                log_dir=tmp,
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+            output = json.loads(result.stdout)
+            self.assertTrue(output["continue"])
+
+    def test_workbuddy_stop_hook_does_not_reapply_r5_or_constitution_gates(self) -> None:
+        with writable_test_dir() as tmp:
+            self._run_hook(
+                {
+                    "hook_event_name": "UserPromptSubmit",
+                    "session_id": "session-final-r5",
+                    "cwd": tmp,
+                    "prompt": "delete the stale build directory after review",
+                },
+                "--stage",
+                "user_prompt",
+                log_dir=tmp,
+            )
+            result = self._run_hook(
+                {
+                    "hook_event_name": "Stop",
+                    "session_id": "session-final-r5",
+                    "cwd": tmp,
+                    "final_text": "I prepared the command but did not execute it.",
+                },
+                "--stage",
+                "final",
                 log_dir=tmp,
             )
             self.assertEqual(result.returncode, 0, result.stderr)

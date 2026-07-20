@@ -3,7 +3,7 @@
   "rule": "Deploy a named runtime profile. Do not copy the repository wholesale.",
   "profiles": {
     "workbuddy-hook-minimal": {
-      "description": "Hook-only WorkBuddy runtime: R5 pre-tool stop, path isolation checks, final claim gate, and advisory route context.",
+      "description": "Hook-only WorkBuddy runtime: R5 pre-tool stop, path isolation checks, advisory final-claim review, and advisory route context.",
       "runtime_mode": "hook_only",
       "include": [
         "AGENTS.md",
@@ -18,11 +18,26 @@
       ],
       "hard_capabilities": [
         "r5_pre_tool_deny_on_wired_command_paths",
-        "memory_path_isolation_on_wired_tool_paths",
-        "final_claim_phrase_gate_when_stop_hook_is_wired"
+        "memory_path_isolation_on_wired_tool_paths"
       ],
+      "disabled_by_default_hooks": [
+        "Stop"
+      ],
+      "conditional_capabilities": {
+        "final_claim_phrase_gate": {
+          "hook": "Stop",
+          "status": "opt_in_after_host_compatibility_validation",
+          "required_checks": [
+            "no_user_prompt_injection",
+            "no_partial_stream_fragment",
+            "reason_feedback_is_not_misattributed_to_the_user"
+          ]
+        }
+      },
       "advisory_capabilities": [
+        "final_claim_self_downgrade_by_default",
         "memory_mode",
+        "memory_source_hints",
         "external_need",
         "claim_risk_route_field",
         "feedback_loop_profile",
@@ -45,10 +60,12 @@
         "integrations/workbuddy-python-runtime/scripts/workbuddy-hook.cmd",
         "integrations/workbuddy-python-runtime/scripts/workbuddy-hook.sh",
         "skills/embedded-harness/embedded_harness_policy.json",
+        "skills/embedded-harness/harness_action_consumer.py",
         "templates/adapter-contract/compatibility.manifest.json"
       ],
       "required_host_work": [
         "call build_agent_loop_contract after intake routing",
+        "feed selected memory context to the model agent before planning",
         "execute each returned action in the matching host-owned surface",
         "record a host-owned consumption receipt",
         "validate the receipt before claiming full loop integration"
@@ -60,6 +77,7 @@
       "include": [
         "AGENTS.md",
         "skills/embedded-harness/embedded_harness_policy.json",
+        "skills/embedded-harness/harness_action_consumer.py",
         "skills/embedded-harness/harness_claim_schema_verifier.ps1",
         "skills/embedded-harness/harness_external_research_gate.ps1",
         "skills/embedded-harness/harness_intake_router.ps1",

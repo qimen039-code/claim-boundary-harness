@@ -264,7 +264,7 @@ find_active_conversation_memory_lane() {
         [ -f "$meta" ] || [ -f "$index" ] || continue
         combined="$(cat "$meta" "$index" 2>/dev/null || true)"
         case "$combined" in
-          *"status: ACTIVE"*|*'"status": "ACTIVE"'*|*"single_conversation_project_shaped_lane"*)
+          *"status: ACTIVE"*|*'"status": "ACTIVE"'*|*"lane_state: ACTIVE"*|*'"lane_state": "ACTIVE"'*|*"lane_state: active"*|*'"lane_state": "active"'*|*"single_conversation_project_shaped_lane"*)
             printf '%s' "$lane"
             return 0
             ;;

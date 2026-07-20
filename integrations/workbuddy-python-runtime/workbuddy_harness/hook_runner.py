@@ -641,6 +641,7 @@ def _context_output(route: dict[str, Any]) -> dict[str, Any]:
     if loop_contract["host_loop_required"]:
         parts.append(f"loop_actions={','.join(loop_contract['action_ids'])}")
         parts.append("loop_consumer=required")
+        parts.append("task_executor=model_agent")
 
     context = "Claim Boundary Harness boundary: " + "; ".join(parts) + "."
     return {
@@ -669,13 +670,8 @@ def _final_deny_output(decision: dict[str, Any]) -> dict[str, Any]:
     reason = _decision_reason(decision)
     return {
         "continue": False,
-        "suppressOutput": False,
-        "systemMessage": reason,
-        "hookSpecificOutput": {
-            "hookEventName": "Stop",
-            "permissionDecision": "deny",
-            "permissionDecisionReason": reason,
-        },
+        "suppressOutput": True,
+        "reason": reason,
     }
 
 

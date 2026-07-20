@@ -2,9 +2,29 @@
 
 All notable public changes should be recorded here.
 
-This project uses `vMAJOR.MINOR.PATCH` version labels while the framework is still early-stage.
+This project uses `vMAJOR.MINOR.PATCH` version labels.
 
 ## Unreleased
+
+## v1.0.0 - 2026-07-20
+
+- Re-centered CBH as a model-facing capability harness: the host LLM agent
+  retains task planning, semantic judgment, tool use, recovery, and final-answer
+  ownership; CBH compiles bounded context and verifies selected boundaries.
+- Added route-declared `memory_source_hints`, explicit retrieval/research action
+  bindings, and a lightweight action consumer that promotes exact indexed
+  anchors into provenance-bearing model context without being demoted by weaker
+  candidates from a compound natural-language request.
+- Added current-conversation source discovery even when another memory family is
+  the primary route, closing the last-mile gap between candidate recall and the
+  model's selected context.
+- Extended the WorkBuddy Agent Loop contract with model-owned memory-context
+  retrieval, exact source hints, and deployment-profile support while keeping
+  the default hook chain to `UserPromptSubmit` plus `PreToolUse`.
+- Made WorkBuddy `Stop` enforcement opt-in after host compatibility validation;
+  final-stage checks no longer reapply pre-execution confirmation or permit
+  gates, and denial output uses the host's suppressible reason shape.
+- Promoted the public release line and all exact version anchors to `v1.0.0`.
 
 ## v0.20.3 - 2026-07-11
 
