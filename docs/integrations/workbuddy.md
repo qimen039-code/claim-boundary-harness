@@ -6,7 +6,10 @@ This repository includes an experimental WorkBuddy-oriented Python runtime adapt
 integrations/workbuddy-python-runtime
 ```
 
-Use it when the host can call Python functions inside the agent control flow instead of launching a shell script for every decision.
+Use it when the host can call Python functions inside the model agent control
+flow instead of launching a shell script for every decision. WorkBuddy's model
+agent remains the task executor; the adapter supplies routes, bounded context,
+and narrow checks.
 
 ## Boundary
 
@@ -17,13 +20,51 @@ The adapter is not automatically installed into WorkBuddy and does not patch the
 - `claim_schema_verifier`;
 - `runtime_enforcer`.
 
+The router also emits `memory_source_hints` and explicit action bindings. The
+loop-integration profile includes `harness_action_consumer.py`, which can turn
+an exact active-lane match into provenance-bearing `additional_context` for the
+model. It does not plan or execute the user's task.
+
 Hard enforcement requires WorkBuddy or a WorkBuddy-compatible host to call the adapter immediately before action execution and to stop when it returns `status: blocked`.
 
 If the host still has any execution path that bypasses this function or hook, enforcement for that path is advisory.
 
+## Choose A Deployment Profile First
+
+Do not deploy the repository as one undifferentiated package. Resolve a named
+profile from
+`integrations/workbuddy-python-runtime/deployment-profiles.json` and stage it
+with `scripts/build-deployment-bundle.py`. `workbuddy-hook-minimal` excludes
+papers, articles, research material, examples, changelog content, and tests.
+Those files are useful to maintainers and reviewers but are not runtime
+dependencies.
+
+Use `workbuddy-loop-integration-sdk` only when the adopting host will call
+`build_agent_loop_contract(route)` and consume every required action in the
+real Agent Loop. The generated `cbh-deployment-receipt.json` is the deployment
+evidence; repository presence alone is not deployment evidence.
+
+## Capability Status In Hook-Only Mode
+
+| Capability | Hook-only status | Full activation requirement |
+| --- | --- | --- |
+| R5 command stop | hard on matched `PreToolUse` paths | host honors `permissionDecision: deny` |
+| Memory path isolation | hard on wired tool paths | tool payload exposes the path and passes through the hook |
+| Strong-claim phrase gate | advisory by default; conditional hard gate only after compatibility validation | host proves no user-prompt injection, no partial stream fragment, and correct feedback attribution |
+| `memory_mode`, `memory_source_hints`, `external_need` | advisory context | model Agent Loop calls memory/search consumers and feeds results back to the model |
+| feedback, skill lifecycle, tool discovery | advisory context | Agent Loop calls the matching host-owned surfaces |
+| first-principles and skill-audit profiles | advisory context | Agent Loop performs and receipts the routed review |
+
+The prompt hook writes a `cbh.workbuddy_agent_loop_contract.v1` object into
+`workbuddy_hook_state.json` and emits compact `loop_actions`. This makes
+unconsumed fields visible and testable, but it does not convert stock
+WorkBuddy into a full-loop integration. Do not report full route-contract
+execution until `validate_agent_loop_receipt(...)` passes on a host-owned
+receipt.
+
 ## Recommended WorkBuddy Hook Deployment
 
-The most practical public deployment is a three-layer hook chain:
+The safe public default is a two-layer hook chain:
 
 ```text
 UserPromptSubmit hook
@@ -31,11 +72,11 @@ UserPromptSubmit hook
 PreToolUse hook for command tools
 -> workbuddy_harness.hook_runner calls runtime_enforcer
 -> blocked decision returns permissionDecision: deny and exits with code 2
-Stop hook
--> workbuddy_harness.hook_runner checks final strong claims before display
 ```
 
 That gives the harness a real pre-tool interception point without editing WorkBuddy internals.
+
+`Stop` is an opt-in third layer only after the exact host/version passes the compatibility checks described below. Until then, final claims stay advisory/self-downgrading.
 
 `UserPromptSubmit` is required for active routing. If only `PreToolUse` is wired, the runtime can still block high-risk tools, but the agent may not preserve the original task state before planning. Ordinary low-risk prompt-stage classifications stay silent; boundary-changing classifications inject minimal context.
 
@@ -83,16 +124,6 @@ Example project-level hook shape:
           {
             "type": "command",
             "command": "AGENT_MEMORY_LANE_WORKBUDDY_ADAPTER_ROOT=\"$CODEBUDDY_PROJECT_DIR/integrations/workbuddy-python-runtime\" bash \"$CODEBUDDY_PROJECT_DIR/integrations/workbuddy-python-runtime/scripts/workbuddy-hook.sh\" --stage pre_tool --constitution-path \"$CODEBUDDY_PROJECT_DIR/AGENTS.md\" --log-dir \"$CODEBUDDY_PROJECT_DIR/.harness-logs\""
-          }
-        ]
-      }
-    ],
-    "Stop": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "AGENT_MEMORY_LANE_WORKBUDDY_ADAPTER_ROOT=\"$CODEBUDDY_PROJECT_DIR/integrations/workbuddy-python-runtime\" bash \"$CODEBUDDY_PROJECT_DIR/integrations/workbuddy-python-runtime/scripts/workbuddy-hook.sh\" --stage final --constitution-path \"$CODEBUDDY_PROJECT_DIR/AGENTS.md\" --log-dir \"$CODEBUDDY_PROJECT_DIR/.harness-logs\""
           }
         ]
       }
@@ -156,7 +187,7 @@ For enforcement, remove `--fail-open`. The default is fail-closed for `PreToolUs
 
 ## Validation Status
 
-This adapter has been verified as a standalone Python decision layer and has one local WorkBuddy hook deployment reported as running normally with this package.
+This adapter has been verified as an in-process Python decision helper and has one local WorkBuddy hook deployment reported as running normally with this package.
 
 This is still not a broad WorkBuddy compatibility certification. It has not been fully tested across WorkBuddy versions, operating systems, permission modes, or production agent loops.
 
@@ -343,7 +374,9 @@ check these surfaces in order:
 
 ## Stop Hook And Final Claims
 
-Wire a `Stop` or final-answer hook when the host exposes the final response before display. The hook runner calls `runtime_enforcer(stage="final", final_text=...)`; strong phrases such as broad validation or verification claims must have a claim schema or the final hook returns a blocked result. The same final path also checks high-risk causal attribution patterns, such as broad mechanism-effect claims, time-range stability assertions, single-sample generalizations, or origin-path wording used as a mechanism definition.
+Do not wire `Stop` in the default WorkBuddy profile. Some builds stream answer text before Stop completes and convert the Stop reason into a synthetic user prompt. That combination can produce both a visible text fragment and a misleading `Stop hook: ...` user message. `suppressOutput` cannot retract already streamed text, and the host protocol intentionally feeds a Stop reason back to the Agent.
+
+Keep final-claim and causal-attribution handling advisory/self-downgrading by default. Opt in to `Stop` only after the exact host build passes all of these checks: no Stop reason is rendered as a user prompt, no partial stream fragment remains after blocking, and hook feedback is never attributed to the user. When enabled, the hook runner calls `runtime_enforcer(stage="final", final_text=...)`; final-stage evaluation is limited to claim and causal-attribution checks and no longer reapplies pre-execution R5, low-confidence, constitution, or permit gates.
 
 If your WorkBuddy build does not let hooks inspect or block final text, keep final-claim and causal-attribution enforcement as self-downgrade rules in the root instruction file and mark that final surface as advisory in the compatibility manifest.
 

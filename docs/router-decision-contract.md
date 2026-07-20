@@ -419,17 +419,9 @@ a trigger term only when all of these are true:
 - it can be tested with at least one positive and one non-applicable example.
 
 One-off phrases should remain in the task receipt, changelog, issue note, or
-candidate SkillOpt-style proposal. They should not become deterministic router
+candidate maintenance proposal. They should not become deterministic router
 policy until repeated evidence or explicit maintainer approval shows that the
 term is durable.
-
-## SkillOpt-Style Training Boundary
-
-The SkillOpt-style training layer is default-off for ordinary tasks. The router should consider it only when the task is about recurring skill or router improvement, candidate rule edits, rejected-edit review, textual learning-rate limits, slow updates, or external skill-optimization mechanism intake.
-
-Do not invoke it for ordinary chat, one-off fixes, direct memory writes, external fact checks, runtime enforcement, or tasks that the router, memory gate, research gate, or claim gate can handle without proposing a reusable skill or routing improvement.
-
-When it is used, it remains subordinate to the existing skill matrix: it drafts candidate edits, regression probes, gate reports, or rejected-edit records. It does not directly mutate primary routers, write long-term memory, run third-party optimizer code, or claim local validation without an accepted gate result and required approval.
 
 ## Dynamic Re-Evaluation Triggers
 

@@ -1,6 +1,10 @@
 # Adoption Guide
 
-Use this guide to adapt the whiteboard core to your own agent environment.
+Use this guide to adapt the whiteboard core to your own model-agent environment.
+
+CBH is an assistance layer inside the host agent loop, not a standalone task
+engine. Preserve the host model as the owner of planning, semantic decisions,
+tool use, recovery, and the final response.
 
 ## Step 1: Choose The Instruction Entry
 
@@ -92,12 +96,24 @@ If your agent does not support skills, keep them as normal workspace files and r
 
 At minimum, run the intake router before nontrivial work.
 
+When routing selects memory, pass `memory_source_hints` to
+`skills/embedded-harness/harness_action_consumer.py` (or a compatible host
+consumer) and inject only its bounded `additional_context` into the model's
+planning turn. Exact indexed anchors stay selected even when a compound prompt
+also produces weaker candidates. Weak-only candidate sets are included as
+bounded model-semantic-review context, so the model can select them without a
+manual file down-drill. The consumer does not execute the task.
+
 Stronger setups can run:
 
 - memory isolation before reading or writing project memory;
 - external research gate before current source claims;
 - claim schema verifier before final strong claims;
 - high-risk checks before tool calls.
+
+When routing selects external research, the model agent—not a CBH background
+worker—calls the available source tools and records citations or a source
+ledger before making current or strong claims.
 
 Also make the advisory control plane mandatory:
 
@@ -169,7 +185,7 @@ For Bash environments, use the scripts under `skills/embedded-harness/bash`. The
 For hosts that own an in-process Python agent loop, `integrations/workbuddy-python-runtime` is a small reference adapter.
 It reuses the same policy file and exposes Python functions for routing, memory isolation, claim checks, and runtime enforcement decisions.
 It is not automatically wired into WorkBuddy or any other client. Hard enforcement requires the host to call the function before action execution and to stop on `status: blocked`.
-For hook-only WorkBuddy-style deployments, wire prompt-stage routing, command-tool `PreToolUse` denial, and `Stop`/final-claim checks separately; recording or voice input must arrive as transcript text before the adapter can route it.
+For hook-only WorkBuddy-style deployments, wire prompt-stage routing and command-tool `PreToolUse` denial. Keep `Stop`/final-claim checks advisory by default; opt in only after the exact host proves it neither injects Stop feedback as a user prompt nor leaves streamed fragments. Recording or voice input must arrive as transcript text before the adapter can route it.
 
 Adapter validation is local by default. Do not claim PowerShell, Bash/macOS/Linux, or WorkBuddy Python compatibility until you have run the relevant smoke checks on the target device and client version.
 

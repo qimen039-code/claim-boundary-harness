@@ -1,0 +1,106 @@
+{
+  "schema": "cbh.deployment_profiles.v1",
+  "rule": "Deploy a named runtime profile. Do not copy the repository wholesale.",
+  "profiles": {
+    "workbuddy-hook-minimal": {
+      "description": "Hook-only WorkBuddy runtime: R5 pre-tool stop, path isolation checks, advisory final-claim review, and advisory route context.",
+      "runtime_mode": "hook_only",
+      "include": [
+        "AGENTS.md",
+        "integrations/workbuddy-python-runtime/workbuddy_harness/__init__.py",
+        "integrations/workbuddy-python-runtime/workbuddy_harness/agent_loop_contract.py",
+        "integrations/workbuddy-python-runtime/workbuddy_harness/gates.py",
+        "integrations/workbuddy-python-runtime/workbuddy_harness/hook_runner.py",
+        "integrations/workbuddy-python-runtime/workbuddy_harness/policy.py",
+        "integrations/workbuddy-python-runtime/scripts/workbuddy-hook.cmd",
+        "integrations/workbuddy-python-runtime/scripts/workbuddy-hook.sh",
+        "skills/embedded-harness/embedded_harness_policy.json"
+      ],
+      "hard_capabilities": [
+        "r5_pre_tool_deny_on_wired_command_paths",
+        "memory_path_isolation_on_wired_tool_paths"
+      ],
+      "disabled_by_default_hooks": [
+        "Stop"
+      ],
+      "conditional_capabilities": {
+        "final_claim_phrase_gate": {
+          "hook": "Stop",
+          "status": "opt_in_after_host_compatibility_validation",
+          "required_checks": [
+            "no_user_prompt_injection",
+            "no_partial_stream_fragment",
+            "reason_feedback_is_not_misattributed_to_the_user"
+          ]
+        }
+      },
+      "advisory_capabilities": [
+        "final_claim_self_downgrade_by_default",
+        "memory_mode",
+        "memory_source_hints",
+        "external_need",
+        "claim_risk_route_field",
+        "feedback_loop_profile",
+        "skill_lifecycle_profile",
+        "tool_surface_need",
+        "first_principles_profile",
+        "skill_audit_profile"
+      ]
+    },
+    "workbuddy-loop-integration-sdk": {
+      "description": "Files needed by a host team that will call the Python decision layer and consume cbh.workbuddy_agent_loop_contract.v1 inside its Agent Loop.",
+      "runtime_mode": "host_loop_integration_required",
+      "include": [
+        "AGENTS.md",
+        "integrations/workbuddy-python-runtime/workbuddy_harness/__init__.py",
+        "integrations/workbuddy-python-runtime/workbuddy_harness/agent_loop_contract.py",
+        "integrations/workbuddy-python-runtime/workbuddy_harness/gates.py",
+        "integrations/workbuddy-python-runtime/workbuddy_harness/hook_runner.py",
+        "integrations/workbuddy-python-runtime/workbuddy_harness/policy.py",
+        "integrations/workbuddy-python-runtime/scripts/workbuddy-hook.cmd",
+        "integrations/workbuddy-python-runtime/scripts/workbuddy-hook.sh",
+        "skills/embedded-harness/embedded_harness_policy.json",
+        "skills/embedded-harness/harness_action_consumer.py",
+        "templates/adapter-contract/compatibility.manifest.json"
+      ],
+      "required_host_work": [
+        "call build_agent_loop_contract after intake routing",
+        "feed selected memory context to the model agent before planning",
+        "execute each returned action in the matching host-owned surface",
+        "record a host-owned consumption receipt",
+        "validate the receipt before claiming full loop integration"
+      ]
+    },
+    "codex-local-minimal": {
+      "description": "Codex local instruction and PowerShell runtime files without research papers, articles, examples, or development tests.",
+      "runtime_mode": "instruction_plus_selective_scripts",
+      "include": [
+        "AGENTS.md",
+        "skills/embedded-harness/embedded_harness_policy.json",
+        "skills/embedded-harness/harness_action_consumer.py",
+        "skills/embedded-harness/harness_claim_schema_verifier.ps1",
+        "skills/embedded-harness/harness_external_research_gate.ps1",
+        "skills/embedded-harness/harness_intake_router.ps1",
+        "skills/embedded-harness/harness_memory_isolation_gate.ps1",
+        "skills/embedded-harness/harness_runtime_enforcer.ps1",
+        "skills/embedded-harness/harness_task_wrapper.ps1",
+        "skills/embedded-harness/harness_tool_proxy.ps1",
+        "skills/embedded-harness/validate_policy.ps1"
+      ],
+      "boundary": "Scripts are selective execution surfaces; Codex does not automatically call every route field or wrapper."
+    }
+  },
+  "excluded_by_default": [
+    "docs/**",
+    "tests/**",
+    "**/tests/**",
+    "docs/articles/**",
+    "**/*.pdf",
+    "**/*.pptx",
+    "**/*.docx",
+    "CHANGELOG.md",
+    "CITATION.cff",
+    "paper/**",
+    "research/**"
+  ]
+}

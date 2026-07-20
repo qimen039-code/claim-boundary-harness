@@ -2,7 +2,11 @@
 
 Experimental public WorkBuddy-oriented Python adapter for Claim Boundary Harness.
 
-This adapter shows how the same routing, memory-isolation, claim-check, and runtime-enforcement decisions can be called as in-process Python functions instead of launching PowerShell subprocesses.
+This adapter shows how the same routing, bounded memory-context selection,
+memory-isolation, claim-check, and runtime-enforcement decisions can be called
+inside a WorkBuddy model-agent loop instead of launching PowerShell subprocesses.
+The host model remains responsible for the user's task, tools, semantic
+judgment, recovery, and final answer.
 
 It is not a general Python distribution of the framework. It is a reference adapter for hosts that own or can modify their agent execution loop.
 
@@ -11,6 +15,56 @@ It is not a general Python distribution of the framework. It is a reference adap
 This adapter has not been fully tested across WorkBuddy versions, operating systems, or real production agent loops. It is a public reference adapter verified with local Python unit tests against the shared policy file; adopters must validate the exact runtime surface they use.
 
 Treat it as a starting point. Before relying on it as a hard control path, test it inside the exact WorkBuddy version, workspace, tool schema, permission mode, and hook or loop entry point you use.
+
+## Deployment Profiles: Do Not Copy The Repository
+
+Use `deployment-profiles.json` as the machine-readable deployment source. The
+default WorkBuddy profile contains only the Python hook runtime, wrappers,
+root instruction entry, and compiled policy; it excludes papers, articles,
+research notes, examples, changelog material, and development tests.
+
+List the exact files without writing anything:
+
+```bash
+python integrations/workbuddy-python-runtime/scripts/build-deployment-bundle.py --profile workbuddy-hook-minimal --list
+```
+
+Stage a clean bundle into an empty directory:
+
+```bash
+python integrations/workbuddy-python-runtime/scripts/build-deployment-bundle.py --profile workbuddy-hook-minimal --output ./cbh-workbuddy-bundle
+```
+
+The output receipt records the profile and exact file list. Copying the entire
+repository is a source/development operation, not the supported runtime
+deployment path.
+
+## Hook-Only Versus Agent-Loop Integration
+
+Hook-only mode hard-enforces only the WorkBuddy paths that actually call the
+hook: the wired pre-tool R5/path checks. The minimal profile keeps `Stop`
+disabled by default because some WorkBuddy builds stream part of the answer
+before the hook finishes and render Stop feedback as a user prompt. Route
+fields such as `memory_mode`, `memory_source_hints`, `external_need`,
+`feedback_loop_profile`, `skill_lifecycle_profile`, `tool_surface_need`,
+`first_principles_profile`, and `skill_audit_profile` remain prompt context
+unless the host Agent Loop consumes them.
+
+`build_agent_loop_contract(route)` converts those fields into explicit host
+actions using schema `cbh.workbuddy_agent_loop_contract.v1`.
+`validate_agent_loop_receipt(contract, receipt)` checks a host-owned
+consumption receipt. These functions make the missing integration testable;
+they do not claim that stock WorkBuddy calls the consumer. Use the
+`workbuddy-loop-integration-sdk` profile only when the host team will wire that
+consumer into its real planning, memory, search, tool-selection, skill, and
+final-review surfaces.
+
+For memory reads, the contract exposes `memory_context_retrieval` with exact
+route-declared roots and `result_target: model_agent_additional_context`. The
+loop-integration bundle includes the generic `harness_action_consumer.py`; a
+host may call it or an equivalent consumer, then give the selected bounded
+context back to the model before planning. This is context compilation, not an
+independent WorkBuddy task runner.
 
 ## Scope
 
@@ -39,19 +93,21 @@ bash "$CODEBUDDY_PROJECT_DIR/integrations/workbuddy-python-runtime/scripts/workb
 
 The runner reads hook JSON from stdin. On `UserPromptSubmit`, it stores the original prompt and returns compact route context. On `PreToolUse`, it calls `runtime_enforcer(...)`. If the decision is blocked, it prints a WorkBuddy hook denial payload with `permissionDecision: deny` and exits with code `2`.
 
-Wire prompt, command-tool, and final-answer stages when you want the strongest hook-only deployment:
+Wire prompt and command-tool stages for the safe default hook-only deployment:
 
 ```text
 UserPromptSubmit -> original-task state, with silent route classification by default
 PreToolUse(Bash|PowerShell) -> command-tool hard gate before execution
-Stop -> final strong-claim gate before display
 ```
 
 `UserPromptSubmit` stores the original task before planning.
 It keeps ordinary low-risk classification silent and injects only minimal boundary context when memory, search, claim, confirmation, low-confidence, governance, conversation-linking, or debug behavior changes the next action.
 `PreToolUse` enforces the protected command-tool path before execution.
 It also blocks continuation, merge, archive, or cross-conversation memory tasks until the adapter marks the conversation-link decision as resolved.
-`Stop` can block or downgrade final answers that contain strong validation claims without claim-schema evidence.
+Keep final-claim handling advisory/self-downgrading unless the exact host build
+passes all three Stop compatibility checks: no user-prompt injection, no
+partial stream fragment, and no attribution of hook feedback to the user.
+Only then opt in to `Stop` as a conditional final-claim gate.
 
 Route output also includes `skill_lifecycle_profile`,
 `hybrid_retrieval_profile`, and `memory_write_profile`. These fields let a host
@@ -60,6 +116,12 @@ loop keep idle skills listing-only, open selected active frames, write
 meta-first path, and enforce context-complete write shape when a durable memory
 write/update has already been selected. They are advisory unless the host owns
 the relevant skill context or memory read/write execution path.
+
+The prompt hook now records an `agent_loop_contract` in
+`workbuddy_hook_state.json` and emits compact `loop_actions=...` plus
+`loop_consumer=required` context when host-loop work is needed. This remains
+advisory until the WorkBuddy Agent Loop reads the contract and returns a
+consumption receipt.
 
 Route output may also include `tool_surface_need`,
 `tool_discovery_status`, `skill_or_tool_need`, `plugin_need`, and

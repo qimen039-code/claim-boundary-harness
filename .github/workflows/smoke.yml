@@ -219,9 +219,6 @@ jobs:
             -Arguments @("-ClaimFile", $claimFile)
           Assert-Equal $claim.Json.status "pass" "claim verifier pass"
 
-      - name: Run SkillOpt-style external module self-test
-        run: python tools/skillopt/skillopt_cycle.py self-test
-
       - name: Run cbh-doctor diagnostics
         run: python tools/cbh_doctor.py --repo-root . --json
 

@@ -418,6 +418,42 @@ function Get-TargetSurface {
   return "current_chat"
 }
 
+function Get-SkillAuditDecision {
+  $contract = $policy.router_decision_contract.skill_audit_contract
+  if ($null -eq $contract) { return [pscustomobject]@{ profile = "none"; signals = @() } }
+  $subjectHits = Get-MatchedTriggers $contract.subject_triggers
+  $intentHits = Get-MatchedTriggers $contract.audit_intent_triggers
+  $safetyHits = Get-MatchedTriggers $contract.safety_triggers
+  $redundancyHits = Get-MatchedTriggers $contract.redundancy_triggers
+  $profile = "none"
+  if (($subjectHits.Count -gt 0) -and ($intentHits.Count -gt 0)) {
+    if (($safetyHits.Count -gt 0) -and ($redundancyHits.Count -gt 0)) { $profile = "safety_and_redundancy_audit" }
+    elseif ($safetyHits.Count -gt 0) { $profile = "safety_audit" }
+    elseif ($redundancyHits.Count -gt 0) { $profile = "redundancy_audit" }
+  }
+  return [pscustomobject]@{
+    profile = $profile
+    signals = @(@($subjectHits) + @($intentHits) + @($safetyHits) + @($redundancyHits) | Select-Object -Unique)
+  }
+}
+
+function Get-FirstPrinciplesDecision([string]$riskLevel, [string]$surface) {
+  $contract = $policy.router_decision_contract.first_principles_contract
+  if ($null -eq $contract) { return [pscustomobject]@{ profile = "none"; signals = @() } }
+  $fullHits = Get-MatchedTriggers $contract.full_design_triggers
+  $constraintHits = Get-MatchedTriggers $contract.constraint_gate_triggers
+  $noneHits = Get-MatchedTriggers $contract.none_triggers
+  $profile = "none"
+  if ($fullHits.Count -gt 0) { $profile = "full_design" }
+  elseif ($noneHits.Count -gt 0) { $profile = "none" }
+  elseif (($constraintHits.Count -gt 0) -or ($riskLevel -eq "R5") -or ($surface -in @($contract.high_impact_target_surfaces))) { $profile = "constraint_gate" }
+  elseif ($riskLevel -in @($contract.micro_constraint_risks)) { $profile = "micro_constraints" }
+  return [pscustomobject]@{
+    profile = $profile
+    signals = @(@($fullHits) + @($constraintHits) + @($noneHits) | Select-Object -Unique)
+  }
+}
+
 function Get-Audience([string]$lane) {
   $rules = $policy.router_decision_contract.audience_trigger_rules
   if ($null -ne $rules) {
@@ -459,7 +495,7 @@ function Find-ActiveConversationMemoryLane([string]$path) {
             $indexText = Get-Content -LiteralPath $indexPath -Raw -Encoding UTF8
           }
           $combined = "$metaText`n$indexText"
-          if (($combined -match "status[`"']?\s*[:=]\s*[`"']?ACTIVE") -or ($combined -match "single_conversation_project_shaped_lane")) {
+          if (($combined -match "(?im)(?:lane_state|status)[`"']?\s*[:=]\s*[`"']?active") -or ($combined -match "single_conversation_project_shaped_lane")) {
             return $lane.FullName
           }
         }
@@ -605,6 +641,19 @@ if ($projectLane -ne "PROJECTLESS") {
   $requiredGates += "project_agents_gate"
 }
 
+$skillAuditDecision = Get-SkillAuditDecision
+$skillAuditProfile = [string]$skillAuditDecision.profile
+$skillAuditSignals = @($skillAuditDecision.signals)
+if ($skillAuditProfile -ne "none") {
+  $requiredGates += @($policy.router_decision_contract.skill_audit_contract.required_gates)
+  $requiredSkills += [string]$policy.router_decision_contract.skill_audit_contract.required_skill
+  if ($risk -in @("R0", "R1", "R2")) {
+    $risk = [string]$policy.router_decision_contract.skill_audit_contract.minimum_risk
+    $triggeredRisks += $risk
+  }
+  $matchedRiskTriggers["skill_audit"] = @($skillAuditSignals)
+}
+
 if ((Get-MatchedTriggers $policy.skill_matrix_triggers).Count -gt 0) {
   $requiredSkills += "troubleshooting-skill-matrix"
 }
@@ -622,9 +671,15 @@ if ($externalResearchMatchSet.negated.Count -gt 0) {
   $negatedRiskTriggers["external_research"] = @($externalResearchMatchSet.negated)
 }
 
-$targetSurface = Get-TargetSurface
+$targetSurface = if ($skillAuditProfile -ne "none") { "skill_matrix" } else { Get-TargetSurface }
 if (($targetSurface -eq "current_chat") -and ($triggeredRisks -contains "R3")) {
   $targetSurface = "local_harness"
+}
+$firstPrinciplesDecision = Get-FirstPrinciplesDecision $risk $targetSurface
+$firstPrinciplesProfile = [string]$firstPrinciplesDecision.profile
+$firstPrinciplesSignals = @($firstPrinciplesDecision.signals)
+if ($firstPrinciplesProfile -in @($policy.router_decision_contract.first_principles_contract.gate_profiles)) {
+  $requiredGates += [string]$policy.router_decision_contract.first_principles_contract.required_gate
 }
 $audience = Get-Audience $projectLane
 $semanticTriggers = $policy.router_decision_contract.semantic_ambiguity_triggers
@@ -1283,6 +1338,44 @@ if (($risk -eq "R5") -or ($classificationConfidence -eq "low")) { $moduleNeed +=
 if ($moduleNeed.Count -eq 0) { $moduleNeed += "none" }
 $moduleNeed = @($moduleNeed | Select-Object -Unique)
 
+$actionBindings = @()
+if ($memoryNeed -ne "none") {
+  $actionBindings += [pscustomobject]@{
+    action = "retrieve_matching_memory"
+    completion_evidence = "selected_record_id_and_provenance"
+  }
+}
+if (($externalNeed.Count -gt 0) -and ($externalNeed[0] -ne "none")) {
+  $actionBindings += [pscustomobject]@{
+    action = "perform_external_research_route"
+    completion_evidence = "source_ledger_or_citations"
+  }
+}
+$actionBindingIds = @($actionBindings | ForEach-Object { [string]$_.action } | Select-Object -Unique)
+
+$memorySourceHints = @()
+if (($memoryNeed -ne "none") -and $hasActiveConversationMemoryLane) {
+  $memorySourceHints += [pscustomobject]@{
+    lane = "current_conversation"
+    root_path = $activeConversationMemoryLanePath
+    meta_path = (Join-Path $activeConversationMemoryLanePath "_META_INDEX.md")
+    isolation = "exact_active_conversation_lane"
+  }
+}
+if (($memoryNeed -ne "none") -and ($projectLane -ne "PROJECTLESS")) {
+  $projectMemoryRoots = ConvertTo-Array (Get-ObjectPropertyValue $policy.memory_roots $projectLane)
+  foreach ($root in $projectMemoryRoots) {
+    if (-not [string]::IsNullOrWhiteSpace([string]$root)) {
+      $memorySourceHints += [pscustomobject]@{
+        lane = "current_project"
+        root_path = [string]$root
+        meta_path = (Join-Path ([string]$root) "_META_INDEX.md")
+        isolation = "registered_project_lane_root"
+      }
+    }
+  }
+}
+
 $debugTriggers = Get-ObjectPropertyValue $policy.receipt_profiles "debug_triggers"
 $debugHits = Get-MatchedTriggers $debugTriggers
 $receiptProfile = "compact_runtime"
@@ -1337,7 +1430,11 @@ $routingReceipt = [ordered]@{
   preferred_call_surface = $preferredCallSurface
   tool_surface_reason = @($toolSurfaceReason)
   skill_lifecycle_profile = $skillLifecycleProfile
+  skill_audit_profile = $skillAuditProfile
+  skill_audit_signals = @($skillAuditSignals)
   feedback_loop_profile = $feedbackLoopProfile
+  first_principles_profile = $firstPrinciplesProfile
+  first_principles_signals = @($firstPrinciplesSignals)
   read_semantic_boundary = @($readSemanticBoundary)
   read_depth_profile = $readDepthProfile
   edit_operation_profile = $editOperationProfile
@@ -1346,6 +1443,8 @@ $routingReceipt = [ordered]@{
   memory_mode = $memoryMode
   memory_write_profile = $memoryWriteProfile
   memory_lane = $memoryLane
+  memory_source_hints = @($memorySourceHints)
+  action_bindings = @($actionBindings)
   record_intent = $recordIntent
   external_need = @($externalNeed)
   claim_risk = $claimRisk
@@ -1370,7 +1469,9 @@ $compactReceipt = [ordered]@{
   plugin_need = $pluginNeed
   preferred_call_surface = $preferredCallSurface
   skill_lifecycle_profile = $skillLifecycleProfile
+  skill_audit_profile = $skillAuditProfile
   feedback_loop_profile = $feedbackLoopProfile
+  first_principles_profile = $firstPrinciplesProfile
   read_semantic_boundary = @($readSemanticBoundary)
   read_depth_profile = $readDepthProfile
   edit_operation_profile = $editOperationProfile
@@ -1378,6 +1479,8 @@ $compactReceipt = [ordered]@{
   hybrid_retrieval_profile = $hybridRetrievalProfile
   memory_write_profile = $memoryWriteProfile
   memory_lane = $memoryLane
+  memory_source_hints = @($memorySourceHints)
+  action_binding_ids = @($actionBindingIds)
   conversation_memory_decision = $conversationMemoryDecision
   conversation_full_lane_triggered = [bool]$conversationFullLaneTriggered
   link_intent = $linkIntent
@@ -1408,7 +1511,11 @@ $result = [ordered]@{
   preferred_call_surface = $preferredCallSurface
   tool_surface_reason = @($toolSurfaceReason)
   skill_lifecycle_profile = $skillLifecycleProfile
+  skill_audit_profile = $skillAuditProfile
+  skill_audit_signals = @($skillAuditSignals)
   feedback_loop_profile = $feedbackLoopProfile
+  first_principles_profile = $firstPrinciplesProfile
+  first_principles_signals = @($firstPrinciplesSignals)
   read_semantic_boundary = @($readSemanticBoundary)
   read_depth_profile = $readDepthProfile
   edit_operation_profile = $editOperationProfile
@@ -1417,6 +1524,9 @@ $result = [ordered]@{
   memory_mode = $memoryMode
   memory_write_profile = $memoryWriteProfile
   memory_lane = $memoryLane
+  memory_source_hints = @($memorySourceHints)
+  action_bindings = @($actionBindings)
+  action_binding_ids = @($actionBindingIds)
   record_intent = $recordIntent
   external_need = @($externalNeed)
   claim_risk = $claimRisk

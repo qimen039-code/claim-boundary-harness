@@ -1,5 +1,24 @@
 # Test Cases
 
+## Skill Audit And First-Principles Routing
+
+The deterministic PowerShell and Python routers must actively expose two
+profiles instead of relying on the model to remember prose instructions:
+
+- `skill_audit_profile`: `none`, `safety_audit`, `redundancy_audit`, or
+  `safety_and_redundancy_audit`. It requires a skill/capability subject, an
+  audit/check/cleanup intent, and at least one safety or redundancy signal.
+  Positive routes require `skill_audit_gate`, `change_contract_gate`, and the
+  skill matrix. A generic Python-file security audit is a negative control.
+- `first_principles_profile`: `none`, `micro_constraints`, `constraint_gate`,
+  or `full_design`. Systemic and persistent-risk changes require
+  `first_principles_gate`; explicit design/first-principles requests use
+  `full_design`; typos and simple version sync remain `none`.
+
+Regression coverage includes Chinese and English paraphrases, non-skill and
+trivial-edit negative controls, and long distractor prompts whose decisive
+signal appears in the middle rather than at the beginning or end.
+
 These are reference acceptance cases for adopters. They are not a complete
 compatibility matrix. Run the cases that match the agent runtime, operating
 system, and hook surface you are adopting.
@@ -107,11 +126,3 @@ remain acceptance checks for the adopting runtime.
 | TC-052 | JSON quoting breaks through nested shells | Prefer file-based JSON handoff such as `-ClaimFile`. |
 | TC-053 | Script parameter drift | Read the script `param()` block or `--help` before writing tests. |
 | TC-054 | Windows PowerShell receives Bash heredoc syntax such as `<<'PY'` | Detect the actual shell before generating multiline commands; use PowerShell here-strings, temporary files, `-File`, or pipe-safe forms under PowerShell. |
-
-## Periodic Skill Improvement
-
-| Case | Action | Expected result |
-| --- | --- | --- |
-| TC-060 | Run `python tools/skillopt/skillopt_cycle.py self-test` | Candidate packet and gate report are generated; temporary test output is cleaned by default. |
-| TC-061 | Candidate lacks evidence or rollback | Gate result is deferred or rejected; no target skill file is patched. |
-| TC-062 | Candidate is accepted | Candidate may enter human-reviewed change flow; it is not automatically applied. |

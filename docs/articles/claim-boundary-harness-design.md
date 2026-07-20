@@ -153,14 +153,6 @@ The framework therefore keeps hard gates selective:
 
 Ordinary tool calls should not pay for full runtime interception unless the host needs that tradeoff.
 
-## Why The SkillOpt-Style Layer Is Default-Off
-
-The repository includes a SkillOpt-style training layer because repeated mistakes should become candidate improvements. It is not an always-on self-rewriter.
-
-Use it for recurring skill/router improvements, candidate rule edits, rejected-edit review, textual learning-rate limits, slow updates, or external skill-optimization mechanism intake.
-
-Do not use it for ordinary chat, one-off fixes, direct memory writes, external fact checks, runtime enforcement, or claim gating. Those already have narrower gates.
-
 This matters because "self-improving" systems can become noisy quickly. Too many generated skills can make ownership unclear and routing less reliable. The training layer is subordinate to the skill matrix: it proposes candidate edits, regression probes, gate reports, or rejected-edit records. It does not mutate primary rules without an accepted gate result and required approval.
 
 ## Deployment Notes

@@ -273,6 +273,54 @@ def _conversation_full_lane_groups(task_text: str, contract: dict[str, Any]) -> 
     return result, triggered
 
 
+def _skill_audit_decision(task_text: str, contract: dict[str, Any]) -> dict[str, Any]:
+    subject_hits = _matching_triggers(task_text, contract.get("subject_triggers", []))
+    intent_hits = _matching_triggers(task_text, contract.get("audit_intent_triggers", []))
+    safety_hits = _matching_triggers(task_text, contract.get("safety_triggers", []))
+    redundancy_hits = _matching_triggers(task_text, contract.get("redundancy_triggers", []))
+    profile = "none"
+    if subject_hits and intent_hits:
+        if safety_hits and redundancy_hits:
+            profile = "safety_and_redundancy_audit"
+        elif safety_hits:
+            profile = "safety_audit"
+        elif redundancy_hits:
+            profile = "redundancy_audit"
+    return {
+        "profile": profile,
+        "signals": _unique([*subject_hits, *intent_hits, *safety_hits, *redundancy_hits]),
+    }
+
+
+def _first_principles_decision(
+    task_text: str,
+    *,
+    risk_level: str,
+    target_surface: str,
+    contract: dict[str, Any],
+) -> dict[str, Any]:
+    full_hits = _matching_triggers(task_text, contract.get("full_design_triggers", []))
+    constraint_hits = _matching_triggers(task_text, contract.get("constraint_gate_triggers", []))
+    none_hits = _matching_triggers(task_text, contract.get("none_triggers", []))
+    profile = "none"
+    if full_hits:
+        profile = "full_design"
+    elif none_hits:
+        profile = "none"
+    elif (
+        constraint_hits
+        or risk_level == "R5"
+        or target_surface in set(_as_list(contract.get("high_impact_target_surfaces")))
+    ):
+        profile = "constraint_gate"
+    elif risk_level in set(_as_list(contract.get("micro_constraint_risks"))):
+        profile = "micro_constraints"
+    return {
+        "profile": profile,
+        "signals": _unique([*full_hits, *constraint_hits, *none_hits]),
+    }
+
+
 def _unique(items: list[str]) -> list[str]:
     return sorted(set(items), key=items.index)
 
@@ -370,7 +418,7 @@ def _active_conversation_memory_lane(cwd: str) -> str:
                         except OSError:
                             continue
                 combined = "\n".join(parts)
-                if re.search(r"status[\"']?\s*[:=]\s*[\"']?ACTIVE", combined) or "single_conversation_project_shaped_lane" in combined:
+                if re.search(r"(?:lane_state|status)[\"']?\s*[:=]\s*[\"']?active", combined, re.IGNORECASE) or "single_conversation_project_shaped_lane" in combined:
                     return str(lane)
         if current.parent == current:
             break
@@ -803,6 +851,21 @@ def intake_router(task_text: str = "", cwd: str | None = None, policy: dict[str,
         required_gates.extend(["memory_isolation_gate", "project_agents_gate"])
         required_skills.append(f"{lane} project AGENTS/router")
 
+    contract = policy.get("router_decision_contract", {})
+    skill_audit = _skill_audit_decision(task_text, contract.get("skill_audit_contract", {}))
+    skill_audit_profile = str(skill_audit["profile"])
+    skill_audit_signals = list(skill_audit["signals"])
+    if skill_audit_profile != "none":
+        audit_contract = contract.get("skill_audit_contract", {})
+        required_gates.extend(str(item) for item in _as_list(audit_contract.get("required_gates")))
+        required_skill = str(audit_contract.get("required_skill") or "")
+        if required_skill:
+            required_skills.append(required_skill)
+        risk_level = _higher_risk(risk_level, str(audit_contract.get("minimum_risk") or "R3"), policy)
+        if "R3" not in triggered_risks:
+            triggered_risks.append("R3")
+        matched_risk_triggers["skill_audit"] = skill_audit_signals
+
     skill_matches = _trigger_matches(task_text, policy.get("skill_matrix_triggers", []))
     if skill_matches["positive"]:
         required_skills.append("troubleshooting-skill-matrix")
@@ -814,14 +877,29 @@ def intake_router(task_text: str = "", cwd: str | None = None, policy: dict[str,
     if external_matches["negated"]:
         negated_risk_triggers["external_research"] = external_matches["negated"]
 
-    contract = policy.get("router_decision_contract", {})
-    target_surface = _first_matching_rule(
-        task_text,
-        contract.get("target_surface_trigger_rules", {}),
-        ["git_action", "tool_call", "adapter", "public_docs", "conversation_ledger", "conversation_memory", "private_rule", "local_harness", "skill_matrix", "project_memory"],
-    ) or "current_chat"
+    target_surface = "skill_matrix" if skill_audit_profile != "none" else (
+        _first_matching_rule(
+            task_text,
+            contract.get("target_surface_trigger_rules", {}),
+            ["git_action", "tool_call", "adapter", "public_docs", "conversation_ledger", "conversation_memory", "private_rule", "local_harness", "skill_matrix", "project_memory"],
+        ) or "current_chat"
+    )
     if target_surface == "current_chat" and "R3" in triggered_risks:
         target_surface = "local_harness"
+
+    first_principles = _first_principles_decision(
+        task_text,
+        risk_level=risk_level,
+        target_surface=target_surface,
+        contract=contract.get("first_principles_contract", {}),
+    )
+    first_principles_profile = str(first_principles["profile"])
+    first_principles_signals = list(first_principles["signals"])
+    first_principles_contract = contract.get("first_principles_contract", {})
+    if first_principles_profile in set(_as_list(first_principles_contract.get("gate_profiles"))):
+        required_gate = str(first_principles_contract.get("required_gate") or "")
+        if required_gate:
+            required_gates.append(required_gate)
 
     audience = _first_matching_rule(
         task_text,
@@ -1319,6 +1397,46 @@ def intake_router(task_text: str = "", cwd: str | None = None, policy: dict[str,
         module_need.append("none")
     module_need = _unique(module_need)
 
+    action_bindings: list[dict[str, str]] = []
+    if memory_need != "none":
+        action_bindings.append(
+            {
+                "action": "retrieve_matching_memory",
+                "completion_evidence": "selected_record_id_and_provenance",
+            }
+        )
+    if external_need and external_need[0] != "none":
+        action_bindings.append(
+            {
+                "action": "perform_external_research_route",
+                "completion_evidence": "source_ledger_or_citations",
+            }
+        )
+    action_binding_ids = [item["action"] for item in action_bindings]
+
+    memory_source_hints: list[dict[str, str]] = []
+    if memory_need != "none" and has_active_conversation_memory_lane:
+        memory_source_hints.append(
+            {
+                "lane": "current_conversation",
+                "root_path": active_conversation_memory_lane_path,
+                "meta_path": str(Path(active_conversation_memory_lane_path) / "_META_INDEX.md"),
+                "isolation": "exact_active_conversation_lane",
+            }
+        )
+    if memory_need != "none" and lane != "PROJECTLESS":
+        for root in _as_list(policy.get("memory_roots", {}).get(lane)):
+            if not str(root):
+                continue
+            memory_source_hints.append(
+                {
+                    "lane": "current_project",
+                    "root_path": str(root),
+                    "meta_path": str(Path(str(root)) / "_META_INDEX.md"),
+                    "isolation": "registered_project_lane_root",
+                }
+            )
+
     receipt_profile = "compact_runtime"
     profile_reason = ["default_compact_runtime"]
     debug_hits = _matching_triggers(task_text, policy.get("receipt_profiles", {}).get("debug_triggers", []))
@@ -1363,7 +1481,11 @@ def intake_router(task_text: str = "", cwd: str | None = None, policy: dict[str,
         "preferred_call_surface": preferred_call_surface,
         "tool_surface_reason": tool_surface_reason,
         "skill_lifecycle_profile": skill_lifecycle_profile,
+        "skill_audit_profile": skill_audit_profile,
+        "skill_audit_signals": skill_audit_signals,
         "feedback_loop_profile": feedback_loop_profile,
+        "first_principles_profile": first_principles_profile,
+        "first_principles_signals": first_principles_signals,
         "read_semantic_boundary": read_semantic_boundary,
         "read_depth_profile": read_depth_profile,
         "edit_operation_profile": edit_operation_profile,
@@ -1372,6 +1494,8 @@ def intake_router(task_text: str = "", cwd: str | None = None, policy: dict[str,
         "memory_mode": memory_mode,
         "memory_write_profile": memory_write_profile,
         "memory_lane": memory_lane,
+        "memory_source_hints": memory_source_hints,
+        "action_bindings": action_bindings,
         "record_intent": record_intent,
         "external_need": external_need,
         "claim_risk": claim_risk,
@@ -1395,7 +1519,9 @@ def intake_router(task_text: str = "", cwd: str | None = None, policy: dict[str,
         "plugin_need": plugin_need,
         "preferred_call_surface": preferred_call_surface,
         "skill_lifecycle_profile": skill_lifecycle_profile,
+        "skill_audit_profile": skill_audit_profile,
         "feedback_loop_profile": feedback_loop_profile,
+        "first_principles_profile": first_principles_profile,
         "read_semantic_boundary": read_semantic_boundary,
         "read_depth_profile": read_depth_profile,
         "edit_operation_profile": edit_operation_profile,
@@ -1403,6 +1529,8 @@ def intake_router(task_text: str = "", cwd: str | None = None, policy: dict[str,
         "hybrid_retrieval_profile": hybrid_retrieval_profile,
         "memory_write_profile": memory_write_profile,
         "memory_lane": memory_lane,
+        "memory_source_hints": memory_source_hints,
+        "action_binding_ids": action_binding_ids,
         "conversation_memory_decision": conversation_memory_decision,
         "conversation_full_lane_triggered": conversation_full_lane_triggered,
         "link_intent": link_intent,
@@ -1433,7 +1561,11 @@ def intake_router(task_text: str = "", cwd: str | None = None, policy: dict[str,
         "preferred_call_surface": preferred_call_surface,
         "tool_surface_reason": tool_surface_reason,
         "skill_lifecycle_profile": skill_lifecycle_profile,
+        "skill_audit_profile": skill_audit_profile,
+        "skill_audit_signals": skill_audit_signals,
         "feedback_loop_profile": feedback_loop_profile,
+        "first_principles_profile": first_principles_profile,
+        "first_principles_signals": first_principles_signals,
         "read_semantic_boundary": read_semantic_boundary,
         "read_depth_profile": read_depth_profile,
         "edit_operation_profile": edit_operation_profile,
@@ -1442,6 +1574,9 @@ def intake_router(task_text: str = "", cwd: str | None = None, policy: dict[str,
         "memory_mode": memory_mode,
         "memory_write_profile": memory_write_profile,
         "memory_lane": memory_lane,
+        "memory_source_hints": memory_source_hints,
+        "action_bindings": action_bindings,
+        "action_binding_ids": action_binding_ids,
         "record_intent": record_intent,
         "external_need": external_need,
         "claim_risk": claim_risk,
@@ -1622,14 +1757,15 @@ def runtime_enforcer(
 
     blocked: list[str] = []
     warnings: list[str] = []
+    pre_execution_stage = stage in {"pre_task", "pre_tool"}
 
-    if route["risk_level"] == "R5" and not effective_human_confirmed:
+    if pre_execution_stage and route["risk_level"] == "R5" and not effective_human_confirmed:
         blocked.append("human_confirmation_required_for_R5")
-    if hard_hits and not effective_human_confirmed:
+    if pre_execution_stage and hard_hits and not effective_human_confirmed:
         blocked.append("tool_call_requires_human_confirmation")
-    if route["fallback_model_judgment_recommended"] and not boundary_reviewed:
+    if pre_execution_stage and route["fallback_model_judgment_recommended"] and not boundary_reviewed:
         blocked.append("boundary_review_required_for_low_confidence_route")
-    if stage in {"pre_task", "pre_tool"} and conversation_link_required and not conversation_link_resolved:
+    if pre_execution_stage and conversation_link_required and not conversation_link_resolved:
         reason = str(policy.get("conversation_linking_contract", {}).get("unresolved_block_reason") or "conversation_link_decision_required")
         blocked.append(reason)
 
@@ -1639,7 +1775,7 @@ def runtime_enforcer(
         if candidate and Path(candidate).exists():
             resolved_constitution = str(Path(candidate).resolve())
             break
-    if route["risk_level"] != "R0" and not resolved_constitution and not constitution_reviewed:
+    if pre_execution_stage and route["risk_level"] != "R0" and not resolved_constitution and not constitution_reviewed:
         blocked.append("constitution_entry_missing_or_unreviewed")
 
     if stage == "final":
@@ -1651,7 +1787,7 @@ def runtime_enforcer(
     if change_hits and route["risk_level"] == "R0":
         warnings.append("tool_looks_mutating_but_route_is_R0")
 
-    if not blocked and permit_result.get("pending_consume"):
+    if stage == "pre_tool" and not blocked and permit_result.get("pending_consume"):
         try:
             _append_permit_use(
                 Path(str(permit_result["use_ledger_path"])),

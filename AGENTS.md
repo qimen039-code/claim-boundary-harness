@@ -4,6 +4,12 @@ Use this file as the always-on, low-cost front door before loading large histori
 
 This is a generic foundation file. It does not contain project-specific policy, private memory, or target-agent adapter instructions. Add those only inside the adopting workspace.
 
+CBH augments the host model agent; it is not an independent task engine. The
+model remains responsible for planning, semantic judgment, tool use, recovery,
+and the final answer. Router, retrieval, and verifier helpers may compile
+bounded context or check a declared boundary, but they must return that result
+to the model rather than taking ownership of the user's task.
+
 ## Default Rules
 
 1. Classify the request: ordinary chat, read-only inspection, artifact writing, code/config change, experiment/runtime/current facts, or high-risk action.
@@ -30,7 +36,7 @@ routing receipt
 -> selective runtime hard gate only for critical risks
 ```
 
-Routing receipt fields: task type, target surface, audience, active lane, risk level, semantic ambiguity, module need, skill lifecycle profile, feedback loop profile, first principles profile, memory need, memory mode, memory lane, record intent, external need, claim risk, projectization decision, conversation memory decision, link intent, receipt profile, and required gates.
+Routing receipt fields: task type, target surface, audience, active lane, risk level, semantic ambiguity, module need, skill lifecycle profile, feedback loop profile, first principles profile, memory need, memory mode, memory lane, memory source hints, action bindings, record intent, external need, claim risk, projectization decision, conversation memory decision, link intent, receipt profile, and required gates.
 
 For projectless long-running conversations, also decide `conversation_memory_decision`. Use a conversation memory lane only when the user explicitly asks for a checkpoint or durable long-chat signals accumulate. Conversation memory is isolated by conversation/thread id, is not project memory, and is not global memory. If the user explicitly asks a new conversation to continue a previous conversation and create or update current-conversation memory, create or update the current conversation lane and add a continuation link to the previous memory; do not write new payloads back into the old lane unless merge, backfill, or archive is explicitly requested.
 
@@ -146,6 +152,17 @@ Memory retrieval results must not be plain snippets when they are used as reusab
 Hybrid memory retrieval is meta-first plus bounded structural and lexical signals: lane/category filters, retrieval terms, exact phrase matching, original-language keywords, Chinese character n-gram overlap, English term matching, and optional lexical ranking over an already small candidate set. SQL, SQLite, vector stores, and embedding databases are not default semantic-memory or retrieval cores.
 Expose this through `hybrid_retrieval_profile` only after `memory_need` is selected; it augments the existing meta-first chain and must not replace lane/category filtering, source-monitoring, or claim gates. Expose `memory_write_profile` only after `memory_mode` selects a durable write/update; it constrains write shape and does not authorize memory writes by itself.
 
+When the router emits `retrieve_matching_memory`, pass its exact
+`memory_source_hints` to `harness_action_consumer.py` or an equivalent host
+consumer and feed the returned `additional_context` to the model before
+planning. A direct record-id, semantic-anchor, or specific indexed-phrase match
+must remain in the selected set even when a compound request also produces
+weaker candidates. Weaker candidates alone are returned as bounded
+`semantic_review_candidates` for the host model to rerank automatically; they
+must not force a user/manual down-drill or demote an exact selected anchor. The
+consumer selects context only and never executes the task or turns navigation
+records into fact evidence.
+
 Content reading happens after retrieval selects a candidate, and the route or decision layer must choose the smallest sufficient reading profile: `baseline`, `evidence_window`, `middle_safe`, or `full_audit`. Baseline source reads identify source shape, prefer an existing structure map, use a temporary micro-map when no map exists, and keep retrieval separate from reading. Evidence reads attach a compact source context header, read a bounded evidence window, expand only missing context, and report unread zones or verification debt before stronger claims. For long, multi-window, multi-hop, public, memory-promotion, R4/R5, or strong-claim cases, use middle-safe layout: evidence inventory plus original windows, per-window conclusion cards before synthesis, adjacent multi-hop evidence clusters, key evidence reminders near strong claims, and a `position_risk` marker. If only head/tail anchors were read and they do not provide enough fact, scope, time, or relevance for a strong claim, trigger a bounded middle reread around structural anchors before promoting the claim.
 
 When producing public, release, citation, handoff, or memory surfaces, preserve
@@ -240,6 +257,12 @@ Use the smallest route that can support the claim:
 - Local validation route: required before claiming that an external mechanism was successfully adopted or verified in the local workspace.
 
 Classify outside material as `fact`, `source_prior`, `hypothesis`, `inspiration`, `unverified_implementation_path`, or `not_applicable`. External reading can guide the work, but it is not local validation by itself.
+
+When the router emits `perform_external_research_route`, the host model agent
+must call the available search/browser/source tools and retain citations or a
+source ledger. CBH does not run an independent crawler or background learning
+process, and an action binding is not completion evidence until the model-agent
+tool path returns evidence.
 
 ## Mandatory Memory Retrieval Chain
 

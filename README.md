@@ -5,23 +5,24 @@
 [![Smoke checks](https://github.com/qimen039-code/claim-boundary-harness/actions/workflows/smoke.yml/badge.svg?branch=main)](https://github.com/qimen039-code/claim-boundary-harness/actions/workflows/smoke.yml)
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.21189879.svg)](https://doi.org/10.5281/zenodo.21189879)
 
-Claim Boundary Harness (CBH) is an external cognition governance harness for
-agent workflows. It provides claim verification, memory continuity, risk
-routing, correction accumulation, and adapter contracts as structural
-enforcement, not advisory prompts.
+Claim Boundary Harness (CBH) is a model-facing capability harness for
+Codex-class LLM agents. It helps the active model route a task, retrieve only
+the relevant memory or evidence, preserve claim boundaries, and reuse verified
+corrections without flooding its context.
 
-Current version: `v0.20.2`
+Current version: `v1.0.0`
 
 Citation and attribution: if you use, adapt, evaluate, or productize CBH,
 please cite this repository with `CITATION.cff` and retain `NOTICE.md` plus the
 MIT license notice. The Zenodo concept DOI is
 [10.5281/zenodo.21189879](https://doi.org/10.5281/zenodo.21189879).
 
-The project exists to make capable agents more reliable without replacing the
-model, training a new model, or forcing every task through a heavy memory
-backend. CBH keeps the leverage small: route first, open only the needed memory
-or evidence window, preserve source boundaries, and stop high-risk actions or
-strong claims only when the adopting runtime exposes a real interception point.
+The host model remains the planner, tool user, semantic decision-maker, and
+author of the final answer. CBH does not run the user's task independently of
+that model. Its deterministic helpers are deliberately narrow: they compile a
+compact route, select indexed context, or verify a declared boundary, then hand
+the result back to the model agent. A host-called guard may stop a protected
+event only when the adopting runtime exposes a real interception point.
 
 It is designed to improve with real use. Repeated mistakes, adapter drift,
 memory pollution, and routing gaps should become bounded records, tests, or
@@ -29,11 +30,12 @@ small policy updates. They should not become an uncontrolled pile of active
 skills, prompts, or summaries that slowly pollute the model context.
 
 It is not tied to one agent runtime. It is a neutral starting point that can be
-mapped into any agent that can read workspace instructions, run local scripts,
-use command or skill folders, or call hooks before tools.
+mapped into any model-agent host that can read workspace instructions, run
+local helpers, use command or skill folders, or call hooks before tools.
 
 CBH is not:
 
+- a standalone autonomous task engine or background workflow runner;
 - a vector database or semantic-memory backend;
 - a replacement for the host model's reasoning ability;
 - a broad safety sandbox;
@@ -46,7 +48,7 @@ lane configuration, and verification tests run by the adopter.
 
 ## At A Glance
 
-Claim Boundary Harness is a small external cognition layer for coding agents.
+Claim Boundary Harness is a small model-facing cognition layer for coding agents.
 This repository already contains:
 
 - routing receipts and R0-R5 risk handling before work starts;
@@ -81,6 +83,7 @@ Fast paths:
 | Policy and adoption checks | `compile_policy_from_toml.py`, `validate_policy.ps1`, `tools/cbh_doctor.py` | Drift and preflight checks |
 | WorkBuddy adapter | `integrations/workbuddy-python-runtime/` | Unit-tested reference adapter; adopter must verify hook wiring |
 | Memory lanes and ledgers | `templates/project/memory-library/`, `templates/conversation-memory/`, `codex_session_ledger.py` | Templates and evidence indexes |
+| Model context selection | `harness_action_consumer.py`, router `memory_source_hints` | Exact indexed matches become compact, provenance-bearing agent context |
 | Retrieval and reading | `docs/hybrid-memory-retrieval-contract.md`, `docs/content-reading-contract.md` | Meta-first, source-preserving, bounded windows |
 | Skill lifecycle | `docs/skill-lifecycle-contract.md`, `templates/skill-lifecycle/` | Active-frame plus release receipt |
 | Feedback and causal review | `docs/memory-feedback-loop-trial.md`, `docs/router-decision-contract.md` | CE reuse plus overclaim boundary |
@@ -90,20 +93,17 @@ Fast paths:
 ## Architecture At A Glance
 
 ```mermaid
-flowchart TD
-    U[User task] --> K[L0 microkernel]
-    K --> R[Intake router]
-    R --> P{Routing receipt}
-    P --> C[Compact runtime receipt]
-    P --> G[Extended governance receipt]
-    P --> D[Debug receipt]
-    C --> M[Meta-first memory gate]
-    G --> M
-    D --> M
-    M --> S[Search and learning gate]
-    S --> Q[Claim boundary gate]
-    Q --> H[Selective runtime hard gates]
-    H --> E[Execution and final answer]
+flowchart LR
+    U[User task] --> A[Host LLM agent]
+    A --> R[CBH microkernel and router]
+    R --> C[Compact context and action bindings]
+    C --> A
+    A --> H{Host-called guard when available}
+    H --> T[Tools and evidence]
+    T --> A
+    A --> V[Bounded claim and evidence checks]
+    V --> A
+    A --> F[Final answer]
 ```
 
 ## What CBH Adds
@@ -145,7 +145,7 @@ those slices into one low-cost contract:
   instead of relying on long-lived rendered skill text.
 - **Bounded improvement, not skill pileup:** recurring mistakes can become
   `CE-*`, `ERR-*` / `SOL-*`, feedback-loop calibration, or candidate
-  SkillOpt-style edits, but each path keeps scope, validation, and rejection
+  skill edits, but each path keeps scope, validation, and rejection
   boundaries. The goal is an agent that gets more practiced in the current
   workflow, not a heavier context that degrades over time.
 - **Hallucination drift control, not hallucination removal:** source-tagged
@@ -319,8 +319,8 @@ their runtime can actually honor:
   `cbh_doctor`. Retrieved snippets and external reading remain evidence inputs
   until local checks support stronger claims.
 - **Improvement loop:** common-error corpus, paired incident records,
-  feedback-loop trial fields, debt-hygiene routing, skill lifecycle receipts,
-  and a default-off SkillOpt-style candidate-edit runner. Improvement is
+  feedback-loop trial fields, debt-hygiene routing, and skill lifecycle
+  receipts. Improvement is
   staged, scoped, reviewable, and rejectable; it is not always-on
   self-rewriting.
 
@@ -353,7 +353,6 @@ unbounded context growth.
 |       +-- claim-boundary-harness-design.md
 |   +-- examples.md
 |   +-- influences-and-attribution.md
-|   +-- skillopt-runtime.md
 |   +-- static-knowledge-layer.md
 |   +-- test-cases.md
 |   +-- declarative-governance-contract.md
@@ -405,12 +404,9 @@ unbounded context growth.
 |   |   +-- harness_tool_proxy.ps1
 |   |   +-- codex_session_ledger.py
 |   +-- shared-semantic-anchors/
-|   +-- skillopt-training-layer/
 |   +-- troubleshooting-skill-matrix/
 +-- tools/
 |   +-- cbh_doctor.py
-|   +-- skillopt/
-|       +-- skillopt_cycle.py
 +-- templates/
     +-- adapter-contract/
     +-- common-error-corpus/
@@ -419,7 +415,6 @@ unbounded context growth.
     +-- conversation-ledger/
     +-- global-memory-archive/
     +-- skill-lifecycle/
-    +-- skillopt/
     +-- static-knowledge-layer/
     +-- project/
 ```
@@ -515,7 +510,7 @@ Current client boundary:
 
 The PowerShell, Bash, and WorkBuddy Python adapters are also not complete compatibility claims.
 PowerShell and the WorkBuddy Python decision layer are covered by repository-side tests and smoke contracts; Bash/mac-style scripts are reference adapters and still need target-shell verification on the adopter's machine.
-The WorkBuddy Python adapter includes a hook runner tested through local unit tests, including prompt routing, command-tool denial, Stop/final claim checks, and transcript extraction. Real hard enforcement still depends on each adopter's WorkBuddy version honoring hook denial, exit code `2`, final-hook blocking, and the configured matcher scope.
+The WorkBuddy Python adapter includes a hook runner tested through local unit tests, including prompt routing, command-tool denial, optional Stop/final claim checks, and transcript extraction. The minimal WorkBuddy profile keeps `Stop` disabled because some hosts stream partial output and inject Stop feedback into the conversation. Real hard enforcement is limited to paths whose hook result the exact host version honors.
 
 The Claude Code integration page is currently a reference mapping, not a completed client-deployment validation. Adopters should confirm which instruction file the installed client reads, whether a pre-tool or command hook exists, whether blocked results are honored, and which surfaces can bypass the wrapper. If any of those checks fail, follow the deployment troubleshooting guide and let the adopting agent localize the problem before claiming hard enforcement.
 
@@ -546,7 +541,6 @@ The package includes generic synthetic examples that show the intended record sh
 - [docs/static-knowledge-layer.md](docs/static-knowledge-layer.md): optional wiki-style project manual layer with source-prior retrieval boundaries.
 - [docs/common-error-corpus.md](docs/common-error-corpus.md): lightweight common-error sample format.
 - [docs/common-issues-and-solutions.md](docs/common-issues-and-solutions.md): reusable issue classes and applied solutions from adaptation, release, and CI work.
-- [docs/skillopt-runtime.md](docs/skillopt-runtime.md): optional external SkillOpt-style candidate-edit runner and gate workflow.
 - [docs/influences-and-attribution.md](docs/influences-and-attribution.md): public GitHub and engineering-pattern influences versus project contributions.
 - [CITATION.cff](CITATION.cff) and [NOTICE.md](NOTICE.md): recommended citation metadata, attribution wording, and publication boundary.
 - [docs/test-cases.md](docs/test-cases.md): acceptance cases for adopters to run against their own runtime.
@@ -571,6 +565,16 @@ The package includes generic synthetic examples that show the intended record sh
 6. Register the skill folders using whatever skill or command mechanism your agent supports.
 7. Run the intake router before nontrivial work.
 
+Optional skill tuning: adopters may install [Microsoft SkillOpt](https://github.com/microsoft/SkillOpt) separately. CBH does not bundle or deploy it.
+
+For deployment, do not copy the repository wholesale. Resolve one of the
+machine-readable profiles in
+`integrations/workbuddy-python-runtime/deployment-profiles.json` and use
+`scripts/build-deployment-bundle.py` to list or stage the exact runtime files.
+The minimal profiles exclude papers, articles, research material, examples,
+and development tests. WorkBuddy hook-only deployments must also report route
+fields that lack an Agent Loop consumer as advisory rather than deployed.
+
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\skills\embedded-harness\harness_intake_router.ps1 -TaskText "fix the script and run benchmark" -Cwd "C:\path\to\project"
 ```
@@ -592,12 +596,6 @@ On Bash environments with `jq`:
 ```bash
 bash ./skills/embedded-harness/bash/validate_policy.sh
 bash ./skills/embedded-harness/bash/harness_intake_router.sh --task-text "fix the script and run benchmark" --cwd "/path/to/project"
-```
-
-Run the optional SkillOpt-style external module smoke test when Python is available:
-
-```bash
-python tools/skillopt/skillopt_cycle.py self-test
 ```
 
 Run the read-only adoption diagnostic before trusting a new adapter or after a
@@ -639,8 +637,7 @@ The whiteboard package was smoke-tested locally with:
 - Bash smoke checks when `jq` is available;
 - cbh-doctor adoption diagnostics;
 - pytest contract checks for the automatically verifiable `TC-xxx` route cases and machine-readable credits;
-- optional SkillOpt-style external module self-test;
-- WorkBuddy Python adapter unit tests as a standalone decision layer, including prompt routing, command blocking, single-event permit replay blocking, Stop/final claim blocking, surrogate-safe payloads, recording transcript extraction, and non-command file-content false-positive guards;
+- WorkBuddy Python adapter unit tests as an in-process model-loop decision helper, including prompt routing, command blocking, single-event permit replay blocking, conditional Stop/final claim checks, surrogate-safe payloads, recording transcript extraction, and non-command file-content false-positive guards;
 - package content scan for local project terms and sensitive field names.
 
 See [docs/reproduction.md](docs/reproduction.md) for commands and expected results.

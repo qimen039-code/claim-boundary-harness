@@ -247,6 +247,90 @@ ROUTER_CASES = [
         },
     },
     {
+        "id": "TC-005g-zh-combined",
+        "task": "审计当前安装技能是否存在隐藏安全风险、重复功能和可合并项",
+        "risk": "R3",
+        "gates": ["skill_audit_gate", "change_contract_gate", "first_principles_gate"],
+        "expect": {
+            "target_surface": "skill_matrix",
+            "skill_audit_profile": "safety_and_redundancy_audit",
+            "first_principles_profile": "constraint_gate",
+        },
+        "expect_contains": {
+            "module_need": "skill_matrix",
+        },
+    },
+    {
+        "id": "TC-005g-zh-safety-paraphrase",
+        "task": "检查这些技能有没有偷偷联网、越权读写或相互覆盖",
+        "gates": ["skill_audit_gate", "change_contract_gate"],
+        "expect": {
+            "target_surface": "skill_matrix",
+            "skill_audit_profile": "safety_audit",
+        },
+        "expect_in": {
+            "risk_level": ["R3", "R4", "R5"],
+        },
+    },
+    {
+        "id": "TC-005g-zh-redundancy-paraphrase",
+        "task": "把功能重叠且长期未用的能力模块整理一下，看看哪些该合并",
+        "risk": "R3",
+        "gates": ["skill_audit_gate", "change_contract_gate"],
+        "expect": {
+            "target_surface": "skill_matrix",
+            "skill_audit_profile": "redundancy_audit",
+        },
+    },
+    {
+        "id": "TC-005g-non-skill-negative",
+        "task": "审计这个 Python 文件的安全问题",
+        "not_gates": ["skill_audit_gate"],
+        "expect": {
+            "skill_audit_profile": "none",
+        },
+    },
+    {
+        "id": "TC-005g-first-principles-constraint",
+        "task": "修改全局路由器的记忆写入策略",
+        "gates": ["first_principles_gate"],
+        "expect": {
+            "first_principles_profile": "constraint_gate",
+        },
+    },
+    {
+        "id": "TC-005g-first-principles-full-design",
+        "task": "设计一个新的跨客户端权限机制",
+        "gates": ["first_principles_gate"],
+        "expect": {
+            "first_principles_profile": "full_design",
+        },
+    },
+    {
+        "id": "TC-005g-first-principles-recurrence",
+        "task": "修复这个重复出现的数据一致性 bug",
+        "gates": ["first_principles_gate"],
+        "expect": {
+            "first_principles_profile": "constraint_gate",
+        },
+    },
+    {
+        "id": "TC-005g-first-principles-typo-negative",
+        "task": "修正文档里的一个错别字",
+        "not_gates": ["first_principles_gate"],
+        "expect": {
+            "first_principles_profile": "none",
+        },
+    },
+    {
+        "id": "TC-005g-first-principles-version-negative",
+        "task": "同步版本号",
+        "not_gates": ["first_principles_gate"],
+        "expect": {
+            "first_principles_profile": "none",
+        },
+    },
+    {
         "id": "TC-005h",
         "task": "查找 GitHub 上 Yuan1z0825/nature-skills 仓库并读取 SKILL.md",
         "risk": "R4",
@@ -725,6 +809,19 @@ def test_router_contract_cases(case: dict) -> None:
         assert contains(payload.get("matched_risk_triggers", {}).get(trigger_key), expected_value)
 
 
+def test_router_skill_audit_and_first_principles_survive_long_middle_distractors() -> None:
+    skill_task = "普通背景说明。" * 120 + "请审计这些技能是否存在隐藏风险、重复功能和可合并项。" + "其余背景。" * 120
+    skill_payload = run_router(skill_task)
+    assert skill_payload["target_surface"] == "skill_matrix"
+    assert skill_payload["skill_audit_profile"] == "safety_and_redundancy_audit"
+    assert contains(skill_payload["required_gates"], "skill_audit_gate")
+
+    principle_task = "普通实现背景。" * 120 + "需要修改全局路由器的记忆写入策略并保留现有边界。" + "其余背景。" * 120
+    principle_payload = run_router(principle_task)
+    assert principle_payload["first_principles_profile"] == "constraint_gate"
+    assert contains(principle_payload["required_gates"], "first_principles_gate")
+
+
 def test_router_combines_global_context_and_feedback_prevention() -> None:
     payload = run_router("这个全局问题需要从当前事件发散分析后续可能出现的同类事件，并进行预防，避免再只照顾局部")
     assert contains(payload.get("required_gates"), "global_task_context_gate")
@@ -804,6 +901,31 @@ def test_router_recognizes_isolated_long_conversation_lane_without_writing_memor
     assert payload["conversation_memory_decision"] == "none"
     assert payload["link_intent"] == "none"
     assert contains(payload.get("required_gates"), "lane_ownership_gate")
+
+
+def test_router_exposes_active_conversation_source_for_compound_memory_retrieval(tmp_path: Path) -> None:
+    workspace = tmp_path / "workspace"
+    lane = workspace / "local-conversation-memory" / "active-lane"
+    lane.mkdir(parents=True)
+    (lane / "_META_INDEX.md").write_text(
+        "# Current Conversation\n\nlane_state: ACTIVE\n",
+        encoding="utf-8",
+    )
+    (lane / "index.json").write_text(
+        json.dumps({"lane_state": "ACTIVE", "record_families": {}}, ensure_ascii=False),
+        encoding="utf-8",
+    )
+
+    payload = run_router_with_cwd(
+        "关于我们的记忆机制中的检索机制，以及外部求索深度学习机制，是否能实际在触发时自动调用并实际生效。",
+        workspace,
+    )
+
+    hints = payload["memory_source_hints"]
+    assert len(hints) == 1
+    assert hints[0]["lane"] == "current_conversation"
+    assert Path(hints[0]["root_path"]).resolve() == lane.resolve()
+    assert contains(payload["action_binding_ids"], "retrieve_matching_memory")
 
 
 def test_router_marks_project_long_term_memory_write_as_write_mode(tmp_path: Path) -> None:
@@ -1056,6 +1178,32 @@ def test_powershell_runtime_preserves_original_task_text_and_risk_override() -> 
     assert payload["route"]["risk_level"] == "R5"
     assert payload["task_text_for_route"] == "delete stale files after review"
     assert "human_confirmation_required_for_R5" in payload["blocked_reasons"]
+
+
+def test_powershell_runtime_final_does_not_reapply_pre_execution_gates() -> None:
+    if not POWERSHELL:
+        pytest.skip("PowerShell is not available on PATH")
+    code, payload = run_json(
+        [
+            POWERSHELL,
+            "-NoProfile",
+            "-ExecutionPolicy",
+            "Bypass",
+            "-File",
+            "skills/embedded-harness/harness_runtime_enforcer.ps1",
+            "-Stage",
+            "final",
+            "-TaskText",
+            "R5",
+            "-FinalText",
+            "I inspected the files and found no matching errors.",
+            "-Cwd",
+            str(ROOT),
+        ]
+    )
+    assert code == 0
+    assert payload["status"] == "pass"
+    assert payload["blocked_reasons"] == []
 
 
 def test_powershell_runtime_ignores_non_command_tool_content_for_hard_patterns() -> None:
