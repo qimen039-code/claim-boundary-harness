@@ -3,14 +3,16 @@
 # Claim Boundary Harness
 
 [![Smoke checks](https://github.com/qimen039-code/claim-boundary-harness/actions/workflows/smoke.yml/badge.svg?branch=main)](https://github.com/qimen039-code/claim-boundary-harness/actions/workflows/smoke.yml)
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.21189879.svg)](https://doi.org/10.5281/zenodo.21189879)
+[![Zenodo concept DOI](./docs/assets/doi-badge.svg)](https://doi.org/10.5281/zenodo.21189879)
 
 Claim Boundary Harness (CBH) is a model-facing capability harness for
 Codex-class LLM agents. It helps the active model route a task, retrieve only
 the relevant memory or evidence, preserve claim boundaries, and reuse verified
 corrections without flooding its context.
 
-Current version: `v1.0.0`
+Canonical current release: [`v1.0.0`](https://github.com/qimen039-code/claim-boundary-harness/releases/latest).
+Earlier tags are historical snapshots, not current installation, capability,
+or compatibility guidance.
 
 Citation and attribution: if you use, adapt, evaluate, or productize CBH,
 please cite this repository with `CITATION.cff` and retain `NOTICE.md` plus the

@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="191" height="20" viewBox="0 0 191 20" role="img" aria-labelledby="title description">
+  <title id="title">Zenodo concept DOI</title>
+  <desc id="description">10.5281/zenodo.21189879</desc>
+  <defs>
+    <linearGradient id="shade" x2="0" y2="100%">
+      <stop offset="0" stop-color="#bbb" stop-opacity=".1"/>
+      <stop offset="1" stop-opacity=".1"/>
+    </linearGradient>
+    <clipPath id="round">
+      <rect width="191" height="20" rx="3"/>
+    </clipPath>
+  </defs>
+  <g clip-path="url(#round)">
+    <rect width="32" height="20" fill="#555"/>
+    <rect x="32" width="159" height="20" fill="#007ec6"/>
+    <rect width="191" height="20" fill="url(#shade)"/>
+  </g>
+  <g fill="#fff" font-family="Verdana, DejaVu Sans, sans-serif" font-size="11" text-anchor="middle">
+    <text x="16" y="15" fill="#010101" fill-opacity=".3">DOI</text>
+    <text x="16" y="14">DOI</text>
+    <text x="111.5" y="15" fill="#010101" fill-opacity=".3">10.5281/zenodo.21189879</text>
+    <text x="111.5" y="14">10.5281/zenodo.21189879</text>
+  </g>
+</svg>

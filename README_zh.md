@@ -3,13 +3,14 @@
 # Claim Boundary Harness
 
 [![Smoke checks](https://github.com/qimen039-code/claim-boundary-harness/actions/workflows/smoke.yml/badge.svg?branch=main)](https://github.com/qimen039-code/claim-boundary-harness/actions/workflows/smoke.yml)
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.21189879.svg)](https://doi.org/10.5281/zenodo.21189879)
+[![Zenodo concept DOI](./docs/assets/doi-badge.svg)](https://doi.org/10.5281/zenodo.21189879)
 
 Claim Boundary Harness（CBH）是一套面向 Codex 类大模型 Agent 的能力
 harness。它帮助当前模型完成任务路由、按需检索记忆与证据、保持声明边界，
 并复用已经验证的纠偏经验，同时避免把大量历史正文塞进上下文。
 
-当前版本：`v1.0.0`
+当前规范版本：[`v1.0.0`](https://github.com/qimen039-code/claim-boundary-harness/releases/latest)。
+更早的 tag 仅为历史快照，不是当前安装、能力或兼容性依据。
 
 引用与署名：如果你在研究、工具、产品或评测中使用、改编或讨论 CBH，请优先使用
 `CITATION.cff` 引用本仓库，并保留 `NOTICE.md` 与 MIT license notice。

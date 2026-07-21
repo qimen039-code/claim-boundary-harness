@@ -58,6 +58,7 @@ def test_citation_notice_are_visible_and_public_report_draft_is_absent() -> None
     required_files = [
         "CITATION.cff",
         "NOTICE.md",
+        "docs/assets/doi-badge.svg",
     ]
     for relative in required_files:
         assert (ROOT / relative).is_file(), relative
@@ -66,6 +67,7 @@ def test_citation_notice_are_visible_and_public_report_draft_is_absent() -> None
     readme = read_text("README.md")
     readme_zh = read_text("README_zh.md")
     citation = read_text("CITATION.cff")
+    doi_badge = read_text("docs/assets/doi-badge.svg")
     notice = read_text("NOTICE.md")
     license_text = read_text("LICENSE")
     changelog = read_text("CHANGELOG.md")
@@ -74,17 +76,23 @@ def test_citation_notice_are_visible_and_public_report_draft_is_absent() -> None
     assert "CITATION.cff" in readme
     assert "NOTICE.md" in readme
     assert "10.5281/zenodo.21189879" in readme
-    assert "https://zenodo.org/badge/DOI/10.5281/zenodo.21189879.svg" in readme
+    assert "./docs/assets/doi-badge.svg" in readme
+    assert "Canonical current release:" in readme
+    assert "Earlier tags are historical snapshots" in readme
     assert "claim-boundary-harness-technical-report.md" not in readme
     assert "CITATION.cff" in readme_zh
     assert "NOTICE.md" in readme_zh
     assert "10.5281/zenodo.21189879" in readme_zh
-    assert "https://zenodo.org/badge/DOI/10.5281/zenodo.21189879.svg" in readme_zh
+    assert "./docs/assets/doi-badge.svg" in readme_zh
+    assert "当前规范版本：" in readme_zh
+    assert "更早的 tag 仅为历史快照" in readme_zh
     assert "claim-boundary-harness-technical-report.md" not in readme_zh
     assert "title: \"Claim Boundary Harness: A Model-Facing Capability Harness for LLM Agent Workflows\"" in citation
     assert "qimen039-code" in citation
     assert "version: \"1.0.0\"" in citation
     assert "doi: \"10.5281/zenodo.21189879\"" in citation
+    assert "10.5281/zenodo.21189879" in doi_badge
+    assert 'role="img"' in doi_badge
     assert "Recommended short attribution" in notice
     assert "submitted arXiv record exists" in notice
     assert "Copyright (c) 2026 qimen039-code" in license_text
