@@ -10,9 +10,10 @@ Codex-class LLM agents. It helps the active model route a task, retrieve only
 the relevant memory or evidence, preserve claim boundaries, and reuse verified
 corrections without flooding its context.
 
-Canonical current release: [`v1.0.0`](https://github.com/qimen039-code/claim-boundary-harness/releases/latest).
-Earlier tags are historical snapshots, not current installation, capability,
-or compatibility guidance.
+Current main-branch version: `v1.1.0` (not yet tagged).
+Latest tagged GitHub release: [`v1.0.0`](https://github.com/qimen039-code/claim-boundary-harness/releases/tag/v1.0.0).
+Earlier tags remain historical snapshots, not current main-branch installation,
+capability, or compatibility guidance.
 
 Citation and attribution: if you use, adapt, evaluate, or productize CBH,
 please cite this repository with `CITATION.cff` and retain `NOTICE.md` plus the
@@ -23,8 +24,9 @@ The host model remains the planner, tool user, semantic decision-maker, and
 author of the final answer. CBH does not run the user's task independently of
 that model. Its deterministic helpers are deliberately narrow: they compile a
 compact route, select indexed context, or verify a declared boundary, then hand
-the result back to the model agent. A host-called guard may stop a protected
-event only when the adopting runtime exposes a real interception point.
+the result back to the model agent. An optional host-called correction hook may
+rewrite one mechanically verified current input, but it never grants authority,
+denies the event, freezes the task, or replaces the host's native security boundary.
 
 It is designed to improve with real use. Repeated mistakes, adapter drift,
 memory pollution, and routing gaps should become bounded records, tests, or
@@ -71,7 +73,7 @@ Fast paths:
 | --- | --- |
 | Understand the problem | [What Problem It Solves](#what-problem-it-solves) |
 | See the architecture | [Architecture At A Glance](#architecture-at-a-glance) |
-| Install or adapt | [Quick Start](#quick-start), [docs/adoption.md](docs/adoption.md) |
+| Install or adapt | [Quick Start](#quick-start), [Agent Self-Deployment Map](docs/agent-deployment-map.md), [docs/adoption.md](docs/adoption.md) |
 | Validate behavior | [docs/test-cases.md](docs/test-cases.md), [docs/reproduction.md](docs/reproduction.md) |
 | Cite or review provenance | [CITATION.cff](CITATION.cff), [NOTICE.md](NOTICE.md), [docs/influences-and-attribution.md](docs/influences-and-attribution.md) |
 | Runtime troubleshooting | [docs/deployment-risk-patterns.md](docs/deployment-risk-patterns.md), [docs/integrations](docs/integrations) |
@@ -81,7 +83,7 @@ Fast paths:
 | Capability | Primary entry point | Current public status |
 | --- | --- | --- |
 | Routing and claim gates | `harness_intake_router.ps1`, `harness_claim_schema_verifier.ps1` | Tested script contracts |
-| Runtime hard stops | `harness_runtime_enforcer.ps1`, `harness_tool_proxy.ps1`, `harness_task_wrapper.ps1` | Hard only on host-called paths |
+| Behavior correction | `behavior_correction_gate.py`, `behavior_correction_hook.py` | Verified current-input rewrite or silent no-op; never authorizes execution |
 | Policy and adoption checks | `compile_policy_from_toml.py`, `validate_policy.ps1`, `tools/cbh_doctor.py` | Drift and preflight checks |
 | WorkBuddy adapter | `integrations/workbuddy-python-runtime/` | Unit-tested reference adapter; adopter must verify hook wiring |
 | Memory lanes and ledgers | `templates/project/memory-library/`, `templates/conversation-memory/`, `codex_session_ledger.py` | Templates and evidence indexes |
@@ -100,7 +102,7 @@ flowchart LR
     A --> R[CBH microkernel and router]
     R --> C[Compact context and action bindings]
     C --> A
-    A --> H{Host-called guard when available}
+    A --> H{Optional verified correction}
     H --> T[Tools and evidence]
     T --> A
     A --> V[Bounded claim and evidence checks]
@@ -155,10 +157,10 @@ those slices into one low-cost contract:
   review, and final claim checks are intended to reduce unchecked drift and
   cross-conversation accumulation. They are not a claim that the model cannot
   hallucinate.
-- **Selective hard gates:** R5 actions, risky tools, unresolved memory links,
-  and strong final claims can be blocked when the runtime calls the gate.
-  Single-event R5 permits are hash-bound and recorded in a used-ledger after a
-  concrete tool event passes, so the same permit cannot be replayed.
+- **Task-local behavior correction:** known mechanically recognizable failures
+  can produce a verifier-bound current-input rewrite. Ambiguity, verifier
+  failure, or no match leaves the event unchanged; authorization remains with
+  governing instructions and the host runtime.
 
 Some mechanisms are adapted from public projects and established engineering
 patterns. See [NOTICE.md](NOTICE.md),
@@ -401,9 +403,9 @@ unbounded context growth.
 |   |   +-- embedded_harness_policy.local.example.json
 |   |   +-- compile_policy_from_toml.py
 |   |   +-- validate_policy.ps1
-|   |   +-- harness_runtime_enforcer.ps1
-|   |   +-- harness_task_wrapper.ps1
-|   |   +-- harness_tool_proxy.ps1
+|   |   +-- behavior_correction_gate.py
+|   |   +-- behavior_correction_hook.py
+|   |   +-- behavior_correction_profiles.json
 |   |   +-- codex_session_ledger.py
 |   +-- shared-semantic-anchors/
 |   +-- troubleshooting-skill-matrix/
@@ -433,7 +435,7 @@ This framework can be adapted to agents that support one or more of these surfac
 - project memory folders
 - wrapper scripts around the agent process
 
-If an agent only reads instruction files, this framework acts as a soft workflow contract. If an agent also supports hooks or wrappers, the gate scripts can become stronger runtime checks.
+If an agent only reads instruction files, this framework acts as a model-facing workflow contract. A compatible pre-tool hook may apply the narrow verified rewrite protocol, but host authorization remains separate.
 
 Integration examples are intentionally small and conservative:
 
@@ -481,7 +483,7 @@ The runtime rules live in `AGENTS.md` and the detailed contracts under `docs/`. 
 - **Keep two reasoning loops separate:** feedback loops store memory -> prediction -> verification -> calibration lessons; causal-attribution review prevents empirical records, cases, or hypotheses from becoming causal proof.
 - **Profile feedback-loop cost:** common-error lookup can stay at `index_hint`, CE writes at `record_candidate`, selected prevention at `prevention_review`, and explicit requests at `explicit_cycle`.
 - **Bound final claims:** do not turn source-prior notes, retrieved snippets, mocks, partial runs, or single smoke tests into `validated` claims.
-- **Hard-stop only critical paths:** R5 actions, high-risk tools, low-confidence routes, long-term memory writes, and strong final claims can be blocked when the adopting runtime actually calls the hook, wrapper, or tool proxy.
+- **Keep authorization separate:** R5 actions and other sensitive operations follow governing instructions and the host's native boundary; behavior correction never creates permission or denial.
 
 Detailed contracts:
 
@@ -508,11 +510,11 @@ Current client boundary:
 - **Codex**: reference integration plus source/active harness smoke checks; rerun after client updates.
 - **WorkBuddy**: Python adapter unit tests and hook-runner reference path; not a complete WorkBuddy version or platform certification.
 - **Doubao**: current evidence supports only chat/workspace-scoped advisory demos, not persistent custom-skill or tool registration in the inspected desktop client.
-- **Other clients**: reference mappings only until the target client, instruction surface, hook or wrapper path, denial behavior, and bypass surfaces are tested in that client.
+- **Other clients**: reference mappings only until the target client, instruction surface, hook protocol, permission semantics, and bypass surfaces are tested in that client.
 
 The PowerShell, Bash, and WorkBuddy Python adapters are also not complete compatibility claims.
 PowerShell and the WorkBuddy Python decision layer are covered by repository-side tests and smoke contracts; Bash/mac-style scripts are reference adapters and still need target-shell verification on the adopter's machine.
-The WorkBuddy Python adapter includes a hook runner tested through local unit tests, including prompt routing, command-tool denial, optional Stop/final claim checks, and transcript extraction. The minimal WorkBuddy profile keeps `Stop` disabled because some hosts stream partial output and inject Stop feedback into the conversation. Real hard enforcement is limited to paths whose hook result the exact host version honors.
+The WorkBuddy Python adapter includes a hook runner tested through local unit tests for advisory prompt routing and optional current-input correction. `PreToolUse` is disabled by default until the exact WorkBuddy version's rewrite and permission semantics are verified; `Stop` is not registered by CBH.
 
 The Claude Code integration page is currently a reference mapping, not a completed client-deployment validation. Adopters should confirm which instruction file the installed client reads, whether a pre-tool or command hook exists, whether blocked results are honored, and which surfaces can bypass the wrapper. If any of those checks fail, follow the deployment troubleshooting guide and let the adopting agent localize the problem before claiming hard enforcement.
 
@@ -529,7 +531,7 @@ The package includes generic synthetic examples that show the intended record sh
 - [examples/memory-library-demo/_META_INDEX.md](examples/memory-library-demo/_META_INDEX.md): layered memory library demo using meta index, category indexes, capsule status, and supersession.
 - [docs/router-decision-contract.md](docs/router-decision-contract.md): router and dynamic decision receipt contract.
 - [docs/articles/claim-boundary-harness-design.md](docs/articles/claim-boundary-harness-design.md): design note covering claim boundaries, meta-first routing, memory lanes, runtime enforcement limits, deployment pitfalls, and reproduction scope.
-- [docs/declarative-governance-contract.md](docs/declarative-governance-contract.md): small adapter governance contract for stages, denial semantics, payload safety, and cost boundaries.
+- [docs/declarative-governance-contract.md](docs/declarative-governance-contract.md): small adapter governance contract for stages, authorization boundaries, payload safety, and cost boundaries.
 - [docs/version-compatibility-management.md](docs/version-compatibility-management.md): runtime/client compatibility manifest and drift response rules.
 - [docs/memory-routing-contract.md](docs/memory-routing-contract.md): memory mode, memory lane, record intent, and projectization drift contract.
 - [docs/memory-meta-index-contract.md](docs/memory-meta-index-contract.md): multi-axis meta index contract for memory libraries.
@@ -639,7 +641,7 @@ The whiteboard package was smoke-tested locally with:
 - Bash smoke checks when `jq` is available;
 - cbh-doctor adoption diagnostics;
 - pytest contract checks for the automatically verifiable `TC-xxx` route cases and machine-readable credits;
-- WorkBuddy Python adapter unit tests as an in-process model-loop decision helper, including prompt routing, command blocking, single-event permit replay blocking, conditional Stop/final claim checks, surrogate-safe payloads, recording transcript extraction, and non-command file-content false-positive guards;
+- WorkBuddy Python adapter unit tests for advisory prompt routing, explicit-protocol current-input correction, silent no-op failure handling, model-loop ownership, and bounded memory/claim receipts;
 - package content scan for local project terms and sensitive field names.
 
 See [docs/reproduction.md](docs/reproduction.md) for commands and expected results.
@@ -653,7 +655,7 @@ See [docs/reproduction.md](docs/reproduction.md) for commands and expected resul
 - Add one project instruction file under `templates/project/`.
 - Keep the error and solution memory files empty until a real solved incident exists.
 - Add only user-confirmed semantic anchors.
-- Add wrapper or hook integration only after the basic scripts run in your environment.
+- Add optional hook integration only after the basic scripts and the target host protocol are verified in your environment.
 - Review [docs/non-goals.md](docs/non-goals.md) before adding packaging, dashboards, broad comparison tables, or community-maintenance boilerplate.
 
 ## Limitations
@@ -661,9 +663,7 @@ See [docs/reproduction.md](docs/reproduction.md) for commands and expected resul
 This is a foundation package, not a complete safety system.
 
 - The scripts are not a hard sandbox.
-- A blocked result only works when the calling agent or wrapper honors it.
-- A wrapper is truly mandatory only if it is the only command or tool execution path for the agent action it protects. If users or tools can bypass it, the framework remains advisory for that path.
-- Most gates are intentionally advisory: they return structured decisions for the caller to honor. They become real interception only on execution paths where `harness_task_wrapper.ps1`, `harness_tool_proxy.ps1`, or an equivalent hook is the only way the agent can run the protected action.
+- Most gates are intentionally advisory. The behavior hook can only return one verified current-input rewrite and cannot substitute for host authorization or sandboxing.
 - The trigger lists are intentionally small and should be tuned.
 - The memory format is a template, not a database.
 - Different agents need different adapter files and launch methods.

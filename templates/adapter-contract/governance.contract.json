@@ -43,12 +43,9 @@
       ]
     },
     "pre_tool": {
-      "purpose": "selective hard gate before protected tool execution",
+      "purpose": "nonblocking correction review for one current tool candidate",
       "required_for": [
-        "R5",
-        "high_risk_tool",
-        "memory_write",
-        "installation_or_permission_change"
+        "mechanically_recognized_recurrence_candidate"
       ],
       "recommended_initial_scope": [
         "command_tools"
@@ -59,10 +56,10 @@
         "background_actions"
       ],
       "decisions": [
-        "allow",
-        "warn",
-        "require_approval",
-        "deny"
+        "rewrite_candidate",
+        "validation_required",
+        "semantic_review_required",
+        "no_match"
       ]
     },
     "post_tool": {
@@ -99,9 +96,9 @@
         "performance_or_experiment_claim"
       ],
       "decisions": [
-        "allow",
-        "warn",
-        "deny"
+        "pass",
+        "bounded_wording_required",
+        "semantic_review_required"
       ]
     }
   },
@@ -115,10 +112,10 @@
     ],
     "score_rule": "If no numeric score is computed, use score_method=none and omit score. Relevance scores do not replace belief_status or confidence.basis."
   },
-  "denial_semantics": {
-    "denial_payload_schema": "adapter_specific",
-    "blocked_exit_code": 2,
-    "host_honors_denial": "unverified",
+  "authorization_boundary": {
+    "cbh_grants_permission": false,
+    "cbh_denies_or_freezes_events": false,
+    "host_native_authorization_is_authoritative": true,
     "bypass_surfaces": []
   },
   "payload_safety": {

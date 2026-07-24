@@ -227,17 +227,17 @@ Expected highlights:
 - `semantic_ambiguity` includes `composite_or_scope_reassessment`;
 - required gates include `scope_reassessment_gate` and `change_contract_gate`.
 
-## 4c. Runtime Enforcer Pass
+## 4c. Behavior-Correction Profile Inventory
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\skills\embedded-harness\harness_runtime_enforcer.ps1 -Stage pre_task -TaskText "inspect project files" -Cwd (Get-Location).Path
+python -B .\skills\embedded-harness\behavior_correction_gate.py --list-profiles
 ```
 
 Expected highlights:
 
-- `phase`: `runtime_enforcer`;
 - `status`: `pass`;
-- `constitution_path` points to `AGENTS.md`.
+- `host_blocking`: `false`;
+- `profile_count` is greater than zero.
 
 ## 4c-1. Local Architecture Maintenance Should Not Force External Research
 
@@ -250,17 +250,17 @@ Expected highlights:
 - `risk_level`: `R3`;
 - `needs_external_research`: `false`.
 
-## 4d. Tool Proxy Block
+## 4d. Nonblocking Correction Regression
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\skills\embedded-harness\harness_tool_proxy.ps1 -Stage pre_tool -TaskText "commit changes" -ToolName "shell_command" -ToolInputJson '{"command":"git commit -am update"}' -Cwd (Get-Location).Path
+python -B -m pytest -q tests/test_nonblocking_runtime_contract.py
 ```
 
 Expected highlights:
 
-- process exits nonzero;
-- `status`: `blocked`;
-- `blocked_reasons` includes `human_confirmation_required_for_R5` or `tool_call_requires_human_confirmation`.
+- the known PowerShell `foreach {...} | ...` regression produces a verified rewrite;
+- unmatched input is a silent no-op;
+- the old wrapper/proxy/runtime scripts remain absent.
 
 ## 4e. Conversation Memory Route
 

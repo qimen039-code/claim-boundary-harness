@@ -109,11 +109,11 @@ remain acceptance checks for the adopting runtime.
 
 | Case | Runtime | Expected result |
 | --- | --- | --- |
-| TC-040 | WorkBuddy command `PreToolUse` hook, high-risk shell command | Hook returns denial, exits nonzero, and the tool does not execute. |
-| TC-041 | WorkBuddy `UserPromptSubmit` plus later `PreToolUse` | Pre-tool decision uses the original prompt, not only a compact risk field. |
-| TC-042 | WorkBuddy final/Stop hook with overclaim | Strong ungrounded final claim is blocked or downgraded. |
+| TC-040 | WorkBuddy optional `PreToolUse`, known PowerShell loop-pipeline regression | Explicitly configured adapter returns a parser-verified updated input and preserves non-command fields. |
+| TC-041 | WorkBuddy `UserPromptSubmit` advisory route | Context preserves host-model task ownership and does not create authorization state. |
+| TC-042 | WorkBuddy missing module, parser failure, invalid payload, or no match | Empty output and exit code 0; the event remains unchanged. |
 | TC-043 | Codex local instruction continuity | New tasks continue to follow root microkernel, router, memory, and claim boundaries after client updates are rechecked. |
-| TC-044 | R5 or hard-tool action with a confirmation permit | A valid `cbh.r5_human_confirmation_permit.v1` with `scope: single_event`, matching task/tool hashes, and unexpired timestamp allows only that exact event; wrong hash, changed command, expired permit, or broader scope blocks. |
+| TC-044 | R5 or sensitive action | Router marks exact human confirmation as required; CBH correction creates neither permission nor denial. |
 | TC-045 | TOML policy authoring drift check | `compile_policy_from_toml.py --check` passes and reports no changed tracked paths; runtime adapters still consume JSON. |
 | TC-046 | Skill phase ends or later reactivates | Route exposes `skill_lifecycle_profile`, writes `skill_release_receipt`, and resumes by rereading current skill source files instead of stale compressed fragments. |
 

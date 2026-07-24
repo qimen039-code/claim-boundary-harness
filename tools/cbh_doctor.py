@@ -26,6 +26,7 @@ REQUIRED_FILES = [
     "README.md",
     "README_zh.md",
     "docs/deployment-risk-patterns.md",
+    "docs/agent-deployment-map.md",
     "docs/reproduction.md",
     "docs/test-cases.md",
     "docs/memory-feedback-loop-trial.md",
@@ -38,9 +39,10 @@ REQUIRED_FILES = [
     "skills/embedded-harness/embedded_harness_policy.json",
     "skills/embedded-harness/embedded_harness_policy.local.example.json",
     "skills/embedded-harness/compile_policy_from_toml.py",
+    "skills/embedded-harness/behavior_correction_gate.py",
+    "skills/embedded-harness/behavior_correction_hook.py",
+    "skills/embedded-harness/behavior_correction_profiles.json",
     "skills/embedded-harness/harness_intake_router.ps1",
-    "skills/embedded-harness/harness_runtime_enforcer.ps1",
-    "skills/embedded-harness/harness_tool_proxy.ps1",
     "skills/embedded-harness/validate_policy.ps1",
     "skills/embedded-harness/bash/harness_intake_router.sh",
     "skills/embedded-harness/bash/validate_policy.sh",
@@ -308,35 +310,13 @@ def check_router_probes(root: Path, shell: str | None) -> Check:
     )
 
 
-def check_tool_proxy_block(root: Path, shell: str | None) -> Check:
-    if not shell:
-        return Check(
-            id="doctor.tool_proxy_block",
-            status="warn",
-            summary="Tool proxy check skipped because PowerShell was not found.",
-            evidence={},
-            next_step="Run the equivalent hook check in your target shell.",
-        )
-    tool_input = json.dumps({"command": "git commit -am update"}, separators=(",", ":"))
+def check_behavior_correction_profiles(root: Path) -> Check:
     result = run_command(
         [
-            shell,
-            "-NoProfile",
-            "-ExecutionPolicy",
-            "Bypass",
-            "-File",
-            "skills/embedded-harness/harness_tool_proxy.ps1",
-            "-Stage",
-            "pre_tool",
-            "-TaskText",
-            "commit changes",
-            "-ToolName",
-            "shell_command",
-            "-ToolInputJson",
-            tool_input,
-            "-Cwd",
-            str(root),
-            "-ConstitutionReviewed",
+            sys.executable,
+            "-B",
+            "skills/embedded-harness/behavior_correction_gate.py",
+            "--list-profiles",
         ],
         cwd=root,
     )
@@ -345,18 +325,25 @@ def check_tool_proxy_block(root: Path, shell: str | None) -> Check:
         payload = json.loads(result.stdout)
     except Exception:
         pass
-    blocked = result.returncode == 2 and payload and payload.get("status") == "blocked"
+    ok = bool(
+        result.returncode == 0
+        and payload
+        and payload.get("status") == "pass"
+        and int(payload.get("profile_count") or 0) > 0
+        and payload.get("host_blocking") is False
+    )
     return Check(
-        id="doctor.tool_proxy_block",
-        status="pass" if blocked else "fail",
-        summary="Tool proxy blocks a sample git commit command." if blocked else "Tool proxy did not block the sample high-risk command.",
+        id="doctor.behavior_correction_profiles",
+        status="pass" if ok else "fail",
+        summary="Nonblocking correction profiles are loadable." if ok else "Correction profiles could not be validated.",
         evidence={
             "returncode": result.returncode,
             "status": None if payload is None else payload.get("status"),
-            "blocked_reasons": None if payload is None else payload.get("blocked_reasons"),
+            "profile_count": None if payload is None else payload.get("profile_count"),
+            "host_blocking": None if payload is None else payload.get("host_blocking"),
             "stderr": result.stderr[-500:],
         },
-        next_step="Verify hook wiring and make sure blocked results stop the caller." if not blocked else "",
+        next_step="Inspect the correction registry and policy contract." if not ok else "",
     )
 
 
@@ -424,7 +411,7 @@ def build_report(root: Path) -> dict[str, Any]:
         check_policy_authoring(root),
         check_powershell_validator(root, shell),
         check_router_probes(root, shell),
-        check_tool_proxy_block(root, shell),
+        check_behavior_correction_profiles(root),
         check_bash_surface(root),
         check_docs_alignment(root),
     ]

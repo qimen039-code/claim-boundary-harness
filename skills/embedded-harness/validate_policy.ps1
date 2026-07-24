@@ -199,6 +199,69 @@ if ($null -ne $policy) {
   if ($null -eq $routerContract) {
     Add-Issue "router_decision_contract_missing"
   } else {
+    $actionBindingContract = Get-ObjectPropertyValue $routerContract "action_binding_contract"
+    if ($null -eq $actionBindingContract) {
+      Add-Issue "action_binding_contract_missing"
+    } else {
+      if ((Get-ObjectPropertyValue $actionBindingContract "binding_mode") -ne "inline_receipt_no_extra_tool_call") {
+        Add-Issue "action_binding_contract_mode_invalid"
+      }
+      $softPredictionReviews = [int](Get-ObjectPropertyValue $actionBindingContract "soft_target_prediction_reviews")
+      $softNextActions = [int](Get-ObjectPropertyValue $actionBindingContract "soft_target_next_actions")
+      if (($softPredictionReviews -lt 1) -or ($softPredictionReviews -gt 12)) {
+        Add-Issue "action_binding_contract_prediction_review_soft_target_invalid"
+      }
+      if (($softNextActions -lt 1) -or ($softNextActions -gt 32)) {
+        Add-Issue "action_binding_contract_next_action_soft_target_invalid"
+      }
+      if ((Get-ObjectPropertyValue $actionBindingContract "coverage_expansion_allowed") -ne $true) {
+        Add-Issue "action_binding_contract_coverage_expansion_disabled"
+      }
+      if (($null -ne (Get-ObjectPropertyValue $actionBindingContract "max_prediction_reviews")) -or ($null -ne (Get-ObjectPropertyValue $actionBindingContract "max_next_actions"))) {
+        Add-Issue "action_binding_contract_legacy_hard_cap_present"
+      }
+      foreach ($field in @("profile_values","prediction_review_profile_values","prediction_review_source_fields","next_action_values","completion_evidence_values")) {
+        if ((ConvertTo-Array (Get-ObjectPropertyValue $actionBindingContract $field)).Count -eq 0) {
+          Add-Issue "action_binding_contract_field_empty:$field"
+        }
+      }
+    }
+    $reflexiveGapContract = Get-ObjectPropertyValue $routerContract "reflexive_gap_contract"
+    if ($null -eq $reflexiveGapContract) {
+      Add-Issue "reflexive_gap_contract_missing"
+    } else {
+      if ((Get-ObjectPropertyValue $reflexiveGapContract "enabled") -ne $true) {
+        Add-Issue "reflexive_gap_contract_disabled"
+      }
+      foreach ($field in @("required_gate","semantic_marker")) {
+        if ([string]::IsNullOrWhiteSpace([string](Get-ObjectPropertyValue $reflexiveGapContract $field))) {
+          Add-Issue "reflexive_gap_contract_field_empty:$field"
+        }
+      }
+      foreach ($field in @("explicit_request_triggers","exclusion_triggers")) {
+        if ((ConvertTo-Array (Get-ObjectPropertyValue $reflexiveGapContract $field)).Count -eq 0) {
+          Add-Issue "reflexive_gap_contract_field_empty:$field"
+        }
+      }
+      $reflexiveGroups = @{
+        knowledge_action_groups = @("knowledge","execution","contrast")
+        goal_fidelity_groups = @("goal","proxy_or_stall")
+        counterevidence_groups = @("attribution","unverified")
+        knowledge_coverage_groups = @("unmodeled","high_impact","uncertainty")
+      }
+      foreach ($groupName in $reflexiveGroups.Keys) {
+        $group = Get-ObjectPropertyValue $reflexiveGapContract $groupName
+        if ($null -eq $group) {
+          Add-Issue "reflexive_gap_contract_group_missing:$groupName"
+          continue
+        }
+        foreach ($facet in $reflexiveGroups[$groupName]) {
+          if ((ConvertTo-Array (Get-ObjectPropertyValue $group $facet)).Count -eq 0) {
+            Add-Issue "reflexive_gap_contract_group_empty:${groupName}:$facet"
+          }
+        }
+      }
+    }
     $fullLaneConfig = Get-ObjectPropertyValue $routerContract "conversation_memory_full_lane_triggers"
     $thresholdGroups = Get-ObjectPropertyValue $fullLaneConfig "threshold_groups"
     if ($null -eq $thresholdGroups) {
@@ -221,30 +284,150 @@ if ($null -ne $policy) {
         }
       }
     }
+    $referencedConversationContract = Get-ObjectPropertyValue $routerContract "referenced_conversation_memory_contract"
+    if ($null -ne $referencedConversationContract) {
+      if ((Get-ObjectPropertyValue $referencedConversationContract "enabled") -ne $true) {
+        Add-Issue "referenced_conversation_memory_contract_disabled"
+      }
+      $registryName = [string](Get-ObjectPropertyValue $referencedConversationContract "registry_path")
+      $registryPath = Join-Path (Split-Path -Parent $PolicyPath) $registryName
+      if (-not (Test-Path -LiteralPath $registryPath -PathType Leaf)) {
+        Add-Issue "active_conversation_memory_registry_missing:$registryName"
+      } else {
+        try {
+          $registry = Get-Content -LiteralPath $registryPath -Raw -Encoding UTF8 | ConvertFrom-Json
+          $expectedSchema = [string](Get-ObjectPropertyValue $referencedConversationContract "registry_schema")
+          if ([string](Get-ObjectPropertyValue $registry "schema") -ne $expectedSchema) {
+            Add-Issue "active_conversation_memory_registry_schema_mismatch"
+          }
+          $entries = @(ConvertTo-Array (Get-ObjectPropertyValue $registry "entries"))
+          if ($entries.Count -eq 0) {
+            Add-Issue "active_conversation_memory_registry_empty"
+          }
+          foreach ($entry in $entries) {
+            foreach ($field in @("registry_id","memory_id","state","root_path","meta_path","ledger_root_path","ledger_index_path")) {
+              if ([string]::IsNullOrWhiteSpace([string](Get-ObjectPropertyValue $entry $field))) {
+                Add-Issue "active_conversation_memory_registry_field_empty:$field"
+              }
+            }
+            foreach ($field in @("root_path","meta_path","ledger_root_path","ledger_index_path")) {
+              $entryPath = [string](Get-ObjectPropertyValue $entry $field)
+              if ((-not [string]::IsNullOrWhiteSpace($entryPath)) -and (-not (Test-Path -LiteralPath $entryPath))) {
+                Add-Issue "active_conversation_memory_registry_target_missing:$field"
+              }
+            }
+          }
+        } catch {
+          Add-Issue "active_conversation_memory_registry_parse_failed"
+        }
+      }
+    }
   }
 
   $runtimeEnforcement = $policy.runtime_enforcement
   if ($null -eq $runtimeEnforcement) {
     Add-Issue "runtime_enforcement_missing"
   } else {
-    $permitConfig = Get-ObjectPropertyValue $runtimeEnforcement "human_confirmation_permit"
-    if ($null -eq $permitConfig) {
-      Add-Warning "human_confirmation_permit_missing"
+    $obsoletePermit = Get-ObjectPropertyValue $runtimeEnforcement "human_confirmation_permit"
+    if ($null -ne $obsoletePermit) {
+      Add-Issue "obsolete_runtime_blocking_field_present:human_confirmation_permit"
+    }
+    if (@(ConvertTo-Array (Get-ObjectPropertyValue $runtimeEnforcement "hard_tool_patterns")).Count -gt 0) {
+      Add-Issue "obsolete_runtime_blocking_field_present:hard_tool_patterns"
+    }
+    if ([bool](Get-ObjectPropertyValue $runtimeEnforcement "mandatory")) {
+      Add-Issue "runtime_enforcement_must_not_be_mandatory"
+    }
+    if (@(ConvertTo-Array (Get-ObjectPropertyValue $runtimeEnforcement "entry_scripts")).Count -gt 0) {
+      Add-Issue "runtime_blocking_entry_scripts_must_be_empty"
+    }
+    if (@(ConvertTo-Array (Get-ObjectPropertyValue $runtimeEnforcement "hard_block_conditions")).Count -gt 0) {
+      Add-Issue "runtime_hard_block_conditions_must_be_empty"
+    }
+
+    $deleteAdvisor = Get-ObjectPropertyValue $runtimeEnforcement "dangerous_delete_advisory_contract"
+    if ($null -ne $deleteAdvisor) {
+      if ((Get-ObjectPropertyValue $deleteAdvisor "schema") -ne "cbh.dangerous_delete_advisory.v1") {
+        Add-Issue "dangerous_delete_advisory_contract_schema_invalid"
+      }
+      if (-not [bool](Get-ObjectPropertyValue $deleteAdvisor "enabled")) {
+        Add-Issue "dangerous_delete_advisory_contract_not_enabled"
+      }
+      if ((Get-ObjectPropertyValue $deleteAdvisor "invocation_mode") -ne "direct_on_demand_only") {
+        Add-Issue "dangerous_delete_advisory_invocation_mode_invalid"
+      }
+      if (@(ConvertTo-Array (Get-ObjectPropertyValue $deleteAdvisor "registered_hook_events")).Count -gt 0) {
+        Add-Issue "dangerous_delete_advisory_must_not_register_hook_events"
+      }
+      foreach ($field in @("blocking", "stateful")) {
+        if ([bool](Get-ObjectPropertyValue $deleteAdvisor $field)) {
+          Add-Issue "dangerous_delete_advisory_forbidden_capability:$field"
+        }
+      }
+      $deleteAdvisorName = [string](Get-ObjectPropertyValue $deleteAdvisor "entrypoint")
+      $deleteAdvisorPath = Join-Path (Split-Path -Parent $PolicyPath) $deleteAdvisorName
+      if (-not (Test-Path -LiteralPath $deleteAdvisorPath -PathType Leaf)) {
+        Add-Issue "dangerous_delete_advisory_entrypoint_missing:$deleteAdvisorName"
+      } else {
+        $expectedDeleteAdvisorHash = [string](Get-ObjectPropertyValue $deleteAdvisor "entrypoint_sha256")
+        $actualDeleteAdvisorHash = (Get-FileHash -Algorithm SHA256 -LiteralPath $deleteAdvisorPath).Hash.ToLowerInvariant()
+        if ($actualDeleteAdvisorHash -ne $expectedDeleteAdvisorHash) {
+          Add-Issue "dangerous_delete_advisory_entrypoint_hash_mismatch"
+        }
+      }
+    }
+
+    $correctionContract = Get-ObjectPropertyValue $runtimeEnforcement "behavior_correction_contract"
+    if ($null -eq $correctionContract) {
+      Add-Issue "behavior_correction_contract_missing"
     } else {
-      if ((Get-ObjectPropertyValue $permitConfig "schema") -ne "cbh.r5_human_confirmation_permit.v1") {
-        Add-Issue "human_confirmation_permit_schema_invalid"
+      if ((Get-ObjectPropertyValue $correctionContract "schema") -ne "cbh.behavior_correction_contract.v1") {
+        Add-Issue "behavior_correction_contract_schema_invalid"
       }
-      if ((Get-ObjectPropertyValue $permitConfig "required_scope") -ne "single_event") {
-        Add-Issue "human_confirmation_permit_scope_not_single_event"
+      foreach ($field in @("automatic_freeze", "automatic_long_term_memory_write", "automatic_policy_mutation")) {
+        if ([bool](Get-ObjectPropertyValue $correctionContract $field)) {
+          Add-Issue "behavior_correction_contract_forbidden_auto_action:$field"
+        }
       }
-      if ($false -eq [bool](Get-ObjectPropertyValue $permitConfig "consume_on_pass")) {
-        Add-Issue "human_confirmation_permit_consume_on_pass_disabled"
+      $migrationHook = Get-ObjectPropertyValue $correctionContract "migration_hook"
+      if ($null -eq $migrationHook) {
+        Add-Issue "behavior_correction_migration_hook_missing"
+      } else {
+        if ((Get-ObjectPropertyValue $migrationHook "schema") -ne "cbh.behavior_correction_migration_hook.v1") {
+          Add-Issue "behavior_correction_migration_hook_schema_invalid"
+        }
+        if ((Get-ObjectPropertyValue $migrationHook "hook_event") -ne "PreToolUse" -or
+            (Get-ObjectPropertyValue $migrationHook "tool_name_matcher") -ne "^Bash$" -or
+            (Get-ObjectPropertyValue $migrationHook "output_contract") -ne "allow_updated_input_only") {
+          Add-Issue "behavior_correction_migration_hook_boundary_invalid"
+        }
+        foreach ($field in @("host_blocking", "stateful", "automatic_memory_write", "automatic_policy_mutation")) {
+          if ([bool](Get-ObjectPropertyValue $migrationHook $field)) {
+            Add-Issue "behavior_correction_migration_hook_forbidden_capability:$field"
+          }
+        }
+        $migrationHookName = [string](Get-ObjectPropertyValue $migrationHook "entrypoint")
+        $migrationHookPath = Join-Path (Split-Path -Parent $PolicyPath) $migrationHookName
+        if (-not (Test-Path -LiteralPath $migrationHookPath -PathType Leaf)) {
+          Add-Issue "behavior_correction_migration_hook_entrypoint_missing:$migrationHookName"
+        } else {
+          $expectedMigrationHookHash = [string](Get-ObjectPropertyValue $migrationHook "entrypoint_sha256")
+          $actualMigrationHookHash = (Get-FileHash -Algorithm SHA256 -LiteralPath $migrationHookPath).Hash.ToLowerInvariant()
+          if ($actualMigrationHookHash -ne $expectedMigrationHookHash) {
+            Add-Issue "behavior_correction_migration_hook_entrypoint_hash_mismatch"
+          }
+        }
       }
-      if ($false -eq [bool](Get-ObjectPropertyValue $permitConfig "consume_requires_tool_text")) {
-        Add-Warning "human_confirmation_permit_can_consume_without_tool_text"
-      }
-      if ([string]::IsNullOrWhiteSpace([string](Get-ObjectPropertyValue $permitConfig "used_ledger_env_var"))) {
-        Add-Issue "human_confirmation_permit_used_ledger_env_var_missing"
+      $profileName = [string](Get-ObjectPropertyValue $correctionContract "profile_registry_path")
+      $profilePath = Join-Path (Split-Path -Parent $PolicyPath) $profileName
+      if (-not (Test-Path -LiteralPath $profilePath -PathType Leaf)) {
+        Add-Issue "behavior_correction_profile_registry_missing:$profileName"
+      } else {
+        $expectedHash = [string](Get-ObjectPropertyValue $correctionContract "profile_registry_sha256")
+        $actualHash = (Get-FileHash -Algorithm SHA256 -LiteralPath $profilePath).Hash.ToLowerInvariant()
+        if ($actualHash -ne $expectedHash) {
+          Add-Issue "behavior_correction_profile_registry_hash_mismatch"
+        }
       }
     }
   }

@@ -3,8 +3,9 @@
   "rule": "Deploy a named runtime profile. Do not copy the repository wholesale.",
   "profiles": {
     "workbuddy-hook-minimal": {
-      "description": "Hook-only WorkBuddy runtime: R5 pre-tool stop, path isolation checks, advisory final-claim review, and advisory route context.",
-      "runtime_mode": "hook_only",
+      "required_predeployment_read": "docs/agent-deployment-map.md",
+      "description": "WorkBuddy advisory prompt routing plus an optional stateless correction bridge that remains disabled until the host protocol is verified.",
+      "runtime_mode": "advisory_route_plus_nonblocking_correction",
       "include": [
         "AGENTS.md",
         "integrations/workbuddy-python-runtime/workbuddy_harness/__init__.py",
@@ -14,28 +15,24 @@
         "integrations/workbuddy-python-runtime/workbuddy_harness/policy.py",
         "integrations/workbuddy-python-runtime/scripts/workbuddy-hook.cmd",
         "integrations/workbuddy-python-runtime/scripts/workbuddy-hook.sh",
+        "skills/embedded-harness/behavior_correction_hook.py",
+        "skills/embedded-harness/behavior_correction_profiles.json",
+        "skills/embedded-harness/execution_feedback.py",
+        "skills/embedded-harness/python_inline_write_analysis.py",
         "skills/embedded-harness/embedded_harness_policy.json"
       ],
-      "hard_capabilities": [
-        "r5_pre_tool_deny_on_wired_command_paths",
-        "memory_path_isolation_on_wired_tool_paths"
+      "host_blocking": false,
+      "stateful_authorization": false,
+      "registered_hooks": [
+        "UserPromptSubmit"
       ],
-      "disabled_by_default_hooks": [
-        "Stop"
+      "optional_hooks": [
+        "PreToolUse"
       ],
-      "conditional_capabilities": {
-        "final_claim_phrase_gate": {
-          "hook": "Stop",
-          "status": "opt_in_after_host_compatibility_validation",
-          "required_checks": [
-            "no_user_prompt_injection",
-            "no_partial_stream_fragment",
-            "reason_feedback_is_not_misattributed_to_the_user"
-          ]
-        }
-      },
+      "pretool_activation": "manual_after_host_protocol_verification",
+      "workbuddy_protocol_status": "host_version_unverified",
+      "output_contract": "advisory_by_default_optional_codex_allow_updated_input",
       "advisory_capabilities": [
-        "final_claim_self_downgrade_by_default",
         "memory_mode",
         "memory_source_hints",
         "external_need",
@@ -44,10 +41,13 @@
         "skill_lifecycle_profile",
         "tool_surface_need",
         "first_principles_profile",
-        "skill_audit_profile"
-      ]
+        "skill_audit_profile",
+        "human_confirmation_need_without_authority"
+      ],
+      "boundary": "Risk and confirmation fields are model-facing context only. Native host policy and governing instructions retain execution authority. Optional allow + updatedInput output must not be registered until the target WorkBuddy version's permission semantics are verified."
     },
     "workbuddy-loop-integration-sdk": {
+      "required_predeployment_read": "docs/agent-deployment-map.md",
       "description": "Files needed by a host team that will call the Python decision layer and consume cbh.workbuddy_agent_loop_contract.v1 inside its Agent Loop.",
       "runtime_mode": "host_loop_integration_required",
       "include": [
@@ -59,10 +59,20 @@
         "integrations/workbuddy-python-runtime/workbuddy_harness/policy.py",
         "integrations/workbuddy-python-runtime/scripts/workbuddy-hook.cmd",
         "integrations/workbuddy-python-runtime/scripts/workbuddy-hook.sh",
+        "skills/embedded-harness/behavior_correction_gate.py",
+        "skills/embedded-harness/behavior_correction_hook.py",
+        "skills/embedded-harness/behavior_correction_profiles.json",
+        "skills/embedded-harness/execution_feedback.py",
+        "skills/embedded-harness/python_inline_write_analysis.py",
         "skills/embedded-harness/embedded_harness_policy.json",
         "skills/embedded-harness/harness_action_consumer.py",
         "templates/adapter-contract/compatibility.manifest.json"
       ],
+      "host_blocking": false,
+      "stateful_authorization": false,
+      "pretool_activation": "manual_after_host_protocol_verification",
+      "workbuddy_protocol_status": "host_version_unverified",
+      "output_contract": "model_context_actions_plus_optional_codex_allow_updated_input",
       "required_host_work": [
         "call build_agent_loop_contract after intake routing",
         "feed selected memory context to the model agent before planning",
@@ -72,22 +82,27 @@
       ]
     },
     "codex-local-minimal": {
+      "required_predeployment_read": "docs/agent-deployment-map.md",
       "description": "Codex local instruction and PowerShell runtime files without research papers, articles, examples, or development tests.",
       "runtime_mode": "instruction_plus_selective_scripts",
       "include": [
         "AGENTS.md",
         "skills/embedded-harness/embedded_harness_policy.json",
+        "skills/embedded-harness/behavior_correction_gate.py",
+        "skills/embedded-harness/behavior_correction_hook.py",
+        "skills/embedded-harness/behavior_correction_profiles.json",
+        "skills/embedded-harness/behavior_correction_source_map.md",
+        "skills/embedded-harness/execution_feedback.py",
         "skills/embedded-harness/harness_action_consumer.py",
         "skills/embedded-harness/harness_claim_schema_verifier.ps1",
         "skills/embedded-harness/harness_external_research_gate.ps1",
         "skills/embedded-harness/harness_intake_router.ps1",
         "skills/embedded-harness/harness_memory_isolation_gate.ps1",
-        "skills/embedded-harness/harness_runtime_enforcer.ps1",
-        "skills/embedded-harness/harness_task_wrapper.ps1",
-        "skills/embedded-harness/harness_tool_proxy.ps1",
+        "skills/embedded-harness/python_inline_write_analysis.py",
         "skills/embedded-harness/validate_policy.ps1"
       ],
-      "boundary": "Scripts are selective execution surfaces; Codex does not automatically call every route field or wrapper."
+      "host_blocking": false,
+      "boundary": "Direct scripts are advisory. The optional behavior hook may only return a verified current-input rewrite and never grants execution authority."
     }
   },
   "excluded_by_default": [

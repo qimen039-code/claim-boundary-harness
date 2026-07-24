@@ -1,10 +1,8 @@
 from __future__ import annotations
 
 import json
-import hashlib
 import os
 import re
-import tempfile
 from copy import deepcopy
 from datetime import datetime, timezone
 from pathlib import Path
@@ -15,57 +13,8 @@ from .policy import load_policy
 
 NEGATION_RE = re.compile(r"(?i)(\bdo\s+not\b|\bdon't\b|\bnever\b|\bnot\b|\bno\b)[\s\w'-]{0,128}$")
 CHINESE_NEGATION_RE = re.compile(r"(不需要|无需|不要|别|禁止|不)\s*$")
-RISK_LABEL_RE = re.compile(r"^R[0-5]$")
 DEFAULT_LOG_FILENAME = "workbuddy_harness_events.jsonl"
 SURROGATE_RE = re.compile(r"[\ud800-\udfff]")
-COMMAND_TOOL_NAME_RE = re.compile(r"(?i)(bash|powershell|shell|terminal|cmd|command|exec|run)")
-COMMAND_INPUT_KEYS = {
-    "args",
-    "argv",
-    "bash_command",
-    "bashcommand",
-    "cmd",
-    "command",
-    "command_line",
-    "commandline",
-    "powershell_command",
-    "powershellcommand",
-    "script",
-    "shell_command",
-    "shellcommand",
-}
-COMMAND_INPUT_KEY_NAMES = {"".join(ch for ch in item.lower() if ch.isalnum()) for item in COMMAND_INPUT_KEYS}
-HARD_TOOL_PATTERNS = [
-    r"(?i)\bRemove-Item\b",
-    r"(?i)\brmdir\b",
-    r"(?i)\bdel\b",
-    r"(?i)\brm\s+-(?:[a-z]*r[a-z]*f|[a-z]*f[a-z]*r)\b",
-    r"(?i)\brm\s+-[^\s]*r[^\s]*\s+-[^\s]*f\b",
-    r"(?i)\brm\s+-[^\s]*f[^\s]*\s+-[^\s]*r\b",
-    r"(?i)\bgit\s+commit\b",
-    r"(?i)\bgit\s+push\b",
-    r"(?i)\bgit\s+reset\b",
-    r"(?i)\bgit\s+checkout\b",
-    r"(?i)\binstall\b",
-    r"(?i)\blogin\b",
-    r"(?i)\bpayment\b",
-    r"(?i)\bpermission\b",
-    r"(?i)\bfirewall\b",
-    r"(?i)\bproxy\b",
-    r"(?i)\bnetsh\b",
-    r"(?i)\bSet-ExecutionPolicy\b",
-    r"(?i)\blong-term memory\b",
-    r"(?i)\bwrite memory\b",
-    r"(?i)\bsensitive transfer\b",
-]
-CHANGE_TOOL_PATTERNS = [
-    r"(?i)\bapply_patch\b",
-    r"(?i)\bSet-Content\b",
-    r"(?i)\bAdd-Content\b",
-    r"(?i)\bMove-Item\b",
-    r"(?i)\bCopy-Item\b",
-    r"(?i)\bgit\s+add\b",
-]
 _PENDING_LOGS: list[dict[str, Any]] = []
 
 
@@ -86,8 +35,6 @@ def _now() -> str:
     return datetime.now(timezone.utc).astimezone().isoformat()
 
 
-def _sha256_hex(text: str) -> str:
-    return hashlib.sha256(str(text).encode("utf-8", errors="replace")).hexdigest()
 
 
 def _as_list(value: Any) -> list[Any]:
@@ -114,9 +61,6 @@ def _higher_risk(left: str, right: str, policy: dict[str, Any]) -> str:
     return left if _risk_rank(left, policy) <= _risk_rank(right, policy) else right
 
 
-def _extract_risk_label(value: str = "") -> str:
-    text = str(value or "").strip()
-    return text if RISK_LABEL_RE.fullmatch(text) else ""
 
 
 def _flatten_triggers(value: Any) -> list[str]:
@@ -426,285 +370,32 @@ def _active_conversation_memory_lane(cwd: str) -> str:
     return ""
 
 
-def _tool_text(tool_name: str = "", tool_input: Any = None) -> str:
-    parts = [tool_name or ""]
-    if tool_input is None:
-        return "\n".join(part for part in parts if part)
-    if isinstance(tool_input, str):
-        parts.append(tool_input)
-    else:
-        try:
-            parts.append(json.dumps(tool_input, ensure_ascii=False, sort_keys=True))
-        except TypeError:
-            parts.append(str(tool_input))
-    return "\n".join(part for part in parts if part)
 
 
-def _input_key(value: Any) -> str:
-    return "".join(ch for ch in str(value or "").lower() if ch.isalnum())
 
 
-def _is_command_tool(tool_name: str = "", tool_input: Any = None) -> bool:
-    if COMMAND_TOOL_NAME_RE.search(str(tool_name or "")):
-        return True
-    if isinstance(tool_input, dict):
-        return any(_input_key(key) in COMMAND_INPUT_KEY_NAMES for key in tool_input)
-    return False
 
 
-def _command_input_parts(value: Any, depth: int = 0) -> list[str]:
-    if depth > 4 or value is None:
-        return []
-    if isinstance(value, str):
-        return [value]
-    if isinstance(value, list):
-        parts: list[str] = []
-        for item in value:
-            parts.extend(_command_input_parts(item, depth + 1))
-        return parts
-    if isinstance(value, dict):
-        parts = []
-        for key, item in value.items():
-            if _input_key(key) in COMMAND_INPUT_KEY_NAMES:
-                if isinstance(item, str):
-                    parts.append(item)
-                else:
-                    try:
-                        parts.append(json.dumps(item, ensure_ascii=False, sort_keys=True))
-                    except TypeError:
-                        parts.append(str(item))
-            elif isinstance(item, (dict, list)):
-                parts.extend(_command_input_parts(item, depth + 1))
-        return parts
-    return []
 
 
-def _risk_relevant_tool_text(tool_name: str = "", tool_input: Any = None) -> str:
-    parts = [tool_name or ""]
-    if _is_command_tool(tool_name, tool_input):
-        command_parts = _command_input_parts(tool_input)
-        if command_parts:
-            parts.extend(command_parts)
-        elif isinstance(tool_input, str):
-            parts.append(tool_input)
-    return "\n".join(part for part in parts if part)
 
 
-def _pattern_hits(text: str, patterns: list[str]) -> list[str]:
-    return sorted({pattern for pattern in patterns if re.search(pattern, text)})
 
 
-def _read_confirmation_permit(*, permit_path: str = "", permit_json: str = "") -> dict[str, Any] | None:
-    if permit_json:
-        loaded = json.loads(permit_json)
-        return loaded if isinstance(loaded, dict) else None
-    if permit_path:
-        loaded = json.loads(Path(permit_path).read_text(encoding="utf-8"))
-        return loaded if isinstance(loaded, dict) else None
-    return None
 
 
-def _permit_use_ledger_path(path: str = "") -> Path:
-    if path:
-        return Path(path)
-    env_path = os.environ.get("CBH_R5_PERMIT_USE_LEDGER")
-    if env_path:
-        return Path(env_path)
-    base = os.environ.get("LOCALAPPDATA") or os.environ.get("XDG_STATE_HOME")
-    if base:
-        return Path(base) / "codex-embedded-harness" / "r5_permit_use_ledger.jsonl"
-    return Path(tempfile.gettempdir()) / "codex-embedded-harness" / "r5_permit_use_ledger.jsonl"
 
 
-def _permit_consume_key(*, permit_id: str, task_hash: str, tool_hash: str) -> str:
-    return _sha256_hex("\n".join([permit_id, task_hash, tool_hash]))
 
 
-def _permit_already_used(path: Path, consume_key: str) -> bool:
-    if not consume_key or not path.exists():
-        return False
-    try:
-        for line in path.read_text(encoding="utf-8").splitlines():
-            if not line.strip():
-                continue
-            try:
-                record = json.loads(line)
-            except json.JSONDecodeError:
-                continue
-            if isinstance(record, dict) and record.get("consume_key") == consume_key:
-                return True
-    except OSError:
-        return False
-    return False
 
 
-def _append_permit_use(path: Path, record: dict[str, Any]) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    with path.open("a", encoding="utf-8") as handle:
-        handle.write(json.dumps(record, ensure_ascii=False, separators=(",", ":")) + "\n")
 
 
-def _confirmation_permit_result(
-    *,
-    task_text: str,
-    tool_text: str,
-    permit_path: str = "",
-    permit_json: str = "",
-    permit_use_ledger_path: str = "",
-    policy: dict[str, Any],
-) -> dict[str, Any]:
-    expected_task_hash = _sha256_hex(task_text)
-    expected_tool_hash = _sha256_hex(tool_text)
-    result: dict[str, Any] = {
-        "status": "missing",
-        "permit_id": None,
-        "issues": [],
-        "expected_task_sha256": expected_task_hash,
-        "expected_tool_sha256": expected_tool_hash,
-        "consume_key": None,
-        "use_ledger_path": None,
-        "consumed": False,
-        "pending_consume": False,
-        "confirmation_source": None,
-        "rule": "short-lived single-event scoped permit only; natural-language approval is not sufficient; a concrete tool-event permit is recorded as used before the caller proceeds",
-    }
-    if not permit_path and not permit_json:
-        return result
-    config = policy.get("runtime_enforcement", {}).get("human_confirmation_permit", {})
-    if config and config.get("enabled") is False:
-        result["status"] = "blocked"
-        result["issues"] = ["permit_disabled_by_policy"]
-        return result
-
-    issues: list[str] = []
-    permit: dict[str, Any] | None = None
-    try:
-        permit = _read_confirmation_permit(permit_path=permit_path, permit_json=permit_json)
-    except Exception as exc:
-        issues.append(f"permit_parse_failed:{exc}")
-    if not permit:
-        if not issues:
-            issues.append("permit_missing")
-    else:
-        result["permit_id"] = permit.get("permit_id")
-        result["confirmation_source"] = permit.get("confirmation_source")
-        if permit.get("schema") != "cbh.r5_human_confirmation_permit.v1":
-            issues.append("unsupported_permit_schema")
-        if permit.get("status") != "active":
-            issues.append("permit_not_active")
-        if permit.get("confirmed_by") != "human":
-            issues.append("permit_not_human_confirmed")
-        if permit.get("risk_level") != "R5":
-            issues.append("permit_not_r5_scoped")
-        if permit.get("scope") != "single_event":
-            issues.append("permit_not_single_event_scoped")
-        if permit.get("task_sha256") != expected_task_hash:
-            issues.append("task_hash_mismatch")
-        if tool_text and permit.get("tool_sha256") != expected_tool_hash:
-            issues.append("tool_hash_mismatch")
-        expires_text = str(permit.get("expires_at_utc") or "")
-        try:
-            expires_at = datetime.fromisoformat(expires_text.replace("Z", "+00:00"))
-            if expires_at.astimezone(timezone.utc) < datetime.now(timezone.utc):
-                issues.append("permit_expired")
-        except ValueError:
-            issues.append("permit_expiry_missing_or_invalid")
-        consume_on_pass = config.get("consume_on_pass", True) is not False
-        consume_requires_tool_text = config.get("consume_requires_tool_text", True) is not False
-        if not issues and consume_on_pass and (tool_text or not consume_requires_tool_text):
-            ledger_path = _permit_use_ledger_path(permit_use_ledger_path)
-            consume_key = _permit_consume_key(
-                permit_id=str(permit.get("permit_id") or ""),
-                task_hash=expected_task_hash,
-                tool_hash=expected_tool_hash,
-            )
-            result["consume_key"] = consume_key
-            result["use_ledger_path"] = str(ledger_path)
-            if _permit_already_used(ledger_path, consume_key):
-                issues.append("permit_already_used")
-            else:
-                result["pending_consume"] = True
-    result["issues"] = sorted(set(issues))
-    result["status"] = "pass" if not issues else "blocked"
-    return result
 
 
-def build_single_event_human_confirmation_permit(
-    *,
-    task_text: str,
-    tool_name: str = "",
-    tool_input: Any = None,
-    permit_id: str,
-    confirmed_at_utc: str,
-    expires_at_utc: str,
-    confirmation_source: str,
-) -> dict[str, Any]:
-    """Build an exact-event permit using the same command-text binding as runtime_enforcer."""
-    tool_text = _risk_relevant_tool_text(tool_name, tool_input)
-    return {
-        "schema": "cbh.r5_human_confirmation_permit.v1",
-        "permit_id": permit_id,
-        "status": "active",
-        "scope": "single_event",
-        "risk_level": "R5",
-        "confirmed_by": "human",
-        "confirmed_at_utc": confirmed_at_utc,
-        "expires_at_utc": expires_at_utc,
-        "task_sha256": _sha256_hex(task_text),
-        "tool_sha256": _sha256_hex(tool_text),
-        "confirmation_source": confirmation_source,
-    }
 
 
-def _apply_risk_override(route: dict[str, Any], risk_level: str, policy: dict[str, Any]) -> dict[str, Any]:
-    risk = _extract_risk_label(risk_level)
-    if not risk:
-        return route
-
-    updated = deepcopy(route)
-    merged_risk = _higher_risk(str(updated.get("risk_level", "R0")), risk, policy)
-    updated["risk_level"] = merged_risk
-    updated["task_type"] = merged_risk
-
-    for receipt_key in ("routing_receipt", "compact_receipt"):
-        receipt = updated.get(receipt_key)
-        if isinstance(receipt, dict):
-            receipt["risk_level"] = merged_risk
-            receipt["task_type"] = merged_risk
-
-    if merged_risk != "R0":
-        triggered = _as_list(updated.get("triggered_risks"))
-        if merged_risk not in triggered:
-            triggered.append(merged_risk)
-        updated["triggered_risks"] = _unique([str(item) for item in triggered])
-        matched = dict(updated.get("matched_risk_triggers", {}))
-        matched.setdefault(merged_risk, [])
-        matched[merged_risk] = _unique([str(item) for item in matched[merged_risk]] + [f"explicit_risk_level:{risk}"])
-        updated["matched_risk_triggers"] = matched
-
-    gates = [str(item) for item in _as_list(updated.get("required_gates"))]
-    gates.extend(str(gate) for gate in _as_list(policy.get("risk_gate_rules", {}).get(merged_risk)))
-    updated["required_gates"] = _unique(gates)
-    if isinstance(updated.get("routing_receipt"), dict):
-        updated["routing_receipt"]["required_gates"] = updated["required_gates"]
-    if isinstance(updated.get("compact_receipt"), dict):
-        updated["compact_receipt"]["required_gates"] = updated["required_gates"]
-
-    approvals = [str(item) for item in _as_list(updated.get("approval_required"))]
-    approvals.extend(str(rule) for rule in _as_list(policy.get("risk_approval_rules", {}).get(merged_risk)))
-    updated["approval_required"] = _unique(approvals)
-    human_confirmation_need = bool(updated["approval_required"])
-    if isinstance(updated.get("compact_receipt"), dict):
-        updated["compact_receipt"]["human_confirmation_need"] = human_confirmation_need
-
-    module_need = [str(item) for item in _as_list(updated.get("module_need"))]
-    if merged_risk == "R5" or str(updated.get("classification_confidence")) == "low":
-        module_need.append("runtime_gate")
-    updated["module_need"] = _unique(module_need)
-    if isinstance(updated.get("routing_receipt"), dict):
-        updated["routing_receipt"]["module_need"] = updated["module_need"]
-
-    return updated
 
 
 def _conversation_link_intent(task_text: str, policy: dict[str, Any]) -> str:
@@ -721,10 +412,6 @@ def _conversation_link_intent(task_text: str, policy: dict[str, Any]) -> str:
     return "none"
 
 
-def _conversation_link_required(route: dict[str, Any], policy: dict[str, Any]) -> bool:
-    contract = policy.get("conversation_linking_contract", {})
-    required_intents = {str(item) for item in _as_list(contract.get("link_required_intents"))}
-    return str(route.get("link_intent", "none")) in required_intents
 
 
 def causal_attribution_gate(*, final_text: str, policy: dict[str, Any] | None = None) -> dict[str, Any]:
@@ -1706,131 +1393,3 @@ def claim_schema_verifier(
         "issues": sorted(set(issues)),
         "rule": "schema enum, evidence-boundary, and high-risk causal attribution pattern check only; no extra LLM judgment",
     }
-
-
-def runtime_enforcer(
-    *,
-    stage: str = "pre_task",
-    task_text: str = "",
-    original_task_text: str = "",
-    risk_level: str = "",
-    cwd: str | None = None,
-    tool_name: str = "",
-    tool_input: Any = None,
-    claim_json: str | list[dict[str, Any]] | dict[str, Any] | None = None,
-    final_text: str = "",
-    human_confirmed: bool = False,
-    human_confirmation_permit_path: str = "",
-    human_confirmation_permit_json: str = "",
-    human_confirmation_permit_use_ledger_path: str = "",
-    boundary_reviewed: bool = False,
-    conversation_link_resolved: bool = False,
-    constitution_reviewed: bool = False,
-    constitution_path: str = "",
-    log_path: str | os.PathLike[str] | None = None,
-    log_dir: str | os.PathLike[str] | None = None,
-    policy: dict[str, Any] | None = None,
-) -> dict[str, Any]:
-    policy = policy or load_policy()
-    cwd = cwd or os.getcwd()
-    task_text_for_route = original_task_text or ("" if _extract_risk_label(task_text) else task_text)
-    explicit_risk_level = risk_level or _extract_risk_label(task_text)
-    tool_risk_text = _risk_relevant_tool_text(tool_name, tool_input)
-    route_text = "\n".join(part for part in [task_text_for_route, tool_risk_text] if part)
-    route = intake_router(route_text, cwd, policy)
-    route = _apply_risk_override(route, explicit_risk_level, policy)
-    tool_text = tool_risk_text
-    configured_hard_patterns = _as_list(policy.get("runtime_enforcement", {}).get("hard_tool_patterns"))
-    hard_patterns = [str(item) for item in configured_hard_patterns] or HARD_TOOL_PATTERNS
-    hard_hits = _pattern_hits(tool_text, hard_patterns)
-    change_hits = _pattern_hits(tool_text, CHANGE_TOOL_PATTERNS)
-    conversation_link_required = _conversation_link_required(route, policy)
-    permit_result = _confirmation_permit_result(
-        task_text=task_text_for_route,
-        tool_text=tool_text,
-        permit_path=human_confirmation_permit_path,
-        permit_json=human_confirmation_permit_json,
-        permit_use_ledger_path=human_confirmation_permit_use_ledger_path,
-        policy=policy,
-    )
-    effective_human_confirmed = bool(human_confirmed) or permit_result.get("status") == "pass"
-
-    blocked: list[str] = []
-    warnings: list[str] = []
-    pre_execution_stage = stage in {"pre_task", "pre_tool"}
-
-    if pre_execution_stage and route["risk_level"] == "R5" and not effective_human_confirmed:
-        blocked.append("human_confirmation_required_for_R5")
-    if pre_execution_stage and hard_hits and not effective_human_confirmed:
-        blocked.append("tool_call_requires_human_confirmation")
-    if pre_execution_stage and route["fallback_model_judgment_recommended"] and not boundary_reviewed:
-        blocked.append("boundary_review_required_for_low_confidence_route")
-    if pre_execution_stage and conversation_link_required and not conversation_link_resolved:
-        reason = str(policy.get("conversation_linking_contract", {}).get("unresolved_block_reason") or "conversation_link_decision_required")
-        blocked.append(reason)
-
-    resolved_constitution = ""
-    constitution_candidates = [constitution_path, os.path.join(cwd, "AGENTS.md")]
-    for candidate in constitution_candidates:
-        if candidate and Path(candidate).exists():
-            resolved_constitution = str(Path(candidate).resolve())
-            break
-    if pre_execution_stage and route["risk_level"] != "R0" and not resolved_constitution and not constitution_reviewed:
-        blocked.append("constitution_entry_missing_or_unreviewed")
-
-    if stage == "final":
-        text_to_scan = final_text or task_text
-        claim_result = claim_schema_verifier(claim_json=claim_json, final_text=text_to_scan, policy=policy)
-        if claim_result["status"] != "pass":
-            blocked.append("claim_schema_verifier_blocked")
-
-    if change_hits and route["risk_level"] == "R0":
-        warnings.append("tool_looks_mutating_but_route_is_R0")
-
-    if stage == "pre_tool" and not blocked and permit_result.get("pending_consume"):
-        try:
-            _append_permit_use(
-                Path(str(permit_result["use_ledger_path"])),
-                {
-                    "schema": "cbh.r5_human_confirmation_permit_use.v1",
-                    "permit_id": permit_result.get("permit_id"),
-                    "consume_key": permit_result.get("consume_key"),
-                    "task_sha256": permit_result.get("expected_task_sha256"),
-                    "tool_sha256": permit_result.get("expected_tool_sha256"),
-                    "used_at_utc": _now(),
-                },
-            )
-            permit_result["consumed"] = True
-        except OSError as exc:
-            blocked.append("human_confirmation_permit_consume_failed")
-            permit_result["issues"] = sorted(set([*permit_result.get("issues", []), f"permit_use_ledger_write_failed:{exc}"]))
-            permit_result["status"] = "blocked"
-            effective_human_confirmed = False
-
-    result = {
-        "ts": _now(),
-        "phase": "runtime_enforcer",
-        "stage": stage,
-        "status": "blocked" if blocked else "pass",
-        "cwd": cwd,
-        "route": route,
-        "task_text_for_route": task_text_for_route,
-        "explicit_risk_level": explicit_risk_level,
-        "tool_name": tool_name,
-        "tool_text_scope": "command_fields_only_for_command_tools",
-        "tool_hard_hits": hard_hits,
-        "tool_change_hits": change_hits,
-        "human_confirmed": bool(human_confirmed),
-        "effective_human_confirmed": bool(effective_human_confirmed),
-        "human_confirmation_permit": permit_result,
-        "conversation_link_required": conversation_link_required,
-        "conversation_link_resolved": conversation_link_resolved,
-        "constitution_path": resolved_constitution,
-        "blocked_reasons": sorted(set(blocked)),
-        "warnings": sorted(set(warnings)),
-        "final_text_scanned": bool(stage == "final" and final_text),
-        "enforcement": "hard only when host treats this in-process function as the sole pre-execution gate",
-    }
-    if log_path is not None or log_dir is not None:
-        result["log_flush"] = flush_logs(log_path=log_path, log_dir=log_dir, events=[result])
-    return result

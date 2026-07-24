@@ -60,8 +60,8 @@ whiteboard package:
   `belief_status` `confidence` `score_method`;
 - an optional static knowledge layer that adapts wiki-style project manuals into
   indexed, source-prior, claim-bounded agent context;
-- selective hard gates that apply only when an adopting runtime actually calls
-  the hook, wrapper, or tool proxy;
+- task-local, verifier-bound behavior correction that remains nonblocking and
+  separate from host authorization;
 
 Those contributions are a composition and adaptation layer, not a claim that
 each underlying mechanism was invented here.

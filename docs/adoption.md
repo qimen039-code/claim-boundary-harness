@@ -138,7 +138,7 @@ When adapting the harness into a concrete runtime, use [declarative-governance-c
 - which stages exist;
 - which stage provides active routing before planning;
 - which stage can block protected tool execution;
-- which denial schema and exit code the host must honor;
+- which optional rewrite protocol and permission semantics the host actually supports;
 - which payload-safety guarantees exist;
 - which receipt profile is the default.
 
@@ -146,18 +146,17 @@ Keep this contract small. It should not cause ordinary R0/R1 work to load all me
 
 Use [memory-routing-contract.md](memory-routing-contract.md) when wiring memory writes. Start with common error corpus records for small reusable mistakes, including the applied solution and validation, and upgrade to paired ERR/SOL records only when the issue is explicit, high-impact, or repeated.
 
-For conversation-memory continuation, merge, archive, or cross-conversation update requests, resolve the link decision through meta-first lookup before the first protected tool call. If the host has a pre-tool hook, wrapper, or tool proxy, unresolved link decisions should block with `conversation_link_decision_required`; if it does not, mark that surface advisory.
+For conversation-memory continuation, merge, archive, or cross-conversation update requests, resolve the link decision through meta-first lookup before acting. This remains a model/host governance boundary, not a behavior-correction denial.
 
-For selective runtime hard stops, route only critical boundaries through these entry points:
+For optional nonblocking correction, use only these entry points:
 
 ```text
-pre-task hook -> skills/embedded-harness/harness_runtime_enforcer.ps1
-tool-call proxy -> skills/embedded-harness/harness_tool_proxy.ps1
-command wrapper -> skills/embedded-harness/harness_task_wrapper.ps1
-final-answer gate -> skills/embedded-harness/harness_runtime_enforcer.ps1 -Stage final
+profile receipt -> skills/embedded-harness/behavior_correction_gate.py
+verified current-input rewrite -> skills/embedded-harness/behavior_correction_hook.py
+memory/action context -> skills/embedded-harness/harness_action_consumer.py
 ```
 
-For PowerShell final-answer checks, pass the actual response body through `-FinalText` when available. If `-FinalText` is omitted, the final gate falls back to scanning `-TaskText`.
+The correction hook returns `allow + updatedInput` only for an accepted deterministic profile and silent no-op otherwise. It does not own R5 confirmation or final-answer authorization.
 
 Claim payloads should use enumerated `source_type` and `evidence_boundary`
 values from `embedded_harness_policy.json`. Source-backed claims such as
@@ -166,32 +165,30 @@ values from `embedded_harness_policy.json`. Source-backed claims such as
 validated, verified, stable, or proven requires an evidence boundary at least as
 strong as the policy's `strong_claim_evidence_boundaries`.
 
-Do not replace your normal agent launcher until the scripts pass local smoke checks. Start with high-risk blocking, final-claim checks, and memory-write checks. Keep ordinary tool calls on the advisory control plane unless you have a reason to harden them. Keep a fallback path so a bad adapter can be disabled without losing workspace access.
+Do not replace your normal agent launcher. Start with the advisory router and validators; enable optional correction only after the exact host protocol is verified. Keep a fallback path so a bad adapter can be disabled without losing workspace access.
 
 Exit code contract:
 
 - `0`: gate passed, or returned a non-blocking status.
-- `2`: gate returned `blocked`; stop unless a human explicitly confirms the current action.
-- other: runtime error, missing dependency, malformed input, or adapter failure.
+- other: standalone diagnostic/runtime error, missing dependency, malformed input, or adapter failure.
 
 Status contract:
 
 - `pass`: no blocking issue found.
-- `blocked`: required boundary, evidence, or confirmation is missing.
+- `correction_candidate`: a current candidate matched and declares its verifier.
 - `cross_reference_allowed`: memory path is outside the active lane but was explicitly allowed as a cross-reference.
 
 For Bash environments, use the scripts under `skills/embedded-harness/bash`. They require `jq` and share the same `embedded_harness_policy.json`.
 
 For hosts that own an in-process Python agent loop, `integrations/workbuddy-python-runtime` is a small reference adapter.
-It reuses the same policy file and exposes Python functions for routing, memory isolation, claim checks, and runtime enforcement decisions.
-It is not automatically wired into WorkBuddy or any other client. Hard enforcement requires the host to call the function before action execution and to stop on `status: blocked`.
-For hook-only WorkBuddy-style deployments, wire prompt-stage routing and command-tool `PreToolUse` denial. Keep `Stop`/final-claim checks advisory by default; opt in only after the exact host proves it neither injects Stop feedback as a user prompt nor leaves streamed fragments. Recording or voice input must arrive as transcript text before the adapter can route it.
+It reuses the same policy file and exposes Python functions for routing, memory isolation, claim checks, and bounded action contracts.
+It is not automatically wired into WorkBuddy or any other client. Prompt routing is advisory; optional PreToolUse correction is disabled until the exact host's rewrite and permission semantics are verified. Recording or voice input must arrive as transcript text before the adapter can route it.
 
 Adapter validation is local by default. Do not claim PowerShell, Bash/macOS/Linux, or WorkBuddy Python compatibility until you have run the relevant smoke checks on the target device and client version.
 
 For runtime/client compatibility, maintain a small manifest using [version-compatibility-management.md](version-compatibility-management.md) and `templates/adapter-contract/compatibility.manifest.json`. Refresh it only after adapter install, client update, hook or wrapper edits, failed smoke tests, or explicit user request.
 
-Before calling a deployment "hard enforced", check the broader deployment failure modes in [deployment-risk-patterns.md](deployment-risk-patterns.md). The most important rule is simple: a gate blocks only the execution path that actually invokes it and honors its blocked result.
+Before calling a deployment active, check the broader deployment failure modes in [deployment-risk-patterns.md](deployment-risk-patterns.md). Repository presence is not host invocation evidence.
 
 ## Step 4a: Configure Search And Learning Routes
 

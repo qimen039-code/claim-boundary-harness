@@ -17,7 +17,7 @@ root AGENTS.md microkernel
 -> static knowledge index / selected manual page, if project navigation is needed
 -> memory meta summary / category index / matching capsule, if memory is needed
 -> bounded action consumer context returned to the model agent
--> selective hard runtime gates only for critical risks
+-> optional nonblocking current-candidate correction
 -> final claim and memory boundary check
 ```
 
@@ -31,15 +31,14 @@ Design boundaries:
 - The mandatory advisory control plane is required for nontrivial tasks: create a lightweight routing receipt, re-evaluate only on trigger events, and re-check claim/memory/version boundaries before final output.
 - R0-R5 classification always runs internally but stays silent by default in user-facing surfaces. Expose only action-changing boundaries; `debug_receipt` is for route diagnosis or explicit full-receipt requests.
 - Receipt profiles keep runtime cost low: `compact_runtime` is used only when fields change the next action, `extended_governance` expands for public/framework/project-boundary work, and `debug_receipt` is only for route diagnosis or explicit full-receipt requests.
-- Do not wrap every tool call by default; use runtime hard gates only for R5, high-risk tool calls, strong final claims, long-term memory writes, and low-confidence boundaries.
+- Do not wrap every tool call. Invoke correction only for a current candidate whose surface and profile can be mechanically identified.
 - Memory retrieval is meta-first: read `_META_INDEX.md`, a memory summary, or a router manifest before opening category indexes or capsule payloads.
 - `memory_source_hints` bind retrieval to exact active roots. `harness_action_consumer.py` promotes exact record or anchor matches into compact model context; bounded weaker candidates are returned to the host model for semantic reranking and do not demote an exact match into mandatory manual review.
 - `action_bindings` describe work for the host model agent. They do not make CBH an autonomous task runner and are not completion evidence until the matching model/tool path returns a receipt.
 - Static knowledge retrieval is index-first: read `_STATIC_KNOWLEDGE_INDEX.md` before opening a project manual page, and treat static notes as `source_tag: static_knowledge` / `belief_status: source_prior` until checked.
-- Runtime enforcement is available through hook/wrapper/tool proxy scripts. A `blocked` JSON result exits nonzero and should stop the caller when these scripts are placed before task or tool execution.
-- These scripts cannot stop a caller that bypasses the runtime entry scripts.
-- A wrapper is truly mandatory only if it is the agent's only command execution path for the protected action. If another command path bypasses the wrapper, this layer is advisory for that path.
-- Most gates are advisory by design: they return structured decisions that the caller must actively honor. Only paths configured to run through `harness_task_wrapper.ps1`, `harness_tool_proxy.ps1`, or an equivalent hook before execution become real interception points.
+- `behavior_correction_gate.py` returns a task-local receipt; `behavior_correction_hook.py` may return one verified `allow + updatedInput` rewrite for an accepted deterministic profile.
+- Ambiguity, verifier failure, unsupported host protocol, registry failure, or no match leaves the event unchanged. Correction never grants permission, denies, freezes, stores approval state, writes memory, or mutates policy.
+- Most gates remain advisory structured decisions that the host model interprets under its governing instructions and native security boundary.
 - Machine-local project roots should be loaded from `embedded_harness_policy.local.json` or `CBH_PROJECT_LANES_FILE`, not committed into the public runtime policy.
 
 Mandatory advisory control plane:
@@ -49,7 +48,7 @@ routing receipt
 -> execute the cheapest sufficient route
 -> re-evaluate only after trigger events
 -> final claim/memory/version boundary check
--> selective runtime hard gate when a critical risk appears
+-> optional nonblocking correction when a verified recurrence profile matches
 ```
 
 Receipt fields: task type, target surface, audience, project lane, risk level, semantic ambiguity, module need, memory need, memory mode, memory lane, memory source hints, action bindings, record intent, external need, claim risk, projectization decision, conversation memory decision, link intent, receipt profile, and required gates. Runtime adapters can expose `compact_runtime` by default and expand only for governance or debug cases.
@@ -92,10 +91,9 @@ Scripts:
 ```powershell
 .\harness_intake_router.ps1 -TaskText "fix the build and run benchmark" -Cwd "<PROJECT_ROOT>"
 python .\harness_action_consumer.py --route-json '<ROUTE_JSON>' --prompt '<USER_TASK>'
+python .\behavior_correction_gate.py --list-profiles
+python .\behavior_correction_hook.py < pretool-event.json
 .\validate_policy.ps1
-.\harness_runtime_enforcer.ps1 -Stage pre_task -TaskText "fix the build and run benchmark" -Cwd "<PROJECT_ROOT>"
-.\harness_tool_proxy.ps1 -Stage pre_tool -TaskText "commit changes" -ToolName "shell_command" -ToolInputJson '{"command":"git commit"}'
-.\harness_task_wrapper.ps1 -TaskText "list files" -CommandPath "powershell" -CommandArgs @("-NoProfile","-Command","Get-ChildItem")
 .\harness_memory_isolation_gate.ps1 -ProjectLane EXAMPLE_PROJECT -RequestedPath "<PROJECT_ROOT>/.agent-memory/item.md"
 .\harness_external_research_gate.ps1 -TaskText "check latest version"
 .\harness_claim_schema_verifier.ps1 -ClaimJson '{"claim_type":"architecture_decision","source_type":"local_file","source_ref":"README.md","evidence_boundary":"whiteboard_smoke"}'
@@ -112,32 +110,9 @@ python .\compile_policy_from_toml.py --output .\embedded_harness_policy.json
 sections. `embedded_harness_policy.json` remains the runtime source consumed by
 PowerShell, Bash, and Python adapters.
 
-For R5 or hard-tool actions, a host adapter may pass explicit confirmation as a
-single-event permit instead of a broad session flag:
-
-```json
-{
-  "schema": "cbh.r5_human_confirmation_permit.v1",
-  "permit_id": "PERMIT-20260625-001",
-  "status": "active",
-  "scope": "single_event",
-  "risk_level": "R5",
-  "confirmed_by": "human",
-  "confirmed_at_utc": "2026-06-25T00:00:00Z",
-  "expires_at_utc": "2026-06-25T00:05:00Z",
-  "task_sha256": "<sha256 of original task text>",
-  "tool_sha256": "<sha256 of command-scoped tool text>"
-}
-```
-
-Pass it with `-HumanConfirmationPermitJson` or `-HumanConfirmationPermitPath`.
-The permit is valid only for the exact task and exact tool event. When a
-permit passes for a concrete tool event, the runtime writes a lightweight
-used-ledger entry keyed by the permit/task/tool hashes. A replay of the same
-permit/task/tool combination, a second R5 action, a changed command, an expired
-permit, or any scope other than `single_event` must still block unless fresh
-confirmation is supplied. Use `-HumanConfirmationPermitUseLedgerPath` or
-`CBH_R5_PERMIT_USE_LEDGER` to pin the replay ledger path for a host adapter.
+R5 confirmation is intentionally outside the correction hook. The model agent
+must follow its governing instructions, and the host's native security boundary
+remains authoritative for actual execution.
 
 Bash counterparts:
 
@@ -157,32 +132,19 @@ Exit codes:
 
 | Code | Meaning |
 | --- | --- |
-| `0` | Gate passed, or a non-blocking status was returned. |
-| `2` | Gate returned `blocked`; caller should stop unless a human explicitly overrides the action. |
-| Other | Runtime error, missing dependency, malformed input, or adapter failure. |
+| `0` | Gate completed, returned a nonblocking receipt, or performed a silent no-op. |
+| Other | Standalone diagnostic/runtime error; never an authorization decision. |
 
 Gate statuses:
 
 | Status | Meaning |
 | --- | --- |
-| `pass` | The gate did not find a blocking issue. |
-| `blocked` | The gate found a boundary violation or missing confirmation. |
+| `pass` | The advisory check completed without an issue. |
+| `correction_candidate` | A task-local profile matched and declares its required verifier. |
 | `cross_reference_allowed` | Memory path is outside the active lane, but explicit cross-reference allowance was provided. |
 
-Runtime hard-stop conditions:
-
-- R5 route without explicit human confirmation.
-- Conversation continuation, merge, archive, or cross-conversation update before the link decision is resolved, when the host has a pre-action hook/wrapper/tool proxy.
-- Low-confidence route without boundary review.
-- Nontrivial task with no available constitution entry.
-- High-risk tool call without explicit human confirmation.
-- Long-term memory write without explicit user request.
-- Final strong claim without claim schema evidence boundary.
-
-`-HumanConfirmed` remains available for host adapters that already have an
-unambiguous one-action confirmation surface. Prefer the permit shape when the
-adapter needs to carry confirmation across prompt and pre-tool hooks without
-accidentally allowing later R5 actions.
+Behavior correction has no hard-stop state. It either emits one mechanically
+verified current-input rewrite or leaves the event unchanged.
 
 Configure `embedded_harness_policy.authoring.toml` for high-churn trigger and threshold sections, then keep `embedded_harness_policy.json` synchronized for runtime use. Machine-local project lanes and memory roots should live in a private `embedded_harness_policy.local.json` overlay or the path named by `CBH_PROJECT_LANES_FILE`; use `embedded_harness_policy.local.example.json` as the shape. Promote trigger terms only for recurring routing classes that change gates or boundaries; keep one-off task wording out of long-lived policy.
 
@@ -190,5 +152,5 @@ Configure `embedded_harness_policy.authoring.toml` for high-churn trigger and th
 
 - This harness is not a hard sandbox.
 - Most gate results are caller-honored by default.
-- Blocking behavior is real only when the adopting agent has no protected execution path that bypasses the wrapper, tool proxy, or hook.
+- The correction hook is nonblocking and cannot substitute for host authorization or sandboxing.
 - Published adapters are local smoke-test references, not complete cross-device or cross-client compatibility guarantees.

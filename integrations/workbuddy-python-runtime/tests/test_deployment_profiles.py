@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import os
 import shutil
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -19,7 +21,7 @@ from workbuddy_harness import (  # noqa: E402
     load_policy,
     validate_agent_loop_receipt,
 )
-from workbuddy_harness.hook_runner import _context_output  # noqa: E402
+from workbuddy_harness.hook_runner import handle_user_prompt_event  # noqa: E402
 
 
 def load_bundle_module():
@@ -41,7 +43,12 @@ class DeploymentProfileTests(unittest.TestCase):
     def test_minimal_profiles_resolve_existing_runtime_files_only(self) -> None:
         for profile_id in ("workbuddy-hook-minimal", "workbuddy-loop-integration-sdk", "codex-local-minimal"):
             with self.subTest(profile_id=profile_id):
-                _, files = self.bundle.selected_files(profile_id)
+                profile, files = self.bundle.selected_files(profile_id)
+                self.assertEqual(
+                    "docs/agent-deployment-map.md",
+                    profile["required_predeployment_read"],
+                )
+                self.assertTrue((REPO_ROOT / profile["required_predeployment_read"]).is_file())
                 self.assertTrue(files)
                 self.assertFalse(any(path.startswith("docs/") for path in files))
                 self.assertFalse(any("/tests/" in f"/{path}/" for path in files))
@@ -57,6 +64,7 @@ class DeploymentProfileTests(unittest.TestCase):
             receipt = self.bundle.stage("workbuddy-hook-minimal", output)
             stored = json.loads((output / "cbh-deployment-receipt.json").read_text(encoding="utf-8"))
             self.assertEqual(stored, receipt)
+            self.assertEqual("docs/agent-deployment-map.md", receipt["required_predeployment_read"])
             self.assertFalse(receipt["full_repository_copy"])
             self.assertFalse((output / "docs").exists())
             self.assertFalse((output / "tests").exists())
@@ -68,19 +76,76 @@ class DeploymentProfileTests(unittest.TestCase):
             except OSError:
                 pass
 
-    def test_workbuddy_minimal_profile_keeps_stop_hook_disabled_by_default(self) -> None:
+    def test_workbuddy_minimal_profile_is_nonblocking_and_stateless(self) -> None:
         profile_path = ADAPTER_ROOT / "deployment-profiles.json"
         profile = json.loads(profile_path.read_text(encoding="utf-8"))["profiles"]["workbuddy-hook-minimal"]
-        self.assertIn("Stop", profile["disabled_by_default_hooks"])
-        self.assertNotIn(
-            "final_claim_phrase_gate_when_stop_hook_is_wired",
-            profile["hard_capabilities"],
+        self.assertEqual(
+            "advisory_route_plus_nonblocking_correction",
+            profile["runtime_mode"],
         )
-        conditional = profile["conditional_capabilities"]["final_claim_phrase_gate"]
-        self.assertEqual(conditional["hook"], "Stop")
-        self.assertEqual(conditional["status"], "opt_in_after_host_compatibility_validation")
-        self.assertIn("no_user_prompt_injection", conditional["required_checks"])
-        self.assertIn("no_partial_stream_fragment", conditional["required_checks"])
+        self.assertFalse(profile["host_blocking"])
+        self.assertFalse(profile["stateful_authorization"])
+        self.assertEqual(["UserPromptSubmit"], profile["registered_hooks"])
+        self.assertEqual(["PreToolUse"], profile["optional_hooks"])
+        self.assertEqual("manual_after_host_protocol_verification", profile["pretool_activation"])
+        self.assertNotIn("Stop", profile["registered_hooks"])
+        self.assertEqual(
+            "advisory_by_default_optional_codex_allow_updated_input",
+            profile["output_contract"],
+        )
+
+    def test_staged_bundle_explicit_pretool_protocol_rewrites_real_foreach_regression(self) -> None:
+        temp_root = ADAPTER_ROOT / ".test-tmp"
+        temp_root.mkdir(parents=True, exist_ok=True)
+        output = Path(tempfile.mkdtemp(prefix="deployment-runtime-", dir=temp_root))
+        try:
+            self.bundle.stage("workbuddy-hook-minimal", output)
+            adapter = output / "integrations" / "workbuddy-python-runtime"
+            payload = {
+                "hook_event_name": "PreToolUse",
+                "tool_name": "PowerShell",
+                "cwd": str(output),
+                "tool_input": {
+                    "command": "foreach ($error in $errors) { $error.ErrorId } | Sort-Object -Unique",
+                    "timeout": 20,
+                },
+            }
+            env = dict(os.environ)
+            env["PYTHONPATH"] = str(adapter)
+            completed = subprocess.run(
+                [
+                    sys.executable,
+                    "-B",
+                    "-m",
+                    "workbuddy_harness.hook_runner",
+                    "--stage",
+                    "pre_tool",
+                    "--executor-environment",
+                    "powershell",
+                    "--rewrite-protocol",
+                    "codex_allow_updated_input",
+                ],
+                cwd=adapter,
+                env=env,
+                input=json.dumps(payload, ensure_ascii=False),
+                text=True,
+                encoding="utf-8",
+                errors="strict",
+                capture_output=True,
+                check=False,
+            )
+            self.assertEqual(0, completed.returncode, completed.stderr)
+            result = json.loads(completed.stdout)
+            hook = result["hookSpecificOutput"]
+            self.assertEqual("allow", hook["permissionDecision"])
+            self.assertIn("$(foreach", hook["updatedInput"]["command"])
+            self.assertEqual(20, hook["updatedInput"]["timeout"])
+        finally:
+            shutil.rmtree(output, ignore_errors=True)
+            try:
+                temp_root.rmdir()
+            except OSError:
+                pass
 
     def test_agent_loop_contract_exposes_unconsumed_route_actions(self) -> None:
         route = intake_router(
@@ -94,10 +159,17 @@ class DeploymentProfileTests(unittest.TestCase):
         self.assertIn("external_research", contract["action_ids"])
         self.assertIn("memory_operation", contract["action_ids"])
         self.assertIn("skill_audit", contract["action_ids"])
-        output = _context_output(route)
+        output = handle_user_prompt_event(
+            {
+                "hook_event_name": "UserPromptSubmit",
+                "prompt": "查找最新官方资料，更新当前对话记忆，并审计技能安全和可合并项",
+            },
+            policy=self.policy,
+            cwd=str(ADAPTER_ROOT),
+        )
         context = output["hookSpecificOutput"]["additionalContext"]
-        self.assertIn("loop_consumer=required", context)
-        self.assertIn("loop_actions=", context)
+        self.assertIn('"agent_loop_action_ids"', context)
+        self.assertIn('"task_execution_owner":"host_model_agent"', context)
 
     def test_workbuddy_routes_active_lane_context_to_the_model_agent_loop(self) -> None:
         temp_root = ADAPTER_ROOT / ".test-tmp"

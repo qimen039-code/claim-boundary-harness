@@ -37,6 +37,18 @@ def test_new_memory_and_reading_contracts_are_indexed() -> None:
     assert "TC-036" in test_cases
 
 
+def test_agent_self_deployment_map_is_required_and_machine_visible() -> None:
+    relative = "docs/agent-deployment-map.md"
+    assert (ROOT / relative).is_file()
+    assert relative in read_text("AGENTS.md")
+    assert relative in read_text("README.md")
+    assert relative in read_text("README_zh.md")
+    assert relative in read_text("tools/cbh_doctor.py")
+    profiles = json.loads(read_text("integrations/workbuddy-python-runtime/deployment-profiles.json"))
+    for profile in profiles["profiles"].values():
+        assert profile["required_predeployment_read"] == relative
+
+
 def test_bilingual_readme_and_local_overlay_template_are_present() -> None:
     readme = read_text("README.md")
     readme_zh = read_text("README_zh.md")
@@ -45,9 +57,9 @@ def test_bilingual_readme_and_local_overlay_template_are_present() -> None:
 
     assert "[中文版](./README_zh.md) | English" in readme
     assert "[English](./README.md) | 中文" in readme_zh
-    assert "v1.0.0" in readme
-    assert "v1.0.0" in readme_zh
-    assert read_text("VERSION").strip() == "v1.0.0"
+    assert "Current main-branch version: `v1.1.0` (not yet tagged)." in readme
+    assert "当前 main 分支版本：`v1.1.0`（尚未创建 tag）。" in readme_zh
+    assert read_text("VERSION").strip() == "v1.1.0"
     assert overlay["schema"] == "cbh.project_lane_overlay.v1"
     assert policy["local_project_lane_overlay"]["default_filename"] == "embedded_harness_policy.local.json"
     assert "embedded_harness_policy.local.json" in readme
@@ -77,14 +89,14 @@ def test_citation_notice_are_visible_and_public_report_draft_is_absent() -> None
     assert "NOTICE.md" in readme
     assert "10.5281/zenodo.21189879" in readme
     assert "./docs/assets/doi-badge.svg" in readme
-    assert "Canonical current release:" in readme
-    assert "Earlier tags are historical snapshots" in readme
+    assert "Latest tagged GitHub release:" in readme
+    assert "Earlier tags remain historical snapshots" in readme
     assert "claim-boundary-harness-technical-report.md" not in readme
     assert "CITATION.cff" in readme_zh
     assert "NOTICE.md" in readme_zh
     assert "10.5281/zenodo.21189879" in readme_zh
     assert "./docs/assets/doi-badge.svg" in readme_zh
-    assert "当前规范版本：" in readme_zh
+    assert "最新已打 tag 的 GitHub Release：" in readme_zh
     assert "更早的 tag 仅为历史快照" in readme_zh
     assert "claim-boundary-harness-technical-report.md" not in readme_zh
     assert "title: \"Claim Boundary Harness: A Model-Facing Capability Harness for LLM Agent Workflows\"" in citation
@@ -100,7 +112,8 @@ def test_citation_notice_are_visible_and_public_report_draft_is_absent() -> None
     assert "## v1.0.0 - 2026-07-20" in changelog
     stale_version = "v0." + "14.0"
     assert stale_version not in changelog
-    assert manifest["harness_version"] == "v1.0.0"
+    assert manifest["harness_version"] == "v1.1.0"
+    assert "Target main-branch version: `v1.1.0` (not yet tagged)." in changelog
 
 
 def test_memory_feedback_loop_trial_is_optional_and_template_visible() -> None:

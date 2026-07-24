@@ -88,18 +88,17 @@ Memory meta index contract:
 - Recommended index fields: lane, scope, category, record type, status, retrieval terms, applies-when, does-not-apply-when, linked modules, linked records, and last-reviewed marker.
 - Default retrieval budget: one meta index, one category or point index, and at most two payload records unless the task explicitly asks for full audit, cleanup, migration, or broad historical review.
 
-## Selective Runtime Enforcement Surfaces
+## Nonblocking Behavior Correction Surfaces
 
-Use these entry points when an adopting runtime supports hooks, wrappers, or tool-call interception:
+Use these entry points only for a current candidate with a mechanically recognizable recurrence shape:
 
 ```text
-pre-task hook -> harness_runtime_enforcer.ps1
-tool-call proxy -> harness_tool_proxy.ps1
-command wrapper -> harness_task_wrapper.ps1
-final-answer gate -> harness_runtime_enforcer.ps1 -Stage final
+profile receipt -> behavior_correction_gate.py
+verified input rewrite -> behavior_correction_hook.py
+task-local memory/action binding -> harness_action_consumer.py
 ```
 
-These gates are hard only when the caller invokes the runtime entry scripts. They block R5 without human confirmation, low-confidence routes without boundary review, missing constitution entry for nontrivial tasks, high-risk tool calls without confirmation, long-term memory writes without explicit request, and strong final claims without claim schema. Ordinary tool calls stay on the advisory control plane.
+Accepted deterministic rewrites return `allow + updatedInput`; ambiguity, verifier failure, unsupported host protocol, or no match leaves the event unchanged. The layer never denies, freezes, grants permission, or stores approval state.
 
 ## Source-Grounded Search And Learning Workflow
 

@@ -1,7 +1,7 @@
 {
   "schema_version": "0.1",
   "manifest_type": "agent_memory_lane_compatibility_manifest",
-  "harness_version": "v1.0.0",
+  "harness_version": "v1.1.0",
   "adapter": {
     "name": "example-adapter",
     "version": "unverified",
@@ -27,10 +27,9 @@
   },
   "capability_consumption": {
     "deployment_mode": "unverified",
-    "hook_enforced_when_wired": [
-      "r5_pre_tool_deny",
-      "memory_path_isolation_on_wired_tool_paths",
-      "final_claim_phrase_gate_when_stop_hook_is_wired"
+    "optional_nonblocking_correction_when_verified": [
+      "mechanically_matched_current_input_rewrite",
+      "allow_updated_input_or_silent_noop"
     ],
     "prompt_context_only_without_host_loop": [
       "memory_mode",
@@ -62,9 +61,9 @@
       "supported": "unverified",
       "matcher_scope": "unverified",
       "recommended_initial_matcher": "command_tools_only",
-      "denial_payload_schema": "unverified",
-      "blocked_exit_code": 2,
-      "host_honors_denial": "unverified"
+      "rewrite_protocol": "unverified",
+      "host_permission_semantics_verified": "unverified",
+      "default_registration": false
     },
     "post_tool": {
       "event_name": "unverified",
@@ -77,9 +76,9 @@
       "writes_checkpoint_before_context_loss": "unverified"
     },
     "stop": {
-      "event_name": "unverified",
-      "supported": "unverified",
-      "runs_final_boundary_review": "unverified"
+      "event_name": "not_registered_by_cbh",
+      "supported": false,
+      "runs_final_boundary_review": false
     },
     "final_claim": {
       "event_name": "unverified",
@@ -276,7 +275,8 @@
   "minimum_acceptance": {
     "active_routing_before_planning": "unverified",
     "allowed_action_passes": "unverified",
-    "blocked_action_stops_before_execution": "unverified",
+    "unmatched_or_unverified_correction_is_noop": "unverified",
+    "host_native_authorization_remains_authoritative": "unverified",
     "non_command_file_content_does_not_trigger_command_gate": "unverified",
     "final_strong_claim_blocks_or_downgrades": "unverified",
     "recording_transcript_routes_before_planning": "unverified",

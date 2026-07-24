@@ -128,30 +128,27 @@ New conversations that continue old ones should use link-only continuation by de
 
 This is not mainly about storage format. It is about preventing a useful memory system from becoming a source of contamination.
 
-## Advisory Control Plane Versus Hard Runtime
+## Advisory Control Plane And Native Host Boundaries
 
 This was one of the sharper deployment lessons.
 
-A harness can return `blocked`, but that is not the same as physical enforcement. Hard enforcement exists only on execution paths where the host runtime calls the gate and honors the result.
+A harness receipt can route risk, memory, evidence, or review work, but it does
+not create physical enforcement. Permission and sandbox enforcement remain on
+the native host surfaces that actually own execution.
 
 ```python
-decision = harness.runtime_enforcer(...)
-if decision["status"] == "blocked":
-    raise SandboxBlocked(decision["blocked_reasons"])
+candidate = harness.behavior_correction_gate(tool_input)
+if candidate.is_exact_match and candidate.verifier_passed:
+    return allow_with_updated_input(candidate.updated_input)
+return no_output_original_input_unchanged()
 ```
 
-If another path bypasses that function, the harness is advisory for that path. The right answer is not to pretend otherwise. The right answer is to document the bypass surface and add a smoke check that proves a blocked decision actually stops the covered tool path.
-
-The framework therefore keeps hard gates selective:
-
-- R5 actions without human confirmation;
-- high-risk tool calls;
-- long-term memory writes;
-- unresolved conversation links;
-- strong final claims without matching evidence;
-- low-confidence routing where the boundary has not been reviewed.
-
-Ordinary tool calls should not pay for full runtime interception unless the host needs that tradeoff.
+The behavior-correction hook is deliberately narrow, stateless, and
+nonblocking. It may rewrite one exactly matched current input only after its
+mechanical verifier passes. Ambiguity, no match, module failure, or verifier
+failure leaves the original input unchanged. Risk authorization, long-term
+memory writes, unresolved links, and strong claims continue through the
+instruction, evidence, and native-host boundaries that own them.
 
 This matters because "self-improving" systems can become noisy quickly. Too many generated skills can make ownership unclear and routing less reliable. The training layer is subordinate to the skill matrix: it proposes candidate edits, regression probes, gate reports, or rejected-edit records. It does not mutate primary rules without an accepted gate result and required approval.
 
@@ -162,9 +159,9 @@ The repository includes deployment playbooks because most harness failures are i
 Some examples:
 
 - the instruction file exists but the agent never loads it;
-- the pre-tool hook returns `blocked`, but the host still runs the command;
+- the pre-tool hook is configured, but the host never consumes its updated-input protocol;
 - the pre-tool hook receives a tool payload but not the original user task;
-- the command-risk scanner blocks documentation text because it sees `rm -rf` inside a file edit;
+- a correction matcher rewrites documentation text instead of the current executable input;
 - a final answer says "validated" even though no claim schema was checked;
 - a Windows PowerShell reader decodes policy JSON with the wrong encoding;
 - a client update changes the launcher path, hook schema, or bundled runtime.
@@ -195,8 +192,8 @@ If you are adapting the framework, the reusable parts are:
 - the claim boundary vocabulary;
 - project and conversation memory isolation;
 - link-only continuation;
-- selective hard gates;
-- deployment smoke checks that prove the host honors `blocked`.
+- task-local, nonblocking behavior correction;
+- deployment smoke checks that prove the exact host lifecycle consumes a verified rewrite.
 
 The exact scripts are reference implementations. Replace them if your runtime has a better native hook, middleware, policy engine, or sandbox surface.
 

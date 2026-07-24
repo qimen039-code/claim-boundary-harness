@@ -179,7 +179,7 @@ enforcement and what has actually been tested.
 | Memory write granularity profile | Schema/lint convention requiring context-complete facts and hypotheses before durable reuse | Partial; post-run or workflow-level unless wired before memory writes |
 | Memory feedback loop | Route/decision convention plus optional `feedback_loop` field inside fact, hypothesis, CE, or decision records for memory -> prediction -> verification -> calibration | Partial; can be workflow-enforced by local scripts or instructions, but is not a host hard gate |
 | Raw session ledger | Not implemented in the reviewed demo | Missing |
-| R5 single-event permit | Doubao user confirmation may block or allow some destructive commands | Host-owned confirmation exists for the tested delete path; no replay-protected Claim Boundary Harness permit |
+| R5 host confirmation | Doubao user confirmation may block or allow some destructive commands | Host-owned confirmation exists for the tested delete path; CBH correction does not carry permission |
 | External research gate | Evidence-tier labels and output contract | Partial; no automatic authority/GitHub search trigger |
 | Observation-scope / causal-attribution gates | Instruction plus lint/review convention for global trend, historical comparison, and causal-overclaim wording | Partial; output-side unless a local adapter wires pre-display review |
 | Claim-artifact renderer/checker | Init/derive/lint/repair scripts | Partial; no render payload verifier |

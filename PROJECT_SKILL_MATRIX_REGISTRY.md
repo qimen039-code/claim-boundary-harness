@@ -53,18 +53,17 @@ Governance-layer updates, dynamic-evaluation rule changes, routing-rule changes,
 
 Trigger terms should be promoted only when they represent a durable routing class: recurring, cross-task, boundary-changing, and not already covered by an existing generic edit/report/search/memory rule. One-off wording for a single documentation request should stay in the task receipt or changelog, not in the long-lived policy.
 
-## Selective Runtime Enforcement Layer
+## Nonblocking Behavior Correction Layer
 
-Routing, dynamic evaluation, and constitution governance should be enforced through hook/wrapper/tool-proxy entry points when a runtime can call them:
+Known mechanically recognizable recurrence shapes may be reviewed immediately before a tool action:
 
 ```text
-pre-task hook -> harness_runtime_enforcer.ps1
-tool-call proxy -> harness_tool_proxy.ps1
-command wrapper -> harness_task_wrapper.ps1
-final-answer gate -> harness_runtime_enforcer.ps1 -Stage final
+profile inventory / advisory receipt -> behavior_correction_gate.py
+verified current-input rewrite -> behavior_correction_hook.py
+memory-selected task-local receipt -> harness_action_consumer.py
 ```
 
-Hard-stop states: R5 without human confirmation, low-confidence route without boundary review, missing constitution entry for a nontrivial task, high-risk tool call without confirmation, long-term memory write without explicit request, and strong final claim without claim schema. Ordinary tool calls stay under the advisory control plane. If a client cannot call these scripts before execution, the layer remains advisory for that client.
+Only an accepted deterministic profile may return `allow + updatedInput`; ambiguity, verifier failure, unavailable host protocol, or no match is a silent no-op. This layer does not own authorization or denial.
 
 ## Mandatory Search And Learning Decision Matrix
 

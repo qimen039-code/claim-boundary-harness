@@ -2,7 +2,7 @@
 
 The governance contract is the machine-readable boundary between an agent runtime and Claim Boundary Harness.
 
-It does not replace hooks, wrappers, or tool proxies. It declares what the runtime must decide before deeper work starts, which stages are expected to call the harness, and which outputs the runtime must honor.
+It does not replace host permissions or sandboxing. It declares what the model-facing runtime should decide before deeper work starts and which bounded outputs it can consume.
 
 ## Purpose
 
@@ -10,9 +10,9 @@ Use this contract to prevent three common failures:
 
 - the agent starts work before it understands risk, memory, search, or claim boundaries;
 - a runtime says a hook is installed, but the hook is not on the action path;
-- a blocked result is produced but ignored by the host.
+- a reference correction protocol is mistaken for execution authority.
 
-This contract is intentionally small. It is a leverage layer, not a new runtime framework. It should make the existing router, memory gate, search gate, claim gate, and selective hard gates easier to wire and verify without making ordinary conversations or read-only tasks more expensive.
+This contract is intentionally small. It is a leverage layer, not a new runtime framework. It should make the existing router, memory gate, search gate, claim gate, and optional correction receipt easier to wire and verify without making ordinary conversations or read-only tasks more expensive.
 
 ## Minimal Contract Shape
 
@@ -20,7 +20,7 @@ This contract is intentionally small. It is a leverage layer, not a new runtime 
 contract metadata
 -> supported stages
 -> required decisions
--> denial semantics
+-> authorization boundary and optional rewrite semantics
 -> payload safety boundary
 -> evidence and claim boundary
 -> cost profile

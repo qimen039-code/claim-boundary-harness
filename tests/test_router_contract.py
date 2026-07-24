@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import hashlib
 import os
 import json
 import shutil
@@ -80,22 +79,6 @@ def run_router_with_cwd(task: str, cwd: Path, *, env: dict[str, str] | None = No
 
 def contains(items, expected: str) -> bool:
     return expected in list(items or [])
-
-
-def permit_json(task_text: str, tool_text: str, *, permit_id: str = "PERMIT-test") -> str:
-    payload = {
-        "schema": "cbh.r5_human_confirmation_permit.v1",
-        "permit_id": permit_id,
-        "status": "active",
-        "scope": "single_event",
-        "risk_level": "R5",
-        "confirmed_by": "human",
-        "confirmed_at_utc": "2026-06-25T00:00:00Z",
-        "expires_at_utc": "2099-01-01T00:00:00Z",
-        "task_sha256": hashlib.sha256(task_text.encode("utf-8")).hexdigest(),
-        "tool_sha256": hashlib.sha256(tool_text.encode("utf-8")).hexdigest(),
-    }
-    return json.dumps(payload, ensure_ascii=False, separators=(",", ":"))
 
 
 ROUTER_CASES = [
@@ -467,7 +450,7 @@ ROUTER_CASES = [
     },
     {
         "id": "TC-009q",
-        "task": "这个全局问题需要从当前事件发散分析后续可能出现的同类事件，并进行预防，避免再只照顾局部",
+        "task": "建立反馈闭环；这个全局问题需要从当前事件发散分析后续可能出现的同类事件，并进行预防，避免再只照顾局部",
         "gates": ["global_task_context_gate", "feedback_loop_gate"],
         "expect": {
             "feedback_loop_profile": "explicit_cycle",
@@ -478,7 +461,7 @@ ROUTER_CASES = [
         },
         "expect_trigger_contains": {
             "global_task_context_gate": "全局问题",
-            "feedback_loop": "后续可能",
+            "feedback_loop": "反馈闭环",
         },
     },
     {
@@ -823,7 +806,7 @@ def test_router_skill_audit_and_first_principles_survive_long_middle_distractors
 
 
 def test_router_combines_global_context_and_feedback_prevention() -> None:
-    payload = run_router("这个全局问题需要从当前事件发散分析后续可能出现的同类事件，并进行预防，避免再只照顾局部")
+    payload = run_router("建立反馈闭环；这个全局问题需要从当前事件发散分析后续可能出现的同类事件，并进行预防，避免再只照顾局部")
     assert contains(payload.get("required_gates"), "global_task_context_gate")
     assert contains(payload.get("required_gates"), "feedback_loop_gate")
     assert contains(payload.get("semantic_ambiguity"), "global_task_context_gate")
@@ -928,6 +911,14 @@ def test_router_exposes_active_conversation_source_for_compound_memory_retrieval
     assert contains(payload["action_binding_ids"], "retrieve_matching_memory")
 
 
+def test_router_binds_nonblocking_correction_lifecycle_for_tool_surface() -> None:
+    payload = run_router("Use shell_command to inspect these files and summarize the result")
+
+    assert payload["correction_lifecycle_profile"] == "surface_preflight"
+    assert contains(payload["module_need"], "correction_lifecycle")
+    assert contains(payload["action_binding_ids"], "prepare_task_local_correction_bundle")
+
+
 def test_router_marks_project_long_term_memory_write_as_write_mode(tmp_path: Path) -> None:
     project = tmp_path / "EXAMPLE_PROJECT"
     memory_bank = project / "memory-bank"
@@ -954,150 +945,6 @@ def test_router_marks_project_long_term_memory_write_as_write_mode(tmp_path: Pat
     assert payload["memory_lane"] == "current_project"
     assert payload["memory_mode"] == "write"
     assert payload["record_intent"] == "explicit_user_request"
-
-
-def test_tool_proxy_blocks_high_risk_command() -> None:
-    if not POWERSHELL:
-        pytest.skip("PowerShell is not available on PATH")
-    code, payload = run_json(
-        [
-            POWERSHELL,
-            "-NoProfile",
-            "-ExecutionPolicy",
-            "Bypass",
-            "-File",
-            "skills/embedded-harness/harness_tool_proxy.ps1",
-            "-Stage",
-            "pre_tool",
-            "-TaskText",
-            "commit changes",
-            "-ToolName",
-            "shell_command",
-            "-ToolInputJson",
-            '{"command":"git commit -am update"}',
-            "-Cwd",
-            str(ROOT),
-            "-ConstitutionReviewed",
-        ],
-        allowed_exit_codes={2},
-    )
-    assert code == 2
-    assert payload["status"] == "blocked"
-    assert "tool_call_requires_human_confirmation" in payload["blocked_reasons"]
-
-
-def test_tool_proxy_allows_exact_single_event_confirmation_permit(tmp_path: Path) -> None:
-    if not POWERSHELL:
-        pytest.skip("PowerShell is not available on PATH")
-    task_text = "commit changes"
-    tool_text = "shell_command\ngit commit -am update"
-    code, payload = run_json(
-        [
-            POWERSHELL,
-            "-NoProfile",
-            "-ExecutionPolicy",
-            "Bypass",
-            "-File",
-            "skills/embedded-harness/harness_tool_proxy.ps1",
-            "-Stage",
-            "pre_tool",
-            "-TaskText",
-            task_text,
-            "-ToolName",
-            "shell_command",
-            "-ToolInputJson",
-            '{"command":"git commit -am update"}',
-            "-Cwd",
-            str(ROOT),
-            "-ConstitutionReviewed",
-            "-HumanConfirmationPermitJson",
-            permit_json(task_text, tool_text),
-            "-HumanConfirmationPermitUseLedgerPath",
-            str(tmp_path / "r5-permit-uses.jsonl"),
-        ],
-    )
-    assert code == 0
-    assert payload["status"] == "pass"
-    assert payload["effective_human_confirmed"] is True
-    assert payload["human_confirmation_permit"]["status"] == "pass"
-    assert payload["human_confirmation_permit"]["consumed"] is True
-
-
-def test_tool_proxy_blocks_replayed_single_event_confirmation_permit(tmp_path: Path) -> None:
-    if not POWERSHELL:
-        pytest.skip("PowerShell is not available on PATH")
-    task_text = "commit changes"
-    tool_text = "shell_command\ngit commit -am update"
-    permit = permit_json(task_text, tool_text, permit_id="PERMIT-replay")
-    ledger = tmp_path / "r5-permit-uses.jsonl"
-    base_args = [
-        POWERSHELL,
-        "-NoProfile",
-        "-ExecutionPolicy",
-        "Bypass",
-        "-File",
-        "skills/embedded-harness/harness_tool_proxy.ps1",
-        "-Stage",
-        "pre_tool",
-        "-TaskText",
-        task_text,
-        "-ToolName",
-        "shell_command",
-        "-ToolInputJson",
-        '{"command":"git commit -am update"}',
-        "-Cwd",
-        str(ROOT),
-        "-ConstitutionReviewed",
-        "-HumanConfirmationPermitJson",
-        permit,
-        "-HumanConfirmationPermitUseLedgerPath",
-        str(ledger),
-    ]
-    code, payload = run_json(base_args)
-    assert code == 0
-    assert payload["human_confirmation_permit"]["status"] == "pass"
-    assert payload["human_confirmation_permit"]["consumed"] is True
-
-    code, payload = run_json(base_args, allowed_exit_codes={2})
-    assert code == 2
-    assert payload["status"] == "blocked"
-    assert "permit_already_used" in payload["human_confirmation_permit"]["issues"]
-    assert "tool_call_requires_human_confirmation" in payload["blocked_reasons"]
-
-
-def test_tool_proxy_blocks_mismatched_single_event_confirmation_permit() -> None:
-    if not POWERSHELL:
-        pytest.skip("PowerShell is not available on PATH")
-    task_text = "commit changes"
-    wrong_tool_text = "shell_command\ngit push"
-    code, payload = run_json(
-        [
-            POWERSHELL,
-            "-NoProfile",
-            "-ExecutionPolicy",
-            "Bypass",
-            "-File",
-            "skills/embedded-harness/harness_tool_proxy.ps1",
-            "-Stage",
-            "pre_tool",
-            "-TaskText",
-            task_text,
-            "-ToolName",
-            "shell_command",
-            "-ToolInputJson",
-            '{"command":"git commit -am update"}',
-            "-Cwd",
-            str(ROOT),
-            "-ConstitutionReviewed",
-            "-HumanConfirmationPermitJson",
-            permit_json(task_text, wrong_tool_text, permit_id="PERMIT-wrong-tool"),
-        ],
-        allowed_exit_codes={2},
-    )
-    assert code == 2
-    assert payload["status"] == "blocked"
-    assert "tool_hash_mismatch" in payload["human_confirmation_permit"]["issues"]
-    assert "tool_call_requires_human_confirmation" in payload["blocked_reasons"]
 
 
 def test_router_requires_external_evidence_for_uncertain_design_discussion() -> None:
@@ -1145,93 +992,6 @@ def test_powershell_router_rejects_sibling_project_prefix() -> None:
         ]
     )
     assert payload["project_lane"] == "PROJECTLESS"
-
-
-def test_powershell_runtime_preserves_original_task_text_and_risk_override() -> None:
-    if not POWERSHELL:
-        pytest.skip("PowerShell is not available on PATH")
-    code, payload = run_json(
-        [
-            POWERSHELL,
-            "-NoProfile",
-            "-ExecutionPolicy",
-            "Bypass",
-            "-File",
-            "skills/embedded-harness/harness_runtime_enforcer.ps1",
-            "-Stage",
-            "pre_tool",
-            "-TaskText",
-            "R5",
-            "-OriginalTaskText",
-            "delete stale files after review",
-            "-ToolName",
-            "shell_command",
-            "-ToolInputJson",
-            '{"command":"echo ok"}',
-            "-Cwd",
-            str(ROOT),
-            "-ConstitutionReviewed",
-        ],
-        allowed_exit_codes={2},
-    )
-    assert code == 2
-    assert payload["route"]["risk_level"] == "R5"
-    assert payload["task_text_for_route"] == "delete stale files after review"
-    assert "human_confirmation_required_for_R5" in payload["blocked_reasons"]
-
-
-def test_powershell_runtime_final_does_not_reapply_pre_execution_gates() -> None:
-    if not POWERSHELL:
-        pytest.skip("PowerShell is not available on PATH")
-    code, payload = run_json(
-        [
-            POWERSHELL,
-            "-NoProfile",
-            "-ExecutionPolicy",
-            "Bypass",
-            "-File",
-            "skills/embedded-harness/harness_runtime_enforcer.ps1",
-            "-Stage",
-            "final",
-            "-TaskText",
-            "R5",
-            "-FinalText",
-            "I inspected the files and found no matching errors.",
-            "-Cwd",
-            str(ROOT),
-        ]
-    )
-    assert code == 0
-    assert payload["status"] == "pass"
-    assert payload["blocked_reasons"] == []
-
-
-def test_powershell_runtime_ignores_non_command_tool_content_for_hard_patterns() -> None:
-    if not POWERSHELL:
-        pytest.skip("PowerShell is not available on PATH")
-    _, payload = run_json(
-        [
-            POWERSHELL,
-            "-NoProfile",
-            "-ExecutionPolicy",
-            "Bypass",
-            "-File",
-            "skills/embedded-harness/harness_runtime_enforcer.ps1",
-            "-Stage",
-            "pre_tool",
-            "-TaskText",
-            "inspect repository docs",
-            "-ToolName",
-            "Write",
-            "-ToolInputJson",
-            '{"file_path":"notes.md","content":"Document delete, permission, and rm -rf as examples only."}',
-            "-Cwd",
-            str(ROOT),
-            "-ConstitutionReviewed",
-        ]
-    )
-    assert payload["status"] == "pass"
-    assert payload["tool_hard_hits"] == []
 
 
 def test_powershell_claim_schema_requires_ref_and_strong_evidence() -> None:

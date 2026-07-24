@@ -1,387 +1,116 @@
-# WorkBuddy Integration Example
+# WorkBuddy Integration
 
-This repository includes an experimental WorkBuddy-oriented Python runtime adapter:
+The public WorkBuddy adapter is a reference bridge for model-facing routing,
+bounded context, and optional nonblocking behavior correction. It does not
+patch or auto-register itself in the installed WorkBuddy client.
 
-```text
-integrations/workbuddy-python-runtime
-```
+## Capability Boundary
 
-Use it when the host can call Python functions inside the model agent control
-flow instead of launching a shell script for every decision. WorkBuddy's model
-agent remains the task executor; the adapter supplies routes, bounded context,
-and narrow checks.
-
-## Boundary
-
-The adapter is not automatically installed into WorkBuddy and does not patch the installed WorkBuddy application. It is a reference implementation of the decision layer:
-
-- `intake_router`;
-- `memory_isolation_gate`;
-- `claim_schema_verifier`;
-- `runtime_enforcer`.
-
-The router also emits `memory_source_hints` and explicit action bindings. The
-loop-integration profile includes `harness_action_consumer.py`, which can turn
-an exact active-lane match into provenance-bearing `additional_context` for the
-model. It does not plan or execute the user's task.
-
-Hard enforcement requires WorkBuddy or a WorkBuddy-compatible host to call the adapter immediately before action execution and to stop when it returns `status: blocked`.
-
-If the host still has any execution path that bypasses this function or hook, enforcement for that path is advisory.
-
-## Choose A Deployment Profile First
-
-Do not deploy the repository as one undifferentiated package. Resolve a named
-profile from
-`integrations/workbuddy-python-runtime/deployment-profiles.json` and stage it
-with `scripts/build-deployment-bundle.py`. `workbuddy-hook-minimal` excludes
-papers, articles, research material, examples, changelog content, and tests.
-Those files are useful to maintainers and reviewers but are not runtime
-dependencies.
-
-Use `workbuddy-loop-integration-sdk` only when the adopting host will call
-`build_agent_loop_contract(route)` and consume every required action in the
-real Agent Loop. The generated `cbh-deployment-receipt.json` is the deployment
-evidence; repository presence alone is not deployment evidence.
-
-## Capability Status In Hook-Only Mode
-
-| Capability | Hook-only status | Full activation requirement |
+| Capability | Public status | Activation requirement |
 | --- | --- | --- |
-| R5 command stop | hard on matched `PreToolUse` paths | host honors `permissionDecision: deny` |
-| Memory path isolation | hard on wired tool paths | tool payload exposes the path and passes through the hook |
-| Strong-claim phrase gate | advisory by default; conditional hard gate only after compatibility validation | host proves no user-prompt injection, no partial stream fragment, and correct feedback attribution |
-| `memory_mode`, `memory_source_hints`, `external_need` | advisory context | model Agent Loop calls memory/search consumers and feeds results back to the model |
-| feedback, skill lifecycle, tool discovery | advisory context | Agent Loop calls the matching host-owned surfaces |
-| first-principles and skill-audit profiles | advisory context | Agent Loop performs and receipts the routed review |
+| `UserPromptSubmit` route context | repository-tested advisory path | target WorkBuddy version can pass prompt JSON to the wrapper |
+| Agent-loop action contract | repository-tested schema | host loop consumes every action and returns a receipt |
+| Memory context selection | repository-tested reference consumer | host gives selected context back to the model before planning |
+| `PreToolUse` current-input correction | optional, disabled by default | exact host rewrite and permission semantics verified |
+| R5 authorization and sensitive actions | outside CBH correction | governing instructions plus host-native permission/security boundary |
+| `Stop` or final-answer interception | not registered by CBH | not part of this adapter |
 
-The prompt hook writes a `cbh.workbuddy_agent_loop_contract.v1` object into
-`workbuddy_hook_state.json` and emits compact `loop_actions`. This makes
-unconsumed fields visible and testable, but it does not convert stock
-WorkBuddy into a full-loop integration. Do not report full route-contract
-execution until `validate_agent_loop_receipt(...)` passes on a host-owned
-receipt.
+The WorkBuddy model agent remains the task owner. CBH does not become a
+standalone executor.
 
-## Recommended WorkBuddy Hook Deployment
+## Deployment
 
-The safe public default is a two-layer hook chain:
-
-```text
-UserPromptSubmit hook
--> workbuddy_harness.hook_runner stores the original prompt and route context
-PreToolUse hook for command tools
--> workbuddy_harness.hook_runner calls runtime_enforcer
--> blocked decision returns permissionDecision: deny and exits with code 2
-```
-
-That gives the harness a real pre-tool interception point without editing WorkBuddy internals.
-
-`Stop` is an opt-in third layer only after the exact host/version passes the compatibility checks described below. Until then, final claims stay advisory/self-downgrading.
-
-`UserPromptSubmit` is required for active routing. If only `PreToolUse` is wired, the runtime can still block high-risk tools, but the agent may not preserve the original task state before planning. Ordinary low-risk prompt-stage classifications stay silent; boundary-changing classifications inject minimal context.
-
-Prefer a command-tool matcher such as `Bash|PowerShell` for the first hard `PreToolUse` deployment. A broad `*` matcher can pass file-edit payloads through the hard command gate; documentation or patch content may contain words such as `delete`, `permission`, or `rm -rf` without being an attempted command. If you want to gate file tools too, add a separate file-tool policy that understands that tool's schema instead of reusing command-pattern matching on raw file content.
-
-### 1. Place The Adapter In The Workspace
-
-Keep this directory inside the adopting workspace:
-
-```text
-integrations/workbuddy-python-runtime
-```
-
-Keep or create a root instruction file such as:
-
-```text
-AGENTS.md
-```
-
-The runtime enforcer checks for this constitution entry on nontrivial work unless you explicitly pass `--constitution-reviewed`.
-
-### 2. Configure WorkBuddy Hooks
-
-Add hook commands through the hook/settings surface supported by your WorkBuddy version. Some WorkBuddy/CodeBuddy builds run command hooks through a Bash-compatible shell; for those, use the included Bash wrapper. On Windows builds where `bash` is not available, use the included `cmd.exe` wrapper instead.
-
-Example project-level hook shape:
-
-```json
-{
-  "hooks": {
-    "UserPromptSubmit": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "AGENT_MEMORY_LANE_WORKBUDDY_ADAPTER_ROOT=\"$CODEBUDDY_PROJECT_DIR/integrations/workbuddy-python-runtime\" bash \"$CODEBUDDY_PROJECT_DIR/integrations/workbuddy-python-runtime/scripts/workbuddy-hook.sh\" --stage user_prompt --constitution-path \"$CODEBUDDY_PROJECT_DIR/AGENTS.md\" --log-dir \"$CODEBUDDY_PROJECT_DIR/.harness-logs\""
-          }
-        ]
-      }
-    ],
-    "PreToolUse": [
-      {
-        "matcher": "Bash|PowerShell",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "AGENT_MEMORY_LANE_WORKBUDDY_ADAPTER_ROOT=\"$CODEBUDDY_PROJECT_DIR/integrations/workbuddy-python-runtime\" bash \"$CODEBUDDY_PROJECT_DIR/integrations/workbuddy-python-runtime/scripts/workbuddy-hook.sh\" --stage pre_tool --constitution-path \"$CODEBUDDY_PROJECT_DIR/AGENTS.md\" --log-dir \"$CODEBUDDY_PROJECT_DIR/.harness-logs\""
-          }
-        ]
-      }
-    ]
-  }
-}
-```
-
-If your shell does not expose `python3`, set `PYTHON_BIN=python` in the command. If your WorkBuddy build does not expose `CODEBUDDY_PROJECT_DIR`, replace it with your workspace path. If your WorkBuddy version runs hooks through a different shell, call the module directly with your shell's quoting rules:
+Stage a named profile rather than copying the repository:
 
 ```bash
-python -m workbuddy_harness.hook_runner --stage pre_tool --constitution-path "$CODEBUDDY_PROJECT_DIR/AGENTS.md"
+python integrations/workbuddy-python-runtime/scripts/build-deployment-bundle.py \
+  --profile workbuddy-hook-minimal --output ./cbh-workbuddy-bundle
 ```
 
-Windows `cmd.exe` wrapper shape:
+The generated receipt is deployment evidence for the file set, not proof that
+the client loaded or called the hook.
 
-```json
-{
-  "type": "command",
-  "command": "cmd.exe /c \"\"%CODEBUDDY_PROJECT_DIR%\\integrations\\workbuddy-python-runtime\\scripts\\workbuddy-hook.cmd\" --stage user_prompt --constitution-path \"%CODEBUDDY_PROJECT_DIR%\\AGENTS.md\" --log-dir \"%CODEBUDDY_PROJECT_DIR%\\.harness-logs\"\""
-}
+The safe default registers only `UserPromptSubmit`:
+
+```text
+prompt JSON
+-> workbuddy_harness.hook_runner
+-> compact advisory route context
+-> WorkBuddy model agent plans and executes
 ```
 
-Set `PYTHON_BIN` to the intended Python executable when plain `python` is not the runtime you want.
+## Optional PreToolUse Protocol
 
-Use WorkBuddy's own hook review UI or hook inspection command after editing settings. Some builds may not expose a visible `/hooks` UI; in that case, inspect the documented project or user settings JSON surface for your version and edit it only after the user/operator has approved that configuration change. Hook settings are version-specific, so confirm the exact path and review behavior for your installed WorkBuddy build.
+Do not register this path until the exact WorkBuddy version has been checked.
+When verified, configure both the executor dialect and wire protocol:
 
-The Bash and `cmd.exe` wrappers set `PYTHONUTF8=1` and `PYTHONIOENCODING=utf-8` by default. Keep those settings when routing Chinese prompts or other non-ASCII text through Windows Git Bash or mixed Windows shells.
+```bash
+python -m workbuddy_harness.hook_runner \
+  --stage pre_tool \
+  --executor-environment powershell \
+  --rewrite-protocol codex_allow_updated_input
+```
 
-### 3. Verify The Hard Block
+Only an accepted deterministic profile can return `allow + updatedInput`.
+The current public migration covers the historically recurring PowerShell
+statement-loop pipeline shape and verifies the rewritten candidate with the
+actual PowerShell parser while preserving the command subject, working
+directory, and non-command input fields.
 
-Run the adapter tests:
+No match, ambiguity, parser failure, missing module, invalid input, or
+unsupported environment produces an empty output and exit code `0`. This path
+never emits deny, freezes a task, stores approval state, writes memory, mutates
+policy, or creates a permit.
+
+Because `permissionDecision: allow` may have host-specific permission meaning,
+the target WorkBuddy build must prove that this optional protocol does not
+bypass its native confirmation or sandbox before registration. Otherwise keep
+the adapter in advisory prompt-only mode.
+
+## Full Agent-Loop Integration
+
+Use `workbuddy-loop-integration-sdk` only when the host can call:
+
+- `intake_router(...)`;
+- `build_agent_loop_contract(route)`;
+- `harness_action_consumer.py` or an equivalent bounded context consumer;
+- `validate_agent_loop_receipt(contract, receipt)`.
+
+Route fields such as `memory_source_hints`, `external_need`,
+`feedback_loop_profile`, `skill_lifecycle_profile`, `tool_surface_need`,
+`preferred_call_surface`, `first_principles_profile`, and `skill_audit_profile` are only context until
+the matching host-owned surface consumes them. Do not report full activation
+without a complete consumption receipt.
+
+## Validation
+
+Run repository tests first:
 
 ```bash
 python -m unittest discover -s integrations/workbuddy-python-runtime/tests
+python -m pytest -q tests/test_nonblocking_runtime_contract.py
 ```
 
-Then verify the actual WorkBuddy hook path:
+Then, in a disposable workspace on the exact target WorkBuddy version:
 
-1. Send a normal read-only task and confirm it proceeds.
-2. Try a known high-risk command such as a destructive shell command in a disposable test workspace.
-3. Confirm WorkBuddy stops before the tool executes.
-4. Confirm `.harness-logs/workbuddy_harness_events.jsonl` records the decision.
+1. verify the prompt hook loads and returns advisory context;
+2. verify normal tasks still proceed when the bridge emits no output;
+3. if considering PreToolUse, inspect the real event/tool-input schema;
+4. verify native permission prompts remain authoritative;
+5. replay the known `foreach {...} | ...` regression and confirm the rewritten
+   input preserves all non-command fields;
+6. force a parser or module failure and confirm silent no-op behavior.
 
-The expected hard-block behavior is:
+Client version, event names, matcher syntax, payload shape, and permission
+semantics are drift-sensitive. Re-run these checks after WorkBuddy updates.
 
-```text
-hook event: PreToolUse
-runner output: permissionDecision = deny
-runner exit code: 2
-tool execution: stopped before running
-```
+## Non-Goals
 
-If WorkBuddy logs show the hook ran but the tool still executed, the host is not honoring the hook denial on that path. Treat that path as advisory until the WorkBuddy runtime or settings are corrected.
+- no installed-client patching or plugin auto-registration;
+- no CBH-owned authorization, deny, freeze, permit, or replay ledger;
+- no `Stop` hook or final-answer blocker;
+- no replacement for WorkBuddy's native permission system, sandbox, UAC, or
+  operating-system access control.
 
-### 4. Setup Mode Versus Enforcement Mode
-
-During first-time setup, `--fail-open` can help diagnose Python paths or shell quoting without blocking normal work.
-
-For enforcement, remove `--fail-open`. The default is fail-closed for `PreToolUse`: if the hook runner itself fails, it denies the tool call instead of silently bypassing the harness.
-
-## Validation Status
-
-This adapter has been verified as an in-process Python decision helper and has one local WorkBuddy hook deployment reported as running normally with this package.
-
-This is still not a broad WorkBuddy compatibility certification. It has not been fully tested across WorkBuddy versions, operating systems, permission modes, or production agent loops.
-
-Before relying on it:
-
-1. Confirm the WorkBuddy version and hook or loop surface.
-2. Confirm the adapter loads the intended `embedded_harness_policy.json`.
-3. Run the unit tests.
-4. Wire either the hook runner or the in-process function before action execution.
-5. Test an allowed tool call, an R5 command, a valid then replayed single-event permit, a memory-boundary violation, and a strong-claim final check.
-
-When wiring a pre-tool hook after a pre-task router, preserve the original task text. Passing only a compact field such as `risk_level` can remove the task evidence that the runtime enforcer needs for routing. The Python adapter accepts `original_task_text` and an explicit `risk_level` override for this case.
-
-If event logging is enabled, pass `log_path` for a concrete JSONL file or `log_dir` for a directory. `log_dir` mode writes to `workbuddy_harness_events.jsonl` inside that directory.
-
-The hook runner also stores `workbuddy_hook_state.json` in the log directory so `PreToolUse` can use the original `UserPromptSubmit` text instead of routing from a compact field such as `R5`.
-
-Conversation-memory continuation, merge, archive, and cross-conversation update tasks require a resolved link decision before the first protected tool call. The adapter blocks unresolved cases with `conversation_link_decision_required`; after meta-first lookup and link selection are complete, pass `conversation_link_resolved=True` to the in-process function or `--conversation-link-resolved` to the hook runner.
-
-For R5 or hard-tool confirmation across hook stages, pass
-`human_confirmation_permit_json` / `human_confirmation_permit_path` to the
-in-process function or `--human-confirmation-permit-json` /
-`--human-confirmation-permit-path` to the hook runner. The permit must be a
-`cbh.r5_human_confirmation_permit.v1` object with `scope: single_event`, an
-unexpired timestamp, and task/tool SHA-256 hashes for the exact event. Use
-`human_confirmation_permit_use_ledger_path` or
-`--human-confirmation-permit-use-ledger-path` to pin the replay ledger used to
-block the same permit/task/tool combination after it passes. A broad session
-confirmation should still be treated as unsafe.
-
-### 5. WorkBuddy Human-Confirmation Bridge
-
-The hook runner can turn two human-owned confirmation surfaces into the same
-short-lived, hash-bound `single_event` permit:
-
-1. a WorkBuddy permission or elevation prompt result carried in the exact
-   `PreToolUse` stdin payload; or
-2. the latest explicit user reply in the conversation after the current
-   session has requested R5 confirmation.
-
-For a host-owned permission prompt, prefer the explicit envelope:
-
-```json
-{
-  "cbh_human_confirmation": {
-    "schema": "cbh.workbuddy_human_confirmation.v1",
-    "confirmation_id": "host-generated-unique-id",
-    "status": "confirmed",
-    "scope": "single_event",
-    "confirmed_by": "human",
-    "source": "workbuddy_permission_prompt",
-    "confirmed_at_utc": "2026-07-10T03:35:00Z"
-  }
-}
-```
-
-A compact host adapter may instead provide
-`runtime_human_confirmation: "confirmed"`, `runtime_confirmation_ts`, and a
-stable `runtime_confirmation_id`. Do not derive these fields from model output.
-The host must set them only after a real human accepts the permission prompt.
-Generic fields such as `permissionDecision: allow` are intentionally not
-trusted because they do not prove who made the decision.
-
-For conversation replies, the runner accepts explicit action authorization
-such as `允许执行`, `授权完整清除`, `确认放行`, `approve`, or `go ahead`.
-A bare short reply such as `允许` or `确认` is accepted only when the immediately
-stored session route already required human confirmation. Negated, stale,
-question-shaped, or long explanatory text is not treated as authorization.
-
-The bridge does not create a broad boolean bypass. It waits until the exact
-`PreToolUse` event exists, binds a permit to the stored task text and the
-command-scoped tool text, writes the used record to
-`.harness-logs/r5-permit-uses.jsonl`, and consumes the confirmation after one
-allowed tool event. A second command, a replay, a confirmation older than five
-minutes, or a changed session requires fresh human approval. Use the same
-absolute workspace `--log-dir` for all hook stages; do not exchange approval
-through `%LOCALAPPDATA%` or another account-dependent confirmation file.
-
-The confirmation also satisfies the low-confidence boundary review for that
-one exact event, but it does not resolve unrelated conversation-link or
-constitution gates. It only releases the CBH hook. It does not grant a Windows
-administrator token, bypass UAC, or make an OS-denied command succeed. If the
-allowed command still returns `Access Denied`, use WorkBuddy's real elevation
-flow or give the user a command to run in an administrator-owned terminal.
-
-For nested claim payloads, prefer a file-based claim handoff such as `--ClaimFile` in the PowerShell reference scripts or a JSON file path in custom adapters. Passing deeply nested JSON directly through multiple shells is fragile because each shell has different quote and escape rules.
-
-## Optional Quality Reference And Claim Artifacts
-
-The current WorkBuddy Python adapter implements routing, skill lifecycle
-profile output, memory isolation, hybrid retrieval profile output, memory write
-granularity profile output, R5/runtime gates, conversation-link blocking, and
-final claim checks. It does not implement a full quality-reference layer or a
-claim-artifact renderer.
-
-`hybrid_retrieval_profile` and `memory_write_profile` are decision fields, not
-new host-owned hard gates. A WorkBuddy-compatible loop can use them to choose
-meta-first hybrid lookup and context-complete write shape before opening memory
-payloads or writing capsules. If the host only injects route context but does
-not own memory reads/writes, record those fields as advisory in the compatibility
-manifest.
-
-`feedback_loop` is a router/decision gate plus memory payload convention, not a
-host hard-stop gate. If a WorkBuddy-compatible loop selects or writes CE records,
-memory capsules, paired incidents, or decision records, it can preserve optional
-memory -> prediction -> verification -> calibration fields and require the loop
-when those reusable records are used for recurrence prevention. Predictions
-remain hypotheses until later evidence verifies them, and failed predictions
-should calibrate the record or promote it to a paired incident. Do not create a
-per-task token or consumption ledger only to support this field.
-Use `feedback_loop_profile` to choose cost: `index_hint` and
-`record_candidate` stay compact; `prevention_review` and `explicit_cycle` may
-open selected payloads.
-
-`tool_surface_need`, `tool_discovery_status`, `skill_or_tool_need`,
-`plugin_need`, and `preferred_call_surface` are prompt-stage tool-selection
-fields. A WorkBuddy-compatible loop can use them to discover native skills,
-plugins, connectors, MCP/app tools, or browser surfaces before falling back to
-shell or raw web. They do not create a new hard gate by themselves; they become
-enforceable only if the host owns tool selection. External accounts, logins,
-connectors, and changed execution surfaces still need the host's normal user
-authorization flow.
-
-`skill_lifecycle_profile` is also a decision field. A WorkBuddy-compatible loop
-can use it to keep idle skills listing-only, open an active frame for selected
-skill phases, and write a `skill_release_receipt` when the phase ends. Releasing
-large rendered skill text requires host context management support; without
-that support, keep the profile advisory and preserve the receipt for compaction
-and reactivation.
-
-The optional surfaces below were informed in part by the non-GitHub client artifact reference recorded in [Influences And Attribution](../influences-and-attribution.md): Doubao built-in finance and market-analysis skills inspected locally on 2026-06-25. That reference is source-prior only; this repository does not copy Doubao code, prompts, templates, proprietary schemas, or finance-domain rules.
-
-If an adopting WorkBuddy loop adds those surfaces, keep them separate from hard runtime gates:
-
-- `domain_aesthetic_rubric` records are advisory quality references. They can describe domain-specific output dimensions, bands, examples, and failure modes, but they must not block tool execution by themselves.
-- `domain_source_tier_catalog` records are source-prior evidence metadata. They can tell the agent which source classes are strong, weak, trace-only, or disallowed for a domain, but they are not fact sources.
-- Claim-artifact contracts should pass through file paths or compact JSON objects, not deeply nested shell-escaped JSON. Raw evidence refs, URLs, tool outputs, or artifacts remain the fact sources; summaries and ledgers are navigation.
-- External-model delivery modes should treat the model as a structured JSON filler only when the host has deterministic render or verify scripts. Blocking issues should be path-scoped; advisory issues should not trigger unbounded repair loops.
-
-Record support for these optional surfaces in `templates/adapter-contract/compatibility.manifest.json`. Leave each field `unverified` until the exact WorkBuddy host version, hook payload, and renderer or verifier have been tested.
-
-## Recording And Transcript Payloads
-
-The adapter does not decode raw audio or read private recording files by itself. Recording support means the hook runner can route text that the host already extracted from a recording payload.
-
-If your WorkBuddy build sends recording or audio attachments, make sure the prompt-stage hook payload exposes one of these text fields:
-
-```text
-transcript
-transcription
-caption
-content
-message
-text
-```
-
-The hook runner recursively extracts bounded text from those fields and ignores raw media blobs, bytes, base64 strings, and binary data. Acceptance test:
-
-```text
-Send a voice/recording prompt whose transcript asks for a known R5 action.
-Expected: UserPromptSubmit additionalContext reports `human_confirmation=required`, and PreToolUse later uses the stored transcript as the original task.
-```
-
-If the host only passes a file path or binary audio blob, add a host-side transcription step first. Do not make the harness adapter responsible for opening arbitrary recording files unless your runtime has a separate privacy and permission policy for that.
-
-## Hook Payload Encoding
-
-Some host builds can pass stdin JSON that contains lone UTF-16 surrogate escapes such as `\udcac` or `\udc80`. These are invalid Unicode scalar values after JSON decoding and can break Python output or JSONL logging if they are written with `ensure_ascii=False`.
-
-The hook runner sanitizes those values to `<invalid-surrogate>` before routing, state writes, log writes, and hook output. If you still see errors such as:
-
-```text
-'utf-8' codec can't encode character '\udcac'
-'utf-8' codec can't encode character '\udc80'
-```
-
-check these surfaces in order:
-
-1. The installed hook command is running the current adapter version.
-2. `UserPromptSubmit` and `PreToolUse` both point to the same adapter root.
-3. The hook output is ASCII-escaped or otherwise surrogate-safe.
-4. The log writer sanitizes nested payload values before `json.dumps(... ensure_ascii=False)`.
-5. The WorkBuddy client was restarted or reloaded after hook/settings changes.
-
-## Stop Hook And Final Claims
-
-Do not wire `Stop` in the default WorkBuddy profile. Some builds stream answer text before Stop completes and convert the Stop reason into a synthetic user prompt. That combination can produce both a visible text fragment and a misleading `Stop hook: ...` user message. `suppressOutput` cannot retract already streamed text, and the host protocol intentionally feeds a Stop reason back to the Agent.
-
-Keep final-claim and causal-attribution handling advisory/self-downgrading by default. Opt in to `Stop` only after the exact host build passes all of these checks: no Stop reason is rendered as a user prompt, no partial stream fragment remains after blocking, and hook feedback is never attributed to the user. When enabled, the hook runner calls `runtime_enforcer(stage="final", final_text=...)`; final-stage evaluation is limited to claim and causal-attribution checks and no longer reapplies pre-execution R5, low-confidence, constitution, or permit gates.
-
-If your WorkBuddy build does not let hooks inspect or block final text, keep final-claim and causal-attribution enforcement as self-downgrade rules in the root instruction file and mark that final surface as advisory in the compatibility manifest.
-
-## Smoke Test
-
-```bash
-python -m unittest discover -s integrations/workbuddy-python-runtime/tests
-```
+Implementation details and bundle commands are in
+[`integrations/workbuddy-python-runtime/README.md`](../../integrations/workbuddy-python-runtime/README.md).

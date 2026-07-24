@@ -150,3 +150,46 @@ def test_source_hint_cannot_escape_declared_lane(tmp_path: Path) -> None:
     )
     assert receipt["coverage_status"] == "no_match"
     assert receipt["source_receipts"][0]["reason"] == "meta_outside_root"
+
+
+def test_action_consumer_prepares_nonblocking_correction_for_real_foreach_regression() -> None:
+    consumer = load_consumer_module()
+    receipt = consumer.build_action_consumption(
+        {
+            "memory_need": "none",
+            "execution_environment": "powershell",
+            "candidate_tool_surface": "shell_command",
+            "action_bindings": [
+                {
+                    "action": "prepare_task_local_correction_bundle",
+                    "completion_evidence": "task_local_correction_bundle",
+                }
+            ],
+        },
+        prompt="Summarize the parser errors.",
+        tool_input_text="foreach ($error in $errors) { $error.ErrorId } | Sort-Object -Unique",
+    )
+
+    bundle = receipt["task_local_correction_bundle"]
+    assert bundle["decision"] == "rewrite_candidate"
+    assert bundle["host_blocking"] is False
+    assert bundle["scope"] == "current_event_only"
+    action = next(item for item in receipt["actions"] if item["action_id"] == "prepare_task_local_correction_bundle")
+    assert action["status"] == "completed"
+
+
+def test_action_consumer_unmatched_candidate_is_silent_noop() -> None:
+    consumer = load_consumer_module()
+    receipt = consumer.build_action_consumption(
+        {
+            "memory_need": "none",
+            "execution_environment": "powershell",
+            "candidate_tool_surface": "shell_command",
+        },
+        prompt="List files.",
+        tool_input_text="Get-ChildItem -LiteralPath .",
+    )
+
+    bundle = receipt["task_local_correction_bundle"]
+    assert bundle["decision"] == "no_match"
+    assert bundle["host_blocking"] is False

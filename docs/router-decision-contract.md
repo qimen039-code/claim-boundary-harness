@@ -323,15 +323,10 @@ Expected behavior:
 | "删除旧 release" | R5; concrete delete action requiring confirmation. |
 | "git push" or "commit changes" | R5; concrete git action requiring confirmation. |
 
-Runtime hard gates should still inspect actual tool commands. A command such as
-`git push` or `Remove-Item` must be blocked without explicit human confirmation
-even if the earlier prompt-level route was ambiguous.
-
-When a host adapter needs to carry that confirmation across hook stages, use a
-`cbh.r5_human_confirmation_permit.v1` object with `scope: single_event`,
-`risk_level: R5`, `confirmed_by: human`, a short expiry, and SHA-256 hashes of
-the exact task text plus exact command-scoped tool text. The permit is not a
-natural-language inference and must not be reused for later actions.
+The route marks concrete `git push`, `Remove-Item`, and other R5 actions as
+requiring exact human confirmation. Actual authorization remains with the
+governing instructions and host-native security boundary; the nonblocking
+behavior-correction hook does not carry confirmation between stages.
 
 ## Composite Task And Scope Reassessment Rule
 

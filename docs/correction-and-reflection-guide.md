@@ -99,7 +99,7 @@ The operator should focus on:
 - judging high-impact incidents;
 - approving public-facing records and release claims;
 - deciding whether a route mistake needs policy/test changes;
-- confirming R5 actions and single-event permits;
+- confirming the exact current R5 action through the governing host boundary;
 - resolving project-lane or cross-conversation boundaries.
 
 The agent should handle:

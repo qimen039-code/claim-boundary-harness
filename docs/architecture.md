@@ -326,42 +326,19 @@ Persona state is conversation-only and default-off. It may shape tone inside an 
 
 See [archive-and-persona-boundaries.md](archive-and-persona-boundaries.md).
 
-## Selective Runtime Enforcement Layer
+## Nonblocking Behavior Correction Layer
 
-The framework becomes hard runtime only for selected critical boundaries when an adopting agent routes execution through the runtime entry scripts:
+The framework may review one current candidate immediately before execution when a host exposes a compatible hook:
 
 ```text
-pre-task hook
--> harness_runtime_enforcer.ps1
--> task route, dynamic evaluation, constitution check
-
-tool-call proxy
--> harness_tool_proxy.ps1
--> high-risk tool-call check
-
-command wrapper
--> harness_task_wrapper.ps1
--> route check before command execution
-
-final-answer gate
--> harness_runtime_enforcer.ps1 -Stage final
--> claim schema check for strong claims; PowerShell callers may pass actual response text with -FinalText
+current candidate
+-> behavior_correction_gate.py profile receipt
+-> accepted deterministic profile only
+-> behavior_correction_hook.py verifier-backed rewrite
+-> allow + updatedInput, or silent no-op
 ```
 
-Hard-stop conditions:
-
-- R5 without explicit human confirmation.
-- Low-confidence route without boundary review.
-- Nontrivial task with no available constitution entry.
-- High-risk tool call without explicit human confirmation.
-- Long-term memory write without explicit user request.
-- Final strong claim without claim schema evidence boundary.
-
-Ordinary tool calls should stay on the advisory control plane. This is not a sandbox. If an agent bypasses the hook, wrapper, or tool proxy, the scripts cannot stop it.
-
-The wrapper is truly mandatory only when it is the agent's sole command execution path for the protected action. If a user, client feature, or separate tool path can bypass the wrapper, the framework remains advisory for that path.
-
-Most gates are advisory by design: they return structured decisions that the caller must actively honor. Only paths configured to run through `harness_task_wrapper.ps1`, `harness_tool_proxy.ps1`, or an equivalent hook before execution become real interception points.
+There is no CBH hard-stop state in this layer. Ambiguity, verifier failure, unsupported protocol, or no match leaves the event unchanged. R5 confirmation, claims, memory writes, and execution authority remain governed by the model's instructions and the host's native boundaries.
 
 ## Search And Learning Decision Matrix
 

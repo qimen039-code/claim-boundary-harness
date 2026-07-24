@@ -6,6 +6,19 @@ This project uses `vMAJOR.MINOR.PATCH` version labels.
 
 ## Unreleased
 
+Target main-branch version: `v1.1.0` (not yet tagged).
+
+- Replaced the retired CBH-owned runtime deny/permit/Stop chain with a
+  stateless, nonblocking behavior-correction lifecycle.
+- Added mechanically verified current-input correction profiles with silent
+  no-op on ambiguity, verifier failure, or no match.
+- Connected tool-surface routing and bounded action consumption to task-local
+  correction receipts while preserving host-model task ownership.
+- Updated the WorkBuddy reference bridge to advisory-by-default behavior;
+  optional PreToolUse rewriting requires explicit host-protocol verification.
+- Kept execution authorization with governing instructions and the host's
+  native security boundary; CBH correction does not grant permission.
+
 ## v1.0.0 - 2026-07-20
 
 - Re-centered CBH as a model-facing capability harness: the host LLM agent

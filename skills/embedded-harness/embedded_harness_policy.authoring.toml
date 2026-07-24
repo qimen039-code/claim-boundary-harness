@@ -5,15 +5,23 @@ compiled_sections = [
   "risk_trigger_rules.R5",
   "r5_context_decision_rules",
   "r3_context_decision_rules",
+  "router_decision_contract.receipt_fields",
+  "router_decision_contract.observation_scope_triggers",
   "router_decision_contract.feedback_loop_triggers",
+  "router_decision_contract.feedback_loop_profile_rule",
   "router_decision_contract.common_error_prevention_triggers",
+  "router_decision_contract.harness_governance_recall_triggers",
+  "router_decision_contract.reflexive_gap_contract",
+  "router_decision_contract.action_binding_contract",
+  "router_decision_contract.correction_lifecycle_contract",
   "router_decision_contract.explicit_record_triggers",
   "router_decision_contract.conversation_lane_declaration_triggers",
-  "router_decision_contract.skill_audit_contract",
-  "router_decision_contract.first_principles_contract",
+  "router_decision_contract.referenced_conversation_memory_contract",
+  "router_decision_contract.causal_attribution_contract",
+  "router_decision_contract.causal_attribution_triggers",
   "router_decision_contract.issue_prevention_gates",
   "router_decision_contract.conversation_memory_full_lane_triggers",
-  "runtime_enforcement.human_confirmation_permit",
+  "runtime_enforcement.behavior_correction_contract",
 ]
 
 [risk_trigger_rules.R5]
@@ -43,6 +51,10 @@ en = [
   "long-term memory",
   "write memory",
   "payment",
+  "real publish",
+  "final publish",
+  "allowExternalAction",
+  "visible browser read-only attach",
 ]
 zh = [
   "删除",
@@ -86,6 +98,7 @@ direct_action_terms = [
   "pipx uninstall",
   "set-executionpolicy",
   "netsh",
+  "visible browser read-only attach",
 ]
 
 # Phrases that explicitly ask for a concrete R5 action even when the same task
@@ -98,12 +111,23 @@ explicit_action_phrases = [
   "push after commit",
   "perform commit and push",
   "run commit and push",
+  "real publish",
+  "final publish",
+  "allowExternalAction",
+  "change it now",
+  "modify it now",
+  "please modify",
+  "apply the config change",
   "进行提交推送",
   "然后提交推送",
   "提交并推送",
   "提交和推送",
   "提交后推送",
   "提交推送吧",
+  "现在修改",
+  "请修改",
+  "执行修改",
+  "改回配置",
 ]
 
 explicit_action_negation_phrases = [
@@ -112,6 +136,13 @@ explicit_action_negation_phrases = [
   "never commit and push",
   "commit and push not executed",
   "commit and push should not run",
+  "no real publish",
+  "no final publish",
+  "do not publish",
+  "allowExternalAction false",
+  "misclassifies",
+  "routing misclassification",
+  "路由误判",
   "提交推送不执行",
   "不执行提交推送",
   "不要提交推送",
@@ -207,6 +238,10 @@ non_action_context_terms = [
   "status",
   "already updated",
   "updated",
+  "previous change",
+  "last modification",
+  "historical change",
+  "caused by the previous change",
   "read-only",
   "inspect",
   "check",
@@ -223,6 +258,11 @@ non_action_context_terms = [
   "状态",
   "已更新",
   "已经更新",
+  "上次修改",
+  "之前修改",
+  "历史改动",
+  "当时改动",
+  "上次改动造成",
   "只读",
   "检查",
   "查看",
@@ -290,6 +330,10 @@ diagnostic_intent_terms = [
   "status check",
   "after update",
   "already updated",
+  "previous change",
+  "last modification",
+  "historical change",
+  "caused by the previous change",
   "do not modify",
   "do not change",
   "no changes",
@@ -305,6 +349,11 @@ diagnostic_intent_terms = [
   "版本更新后",
   "已经更新",
   "已更新",
+  "上次修改",
+  "之前修改",
+  "历史改动",
+  "当时改动",
+  "上次改动造成",
   "不修改",
   "不改配置",
   "不做修改",
@@ -369,6 +418,45 @@ strong_mutation_terms = [
 ]
 
 [router_decision_contract]
+receipt_fields = [
+  "task_type",
+  "target_surface",
+  "audience",
+  "project_lane",
+  "risk_level",
+  "semantic_ambiguity",
+  "module_need",
+  "tool_surface_need",
+  "tool_discovery_status",
+  "skill_or_tool_need",
+  "plugin_need",
+  "preferred_call_surface",
+  "tool_surface_reason",
+  "skill_lifecycle_profile",
+  "feedback_loop_profile",
+  "action_binding_profile",
+  "prediction_review_profile",
+  "prediction_review_budget",
+  "correction_lifecycle_profile",
+  "action_bindings",
+  "memory_need",
+  "hybrid_retrieval_profile",
+  "memory_mode",
+  "memory_write_profile",
+  "read_semantic_boundary",
+  "read_depth_profile",
+  "edit_operation_profile",
+  "memory_lane",
+  "memory_source_hints",
+  "record_intent",
+  "external_need",
+  "claim_risk",
+  "projectization_decision",
+  "conversation_memory_decision",
+  "receipt_profile",
+  "required_gates",
+  "link_intent",
+]
 observation_scope_triggers = [
   "framework definition",
   "framework ontology",
@@ -402,34 +490,18 @@ feedback_loop_triggers = [
   "feedback_loop",
   "feedback loop",
   "memory feedback loop",
-  "prediction",
-  "verification",
-  "calibration",
-  "future route decision",
-  "prevent repeated mistake",
+  "prediction loop",
+  "prediction-observation loop",
   "记忆-预测-验证-校准",
   "反馈闭环",
-  "预测",
-  "验证",
-  "校准",
-  "未来路由",
-  "防止重复错误",
-  "future similar cases",
-  "similar future events",
-  "recurrence risk",
-  "prevent similar recurrence",
-  "后续类似",
-  "后续可能",
-  "同类问题",
-  "同类事件",
-  "类似事件",
-  "复发风险",
-  "预防同类",
-  "不能重复犯",
-  "不要重复犯",
+  "预测闭环",
+  "预测—观察闭环",
 ]
+feedback_loop_profile_rule = "feedback_loop_profile controls only the memory -> task-local prediction -> observation -> semantic calibration depth; it does not create standing constraints and does not replace risk, evidence, permission, lane, claim, or memory-write boundaries. Use index_hint for cheap lookup hints, record_candidate for compact write candidates, prevention_review when selected prevention memory should become a task-local candidate prediction, and explicit_cycle only for an explicit full-loop request. Deterministic runtime guards remain separate."
+
 common_error_prevention_triggers = [
   "prevention",
+  "预防",
   "prevent recurrence",
   "avoid recurrence",
   "use prevention",
@@ -509,190 +581,281 @@ conversation_lane_declaration_triggers = [
   "相互隔离但有互联通道",
 ]
 
-[router_decision_contract.skill_audit_contract]
-profile_values = [
-  "none",
-  "safety_audit",
-  "redundancy_audit",
-  "safety_and_redundancy_audit",
+harness_governance_recall_triggers = [
+  "recheck",
+  "recurrence",
+  "disconnect",
+  "drift",
+  "route miss",
+  "capability regression",
+  "重新检查",
+  "复发",
+  "断联",
+  "漂移",
+  "漏判",
+  "能力减弱",
+  "能力衰减",
 ]
-subject_triggers = [
-  "skill",
-  "skills",
-  "installed capability",
-  "capability module",
-  "tool capability",
-  "技能",
-  "技能包",
-  "已安装技能",
-  "能力模块",
-  "工具能力",
-  "已安装能力",
-]
-audit_intent_triggers = [
-  "audit",
-  "review",
-  "inspect",
-  "check",
-  "inventory",
-  "consolidate",
-  "审计",
-  "检查",
-  "核查",
-  "清查",
-  "盘点",
-  "评估",
-  "整理",
-]
-safety_triggers = [
-  "security",
-  "safety",
-  "hidden risk",
-  "vulnerability",
-  "unexpected network",
-  "elevated access",
-  "sensitive read",
-  "sensitive write",
-  "supply chain",
-  "安全",
-  "隐藏风险",
-  "安全隐患",
-  "漏洞",
-  "偷偷联网",
-  "越权",
-  "敏感读写",
-  "相互覆盖",
-  "供应链",
-]
-redundancy_triggers = [
-  "redundancy",
-  "duplicate capability",
-  "functional overlap",
-  "token bloat",
-  "unused capability",
-  "merge candidate",
-  "merge candidates",
-  "consolidate",
-  "冗余",
-  "重复功能",
-  "功能重叠",
-  "长期未用",
-  "可合并",
-  "可合并项",
-  "合并项",
-  "token 膨胀",
-  "上下文膨胀",
-]
-required_gates = [
-  "skill_audit_gate",
-  "change_contract_gate",
-]
-required_skill = "troubleshooting-skill-matrix"
-minimum_risk = "R3"
-decision_rule = "Trigger only when a skill/capability subject and an audit/check/cleanup intent occur with at least one safety or redundancy signal. Route to the skill matrix, keep audit separate from immediate deletion, and require explicit authorization for later destructive cleanup."
 
-[router_decision_contract.first_principles_contract]
-profile_values = [
-  "none",
-  "micro_constraints",
-  "constraint_gate",
-  "full_design",
+[router_decision_contract.reflexive_gap_contract]
+enabled = true
+required_gate = "reflexive_gap_gate"
+semantic_marker = "reflexive_gap_review_required"
+explicit_request_triggers = [
+  "reflexive gap",
+  "knowledge-action gap",
+  "knowledge activation gap",
+  "experience transfer gap",
+  "goal fidelity gap",
+  "自反问",
+  "知识激活缺口",
+  "经验迁移缺口",
+  "目标保真缺口",
 ]
-full_design_triggers = [
-  "first principles",
-  "first-principles",
-  "from first principles",
-  "design a new",
-  "new mechanism",
-  "architecture design",
-  "refactor plan",
-  "theory analysis",
-  "第一性原则",
-  "从底层约束",
-  "设计一个新的",
-  "新机制",
-  "架构设计",
-  "重构规划",
-  "理论分析",
+exclusion_triggers = [
+  "user explicitly changed the goal",
+  "goal was explicitly changed",
+  "用户明确改变了目标",
+  "目标已经明确改变",
 ]
-constraint_gate_triggers = [
-  "architecture",
-  "router",
-  "routing rule",
-  "policy",
-  "AGENTS",
-  "memory schema",
-  "ledger",
-  "claim boundary",
-  "harness",
-  "security",
-  "release",
-  "permission",
-  "global config",
-  "cross-platform",
-  "encoding",
-  "shell dialect",
-  "path handling",
-  "repeated bug",
-  "recurring bug",
-  "data consistency",
-  "external mechanism",
-  "causal claim",
-  "架构",
-  "路由器",
-  "路由规则",
-  "策略",
-  "记忆结构",
-  "账本",
-  "声明边界",
-  "安全",
-  "发布",
-  "权限",
-  "全局配置",
-  "跨平台",
-  "编码",
-  "shell 方言",
-  "路径处理",
-  "重复出现",
-  "复发 bug",
-  "数据一致性",
-  "外部机制",
-  "因果声明",
+
+[router_decision_contract.reflexive_gap_contract.knowledge_action_groups]
+knowledge = [
+  "known rule",
+  "known correction",
+  "correction was already known",
+  "stated the rule correctly",
+  "answered correctly when asked directly",
+  "direct answer",
+  "已知规则",
+  "已知纠正",
+  "直接回答正确",
+  "可以直接回答",
+  "明明知道",
 ]
-none_triggers = [
-  "typo",
-  "formatting only",
-  "copy edit",
-  "simple version sync",
-  "known assertion fix",
-  "one-line change",
-  "错别字",
-  "仅格式",
-  "文案小修",
-  "简单版本同步",
-  "同步版本号",
-  "已知断言修复",
-  "单行修改",
+execution = [
+  "actual execution",
+  "selected the conflicting action",
+  "repeated the same error",
+  "failed to apply it",
+  "实际执行",
+  "冲突的动作",
+  "重复同类错误",
+  "仍选择了",
+  "没有应用",
 ]
-high_impact_target_surfaces = [
-  "local_harness",
-  "project_memory",
-  "conversation_ledger",
-  "skill_matrix",
-  "adapter",
-  "private_rule",
+contrast = [
+  "but",
+  "yet",
+  "instead",
+  "however",
+  "却",
+  "反而",
+  "但是",
+  "仍",
 ]
-micro_constraint_risks = [
-  "R2",
-  "R3",
-  "R4",
+
+[router_decision_contract.reflexive_gap_contract.goal_fidelity_groups]
+goal = [
+  "original user outcome",
+  "original goal",
+  "stated outcome",
+  "原始用户结果",
+  "原始目标",
+  "用户最终结果",
+  "最初目标",
 ]
-gate_profiles = [
-  "constraint_gate",
-  "full_design",
+proxy_or_stall = [
+  "proxy artifact",
+  "proxy work",
+  "did not advance",
+  "keeps expanding without advancing",
+  "only added gates",
+  "代理产物",
+  "没有前进",
+  "持续增长",
+  "只增加 gate",
+  "只增加了 gate",
+  "仍是半成品",
 ]
-required_gate = "first_principles_gate"
-decision_rule = "Select by impact, uncertainty, reversibility, and persistence risk. Explicit design or first-principles requests use full_design; systemic/high-impact work uses constraint_gate; ordinary nontrivial changes use micro_constraints; trivial edits and simple version sync use none."
+
+[router_decision_contract.reflexive_gap_contract.counterevidence_groups]
+attribution = [
+  "blame unclear requirements",
+  "attribute the delay to the user",
+  "user did not specify",
+  "归因于用户需求不清晰",
+  "归因于用户",
+  "用户最初没有明确",
+  "用户没有说",
+]
+unverified = [
+  "without checking the original requirement",
+  "source evidence was not checked",
+  "have not checked the original requirement",
+  "没有核对原始需求",
+  "还没有核对原始需求",
+  "未检查来源证据",
+  "先核对原始需求",
+]
+
+[router_decision_contract.reflexive_gap_contract.knowledge_coverage_groups]
+unmodeled = [
+  "unmodeled side effect",
+  "previously unmodeled effect",
+  "unknown side effect",
+  "未建模的新副作用",
+  "从未建模的副作用",
+  "未知副作用",
+]
+high_impact = [
+  "high impact",
+  "permission boundary",
+  "data loss",
+  "高影响",
+  "权限边界",
+  "数据丢失",
+  "持久错误",
+]
+uncertainty = [
+  "low confidence",
+  "causal attribution is uncertain",
+  "unverified cause",
+  "低置信",
+  "因果归因仍不确定",
+  "原因未验证",
+]
+
+[router_decision_contract.action_binding_contract]
+enabled = true
+binding_mode = "inline_receipt_no_extra_tool_call"
+soft_target_prediction_reviews = 3
+soft_target_next_actions = 8
+coverage_expansion_allowed = true
+profile_values = ["none", "route_to_action", "retrieval_to_action"]
+prediction_review_profile_values = ["none", "task_local_memory_prediction"]
+prediction_review_source_fields = [
+  "prevention",
+  "prevention_rule",
+  "future_reuse_rule",
+  "solution_applied",
+  "solution_summary",
+  "fix_path",
+]
+next_action_values = [
+  "retrieve_matching_memory",
+  "prepare_task_local_prediction_review",
+  "prepare_task_local_correction_bundle",
+  "verify_and_calibrate_feedback",
+  "perform_external_research_route",
+  "discover_preferred_tool_surface",
+  "activate_skill_frame",
+  "release_skill_frame",
+  "reactivate_skill_from_receipt",
+  "write_selected_memory_lane",
+  "resolve_conversation_link",
+  "bind_claim_evidence_boundary",
+  "review_projectization_boundary",
+  "apply_edit_operation_profile",
+  "load_project_context",
+  "retrieve_static_knowledge_index",
+  "apply_read_depth_profile",
+  "apply_first_principles_profile",
+  "perform_skill_audit_profile",
+  "classify_debt_hygiene",
+]
+completion_evidence_values = [
+  "selected_record_id",
+  "task_local_prediction_review",
+  "task_local_correction_bundle",
+  "verified_postcondition_or_calibration",
+  "source_ledger_or_citations",
+  "checked_available_missing_or_blocked",
+  "skill_active_frame",
+  "skill_release_receipt",
+  "skill_resume_receipt",
+  "written_record_or_artifact_path",
+  "resolved_link_decision",
+  "claim_schema_or_bounded_wording",
+  "project_lane_decision",
+  "targeted_diff_or_artifact",
+  "project_rules_loaded",
+  "selected_static_manual_page",
+  "selected_read_window_or_index",
+  "constraints_alternatives_and_verifier",
+  "skill_audit_findings",
+  "classified_debt_set",
+]
+rule = "Convert action-changing route decisions into the existing receipt. Retrieved prevention or reuse records become task-local candidate predictions, never standing constraints: review applicability, choose a candidate safe form only when relevant, observe the current-task outcome, then retire the review. The configured prediction/action counts are soft fast-path targets, never capability caps. Safety, lane, permission, claim, evidence, and correctness requirements outrank context cost. Deterministic runtime guards remain separate. Partition large transport payloads without semantic loss. A binding is complete only when coverage is sufficient or unresolved facets are explicit and its named completion evidence exists."
+
+[router_decision_contract.correction_lifecycle_contract]
+enabled = true
+schema = "cbh.correction_lifecycle_contract.v1"
+objective_order = [
+  "real_effectiveness_and_required_components",
+  "minimum_sufficient_implementation",
+  "execution_time_and_token_efficiency",
+  "surface_simplicity",
+]
+stages = [
+  "surface_identification",
+  "memory_routing",
+  "candidate_prediction",
+  "current_action_binding",
+  "rewrite_or_validate_or_review",
+  "execution",
+  "postcondition_verification",
+  "calibration",
+  "task_local_retirement",
+]
+decision_modes = [
+  "auto_rewrite",
+  "preflight_validate",
+  "predictive_review",
+  "no_match",
+]
+source_lanes = [
+  "common_error_ce",
+  "interaction_error_ie",
+  "paired_err_sol",
+  "major_incident",
+  "behavior_profile",
+]
+promotion_states = [
+  "memory_only",
+  "candidate",
+  "validation_only",
+  "semantic_review_only",
+  "accepted",
+  "superseded",
+  "not_applicable",
+]
+interaction_action_binding_fields = [
+  "interaction_surface",
+  "target_app",
+  "target_window",
+  "target_control",
+  "focus_evidence",
+  "observation_ref",
+  "observation_age",
+  "coordinate_space",
+  "action",
+  "expected_postcondition",
+  "fallback_boundary",
+  "risk",
+]
+same_candidate_policy = "evaluate_once_per_unchanged_candidate"
+interaction_observation_freshness = "current_or_age_le_30_seconds"
+promotion_mode = "offline_evidence_review_only"
+historical_replay_rule = "A recurrence-effect claim requires at least one prior real failing short task with the same task goal, input shape, environment/tool surface, and acceptance condition. Synthetic fixtures remain unit evidence only."
+cost_rule = "Meta-first routing, one relevant family, and one unchanged-candidate evaluation are fast-path soft targets. If a component is necessary for real correction, target binding, verification, or postcondition evidence, effectiveness takes priority over file count, apparent simplicity, time, or token savings."
+rule = "Route only the relevant memory family, bind selected guidance to the actual current candidate, choose exactly one of auto_rewrite/preflight_validate/predictive_review/no_match, verify the declared postcondition, calibrate with current evidence, and retire task-local state. Profiles are promoted only through offline evidence review; no task may promote itself or write durable memory automatically."
+
+[router_decision_contract.correction_lifecycle_contract.interaction_surface_triggers]
+structured_tool = ["MCP", "connector", "structured tool", "app tool", "插件", "连接器"]
+browser = ["browser", "Chrome", "Edge", "Playwright", "CDP", "浏览器", "网页"]
+desktop_app = ["Computer Use", "desktop app", "native app", "WPS", "Photoshop", "桌面应用", "电脑控制"]
+keyboard_mouse = ["SendKeys", "keyboard", "mouse", "foreground focus", "coordinate", "clipboard", "键盘", "鼠标", "焦点", "坐标", "剪贴板"]
 
 [router_decision_contract.causal_attribution_contract]
 purpose = "Output-side attribution review for high-risk causal, stability, definition, or generalization assertions. It prevents formation paths, local observations, or single cases from being written as mechanism properties or validated causality."
@@ -740,12 +903,14 @@ triggers = [
   "current facts",
   "latest status",
   "unverified notes",
+  "local notes",
   "status columns",
   "当前状态表",
   "状态表",
   "当前事实",
   "最新状态",
   "未验证笔记",
+  "本地笔记",
   "表格列",
 ]
 
@@ -765,6 +930,18 @@ triggers = [
   "旧的存储点",
   "忘了名字",
   "我记得之前",
+  "our existing framework",
+  "our framework",
+  "that framework",
+  "the framework we built",
+  "our CBH",
+  "our CHB",
+  "我们的框架",
+  "我们做的框架",
+  "那个框架",
+  "那个CBH框架",
+  "我们的CBH",
+  "我们的CHB",
 ]
 
 [router_decision_contract.issue_prevention_gates.hallucination_detection_anchor_gate]
@@ -788,9 +965,11 @@ triggers = [
 ]
 
 [router_decision_contract.issue_prevention_gates.global_task_context_gate]
-purpose = "Prevent local task fixes, local causal diagnosis, or narrow file edits from ignoring upstream goals, active lane, current status, file map, or cross-step constraints. This is a task-context gate, distinct from observation-scope claims."
+purpose = "Prevent local fixes or useful side findings from displacing the user-approved primary goal. Preserve upstream goals, active lane, current status, file map, cross-step constraints, stop conditions, and an explicit split between blocking findings and deferred non-blocking findings. A user correction updates the current judgment first; it does not by itself authorize global router or policy edits."
 triggers = [
   "global task view",
+  "global perspective",
+  "system-wide view",
   "whole task context",
   "local fix caused",
   "local task causal",
@@ -801,6 +980,12 @@ triggers = [
   "status table",
   "workflow state",
   "cross-step",
+  "primary goal first",
+  "finish the main goal first",
+  "non-blocking finding",
+  "defer the side issue",
+  "scope expansion",
+  "stop expanding",
   "global issue",
   "systemic issue",
   "future similar cases",
@@ -808,6 +993,8 @@ triggers = [
   "prevent similar recurrence",
   "局部任务",
   "全局观",
+  "全局角度",
+  "全局视角",
   "全局问题",
   "系统性问题",
   "整体任务",
@@ -824,6 +1011,13 @@ triggers = [
   "状态表",
   "工作流状态",
   "跨步骤",
+  "主要目标优先",
+  "先完成主要目标",
+  "不阻塞主要目标",
+  "非阻塞发现",
+  "候选问题后停止",
+  "不要继续扩展",
+  "停止扩张",
 ]
 
 [router_decision_contract.issue_prevention_gates.novel_recurrence_candidate_gate]
@@ -877,7 +1071,6 @@ triggers = [
   "规则同步",
   "记忆规则同步",
   "Codex 和 WorkBuddy",
-  "Codex/WorkBuddy",
   "只更新 codex 和 workbuddy",
   "主要更新codex和workbuddy",
 ]
@@ -1279,23 +1472,145 @@ triggers = [
   "记忆文件",
 ]
 
-[runtime_enforcement.human_confirmation_permit]
+[runtime_enforcement.behavior_correction_contract]
 enabled = true
-schema = "cbh.r5_human_confirmation_permit.v1"
-required_scope = "single_event"
-required_fields = [
-  "schema",
-  "permit_id",
-  "status",
-  "scope",
-  "risk_level",
-  "confirmed_by",
-  "expires_at_utc",
-  "task_sha256",
-  "tool_sha256",
+schema = "cbh.behavior_correction_contract.v1"
+profile_registry_path = "behavior_correction_profiles.json"
+profile_registry_schema = "cbh.behavior_correction_profile_registry.v1"
+profile_registry_sha256 = "84e484edf24882d9c0b64374e846fcd86940b029ba22e3965eef5fa096da0a90"
+registry_hash_algorithm = "sha256_raw_file_bytes"
+profile_hash_algorithm = "sha256_canonical_json_profile"
+profile_priority_rule = "descending_unique_integer_then_profile_id"
+matcher_handler_allowlist = [
+  "powershell_statement_loop_direct_pipeline",
+  "powershell_interpolated_variable_colon",
+  "bash_heredoc_in_powershell",
+  "unquoted_bash_heredoc_in_powershell",
+  "unicode_replacement_character_in_python_inline_write",
+  "unicode_replacement_character_in_mutation",
 ]
-consume_on_pass = true
-consume_requires_tool_text = true
-used_ledger_env_var = "CBH_R5_PERMIT_USE_LEDGER"
-used_ledger_record_schema = "cbh.r5_human_confirmation_permit_use.v1"
-rule = "A permit is only a short-lived single-event representation of explicit human confirmation for one exact R5/hard-tool event. When it passes for a concrete tool event, the runtime records a used-ledger entry so the same permit/task/tool combination cannot be replayed before expiry. It must not create a session-wide or project-wide bypass; all other R5 events remain blocked."
+binding_handler_allowlist = [
+  "powershell_loop_pipeline_subject",
+  "powershell_interpolated_variable_colon_subject",
+  "python_inline_script_subject",
+  "python_expanding_heredoc_transport_subject",
+  "exact_mutation_target_subject",
+]
+related_handler_allowlist = [
+  "powershell_statement_loop_related_command",
+  "powershell_interpolated_variable_colon_related_command",
+  "powershell_python_transport_related_command",
+  "powershell_expanding_bash_transport_related_command",
+  "same_target_python_inline_write",
+  "same_target_mutation",
+]
+verifier_handler_allowlist = [
+  "same_powershell_parser_zero_errors",
+  "powershell_transport_pending_bash_syntax",
+  "python_inline_payload_no_replacement_character_and_utf8_roundtrip",
+  "input_unicode_no_replacement_character_and_utf8_roundtrip",
+]
+required_profile_fields = [
+  "profile_id",
+  "profile_version",
+  "priority",
+  "enforcement",
+  "correction_family_id",
+  "decision_mode",
+  "promotion_status",
+  "source_record_ids",
+  "historical_replay_refs",
+  "behavior_class",
+  "environment",
+  "trigger_stage",
+  "match_kind",
+  "binding_handler",
+  "related_handler",
+  "requires_parser_errors",
+  "requires_exact_target_binding",
+  "invalid_behavior",
+  "content_goal",
+  "target_binding",
+  "rewrite_boundary",
+  "rewrite_instruction",
+  "allowed_constructions",
+  "safe_template",
+  "verifier",
+  "verifier_channel",
+  "verifier_instruction",
+  "resolution_code",
+  "evidence_boundary",
+  "escalation_boundary",
+  "source_kind",
+  "source_ref",
+  "postcondition",
+]
+capsule_schema = "cbh.execution_feedback_capsule.v1"
+gate_receipt_schema = "cbh.behavior_correction_gate_receipt.v1"
+binding_schema = "cbh.execution_subject_target_binding.v1"
+binding_fields = [
+  "subject_binding_sha256",
+  "target_binding_sha256",
+]
+decision_modes = [
+  "auto_rewrite",
+  "preflight_validate",
+  "predictive_review",
+]
+profile_enforcement_values = [
+  "rewrite_current_event_nonblocking",
+  "advisory_preflight_validate",
+  "advisory_predictive_review",
+]
+current_candidate_binding = "profile_version_hash_plus_subject_target_candidate_sha256"
+same_candidate_policy = "evaluate_once_per_unchanged_candidate"
+verifier_contract = "profile_verifier_channel_plus_postcondition_plus_evidence_boundary"
+registry_failure_behavior = "semantic_review_required_without_rewrite"
+exact_target_unresolved_behavior = "semantic_review_required"
+extension_mode = "versioned_registry_allowlisted_handlers_with_offline_promotion_only"
+automatic_freeze = false
+automatic_long_term_memory_write = false
+automatic_policy_mutation = false
+prohibited_auto_actions = [
+  "session_freeze",
+  "long_term_memory_write",
+  "policy_mutation",
+]
+rule = "Behavior-correction profiles bind one unchanged current candidate to a source-linked correction family and exactly one decision mode. Only an accepted deterministic auto_rewrite profile can alter current native Bash input; validation and predictive-review profiles remain advisory. Outcomes require the declared verifier/postcondition and task-local retirement; promotion and durable memory updates remain offline explicit maintenance."
+
+[runtime_enforcement.behavior_correction_contract.migration_hook]
+enabled = true
+schema = "cbh.behavior_correction_migration_hook.v1"
+entrypoint = "behavior_correction_hook.py"
+entrypoint_sha256 = "compiler_replaces_with_sha256_raw_file_bytes"
+hash_algorithm = "sha256_raw_file_bytes"
+hook_event = "PreToolUse"
+tool_name_matcher = "^Bash$"
+covered_host_tool_surface = "native_tool_name_Bash_only"
+known_uncovered_tool_surfaces = [
+  "functions.exec_nested_shell_command",
+  "shell_text_nested_in_other_orchestration_tools",
+]
+uncovered_surface_fallback = "one_direct_pretool_gate_call_for_a_mechanically_selected_known_recurrence_then_agent_applies_only_a_verified_current_event_rewrite; no_match_or_ambiguity_is_noop"
+output_contract = "allow_updated_input_only"
+accepted_profile_enforcement = "rewrite_current_event_nonblocking"
+rewrite_handler_allowlist = [
+  "powershell_statement_loop_subexpression",
+]
+ambiguous_behavior = "no_output_original_input_unchanged"
+host_blocking = false
+stateful = false
+automatic_memory_write = false
+automatic_policy_mutation = false
+rule = "Accepted deterministic profiles may transparently rewrite only the current native Bash tool input after exact binding and real-parser verification. Uncovered nested shell surfaces use at most one direct pretool advisory evaluation for a known recurrence and remain agent-owned. The hook and fallback never deny, persist state, write memory, mutate policy, or grant authority."
+
+[runtime_enforcement.behavior_correction_contract.posttool_exact_readback]
+required = true
+required_for_verifier_channels = [
+  "tool_input_and_exact_target_readback",
+]
+maximum_targets = 16
+maximum_total_bytes = 4194304
+encoding = "utf-8-sig-strict"
+outcome_requirement = "no_failure_observed"
+unavailable_behavior = "keep_capsule_active"

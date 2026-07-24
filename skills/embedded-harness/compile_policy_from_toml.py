@@ -1,14 +1,15 @@
 #!/usr/bin/env python3
 """Compile selected human-authored TOML policy sections into policy JSON.
 
-Runtime gates intentionally continue to read embedded_harness_policy.json.
-This helper is an offline maintenance tool for high-churn sections only.
+Direct advisory consumers read embedded_harness_policy.json. This helper is an
+offline maintenance tool for high-churn sections only.
 """
 
 from __future__ import annotations
 
 import argparse
 import copy
+import hashlib
 import json
 import sys
 import tomllib
@@ -41,18 +42,22 @@ TRACKED_PATHS: list[tuple[str, ...]] = [
     ("risk_trigger_rules", "R5"),
     ("r5_context_decision_rules",),
     ("r3_context_decision_rules",),
+    ("router_decision_contract", "receipt_fields"),
     ("router_decision_contract", "observation_scope_triggers"),
     ("router_decision_contract", "feedback_loop_triggers"),
+    ("router_decision_contract", "feedback_loop_profile_rule"),
     ("router_decision_contract", "common_error_prevention_triggers"),
+    ("router_decision_contract", "harness_governance_recall_triggers"),
+    ("router_decision_contract", "reflexive_gap_contract"),
+    ("router_decision_contract", "action_binding_contract"),
+    ("router_decision_contract", "correction_lifecycle_contract"),
     ("router_decision_contract", "explicit_record_triggers"),
     ("router_decision_contract", "conversation_lane_declaration_triggers"),
-    ("router_decision_contract", "skill_audit_contract"),
-    ("router_decision_contract", "first_principles_contract"),
     ("router_decision_contract", "causal_attribution_contract"),
     ("router_decision_contract", "causal_attribution_triggers"),
     ("router_decision_contract", "issue_prevention_gates"),
     ("router_decision_contract", "conversation_memory_full_lane_triggers"),
-    ("runtime_enforcement", "human_confirmation_permit"),
+    ("runtime_enforcement", "behavior_correction_contract"),
 ]
 
 
@@ -199,6 +204,16 @@ def _normal_observation_scope_triggers(authoring: dict[str, Any]) -> list[str] |
     return _string_list(triggers, "router_decision_contract.observation_scope_triggers")
 
 
+def _normal_receipt_fields(authoring: dict[str, Any]) -> list[str] | None:
+    router = authoring.get("router_decision_contract", {})
+    if not isinstance(router, dict):
+        raise ValueError("router_decision_contract must be a table")
+    fields = router.get("receipt_fields")
+    if fields is None:
+        return None
+    return _string_list(fields, "router_decision_contract.receipt_fields")
+
+
 def _normal_feedback_loop_triggers(authoring: dict[str, Any]) -> list[str] | None:
     router = authoring.get("router_decision_contract", {})
     if not isinstance(router, dict):
@@ -209,6 +224,18 @@ def _normal_feedback_loop_triggers(authoring: dict[str, Any]) -> list[str] | Non
     return _string_list(triggers, "router_decision_contract.feedback_loop_triggers")
 
 
+def _normal_feedback_loop_profile_rule(authoring: dict[str, Any]) -> str | None:
+    router = authoring.get("router_decision_contract", {})
+    if not isinstance(router, dict):
+        raise ValueError("router_decision_contract must be a table")
+    rule = router.get("feedback_loop_profile_rule")
+    if rule is None:
+        return None
+    if not isinstance(rule, str) or not rule.strip():
+        raise ValueError("router_decision_contract.feedback_loop_profile_rule must be a non-empty string")
+    return rule
+
+
 def _normal_common_error_prevention_triggers(authoring: dict[str, Any]) -> list[str] | None:
     router = authoring.get("router_decision_contract", {})
     if not isinstance(router, dict):
@@ -217,6 +244,203 @@ def _normal_common_error_prevention_triggers(authoring: dict[str, Any]) -> list[
     if triggers is None:
         return None
     return _string_list(triggers, "router_decision_contract.common_error_prevention_triggers")
+
+
+def _normal_harness_governance_recall_triggers(authoring: dict[str, Any]) -> list[str] | None:
+    router = authoring.get("router_decision_contract", {})
+    if not isinstance(router, dict):
+        raise ValueError("router_decision_contract must be a table")
+    triggers = router.get("harness_governance_recall_triggers")
+    if triggers is None:
+        return None
+    return _string_list(triggers, "router_decision_contract.harness_governance_recall_triggers")
+
+
+def _normal_action_binding_contract(authoring: dict[str, Any]) -> dict[str, Any] | None:
+    router = authoring.get("router_decision_contract", {})
+    if not isinstance(router, dict):
+        raise ValueError("router_decision_contract must be a table")
+    contract = router.get("action_binding_contract")
+    if contract is None:
+        return None
+    if not isinstance(contract, dict):
+        raise ValueError("action_binding_contract must be a table")
+    soft_predictions = contract.get("soft_target_prediction_reviews")
+    soft_actions = contract.get("soft_target_next_actions")
+    if not isinstance(soft_predictions, int) or not 1 <= soft_predictions <= 12:
+        raise ValueError("action_binding_contract.soft_target_prediction_reviews must be between 1 and 12")
+    if not isinstance(soft_actions, int) or not 1 <= soft_actions <= 32:
+        raise ValueError("action_binding_contract.soft_target_next_actions must be between 1 and 32")
+    if contract.get("coverage_expansion_allowed") is not True:
+        raise ValueError("action_binding_contract.coverage_expansion_allowed must be true")
+    return {
+        "enabled": bool(contract.get("enabled", True)),
+        "binding_mode": str(contract.get("binding_mode") or "inline_receipt_no_extra_tool_call"),
+        "soft_target_prediction_reviews": soft_predictions,
+        "soft_target_next_actions": soft_actions,
+        "coverage_expansion_allowed": True,
+        "profile_values": _string_list(contract.get("profile_values"), "action_binding_contract.profile_values"),
+        "prediction_review_profile_values": _string_list(
+            contract.get("prediction_review_profile_values"),
+            "action_binding_contract.prediction_review_profile_values",
+        ),
+        "prediction_review_source_fields": _string_list(
+            contract.get("prediction_review_source_fields"),
+            "action_binding_contract.prediction_review_source_fields",
+        ),
+        "next_action_values": _string_list(
+            contract.get("next_action_values"), "action_binding_contract.next_action_values"
+        ),
+        "completion_evidence_values": _string_list(
+            contract.get("completion_evidence_values"),
+            "action_binding_contract.completion_evidence_values",
+        ),
+        "rule": str(contract.get("rule") or ""),
+    }
+
+
+def _normal_correction_lifecycle_contract(
+    authoring: dict[str, Any],
+) -> dict[str, Any] | None:
+    router = authoring.get("router_decision_contract", {})
+    if not isinstance(router, dict):
+        raise ValueError("router_decision_contract must be a table")
+    contract = router.get("correction_lifecycle_contract")
+    if contract is None:
+        return None
+    if not isinstance(contract, dict):
+        raise ValueError("correction_lifecycle_contract must be a table")
+    if contract.get("enabled") is not True:
+        raise ValueError("correction_lifecycle_contract.enabled must be true")
+    if contract.get("schema") != "cbh.correction_lifecycle_contract.v1":
+        raise ValueError("correction_lifecycle_contract.schema is unsupported")
+    objective_order = _string_list(
+        contract.get("objective_order"),
+        "correction_lifecycle_contract.objective_order",
+    )
+    if objective_order != [
+        "real_effectiveness_and_required_components",
+        "minimum_sufficient_implementation",
+        "execution_time_and_token_efficiency",
+        "surface_simplicity",
+    ]:
+        raise ValueError("correction_lifecycle_contract.objective_order mismatch")
+    stages = _string_list(
+        contract.get("stages"),
+        "correction_lifecycle_contract.stages",
+    )
+    decision_modes = _string_list(
+        contract.get("decision_modes"),
+        "correction_lifecycle_contract.decision_modes",
+    )
+    if set(decision_modes) != {
+        "auto_rewrite",
+        "preflight_validate",
+        "predictive_review",
+        "no_match",
+    }:
+        raise ValueError("correction_lifecycle_contract.decision_modes mismatch")
+    interaction_triggers = contract.get("interaction_surface_triggers")
+    if not isinstance(interaction_triggers, dict):
+        raise ValueError(
+            "correction_lifecycle_contract.interaction_surface_triggers must be a table"
+        )
+    normalized_triggers = {
+        name: _string_list(
+            interaction_triggers.get(name),
+            f"correction_lifecycle_contract.interaction_surface_triggers.{name}",
+        )
+        for name in ("structured_tool", "browser", "desktop_app", "keyboard_mouse")
+    }
+    normalized = copy.deepcopy(contract)
+    normalized["objective_order"] = objective_order
+    normalized["stages"] = stages
+    normalized["decision_modes"] = decision_modes
+    for field in (
+        "source_lanes",
+        "promotion_states",
+        "interaction_action_binding_fields",
+    ):
+        normalized[field] = _string_list(
+            contract.get(field),
+            f"correction_lifecycle_contract.{field}",
+        )
+    normalized["interaction_surface_triggers"] = normalized_triggers
+    return normalized
+
+
+def _normal_reflexive_gap_contract(authoring: dict[str, Any]) -> dict[str, Any] | None:
+    router = authoring.get("router_decision_contract", {})
+    if not isinstance(router, dict):
+        raise ValueError("router_decision_contract must be a table")
+    contract = router.get("reflexive_gap_contract")
+    if contract is None:
+        return None
+    if not isinstance(contract, dict):
+        raise ValueError("reflexive_gap_contract must be a table")
+    if contract.get("enabled") is not True:
+        raise ValueError("reflexive_gap_contract.enabled must be true")
+    expected_contract_fields = {
+        "enabled",
+        "required_gate",
+        "semantic_marker",
+        "explicit_request_triggers",
+        "exclusion_triggers",
+        "knowledge_action_groups",
+        "goal_fidelity_groups",
+        "counterevidence_groups",
+        "knowledge_coverage_groups",
+    }
+    unexpected_contract_fields = sorted(set(contract) - expected_contract_fields)
+    if unexpected_contract_fields:
+        raise ValueError(
+            "reflexive_gap_contract has unexpected fields: "
+            + ", ".join(unexpected_contract_fields)
+        )
+
+    required_gate = contract.get("required_gate")
+    semantic_marker = contract.get("semantic_marker")
+    if not isinstance(required_gate, str) or not required_gate:
+        raise ValueError("reflexive_gap_contract.required_gate must be a non-empty string")
+    if not isinstance(semantic_marker, str) or not semantic_marker:
+        raise ValueError("reflexive_gap_contract.semantic_marker must be a non-empty string")
+
+    normalized: dict[str, Any] = {
+        "enabled": True,
+        "required_gate": required_gate,
+        "semantic_marker": semantic_marker,
+        "explicit_request_triggers": _string_list(
+            contract.get("explicit_request_triggers"),
+            "reflexive_gap_contract.explicit_request_triggers",
+        ),
+        "exclusion_triggers": _string_list(
+            contract.get("exclusion_triggers"),
+            "reflexive_gap_contract.exclusion_triggers",
+        ),
+    }
+    for group_name, facet_names in {
+        "knowledge_action_groups": ("knowledge", "execution", "contrast"),
+        "goal_fidelity_groups": ("goal", "proxy_or_stall"),
+        "counterevidence_groups": ("attribution", "unverified"),
+        "knowledge_coverage_groups": ("unmodeled", "high_impact", "uncertainty"),
+    }.items():
+        group = contract.get(group_name)
+        if not isinstance(group, dict):
+            raise ValueError(f"reflexive_gap_contract.{group_name} must be a table")
+        unexpected_group_fields = sorted(set(group) - set(facet_names))
+        if unexpected_group_fields:
+            raise ValueError(
+                f"reflexive_gap_contract.{group_name} has unexpected fields: "
+                + ", ".join(unexpected_group_fields)
+            )
+        normalized[group_name] = {
+            facet_name: _string_list(
+                group.get(facet_name),
+                f"reflexive_gap_contract.{group_name}.{facet_name}",
+            )
+            for facet_name in facet_names
+        }
+    return normalized
 
 
 def _normal_explicit_record_triggers(authoring: dict[str, Any]) -> list[str] | None:
@@ -239,25 +463,53 @@ def _normal_conversation_lane_declaration_triggers(authoring: dict[str, Any]) ->
     return _string_list(triggers, "router_decision_contract.conversation_lane_declaration_triggers")
 
 
-def _normal_router_profile_contract(authoring: dict[str, Any], name: str) -> dict[str, Any] | None:
+def _normal_referenced_conversation_memory_contract(
+    authoring: dict[str, Any],
+) -> dict[str, Any] | None:
     router = authoring.get("router_decision_contract", {})
     if not isinstance(router, dict):
         raise ValueError("router_decision_contract must be a table")
-    contract = router.get(name)
+    contract = router.get("referenced_conversation_memory_contract")
     if contract is None:
         return None
-    if not isinstance(contract, dict) or not contract:
-        raise ValueError(f"router_decision_contract.{name} must be a non-empty table")
-    normalized: dict[str, Any] = {}
-    for key, value in contract.items():
-        if isinstance(value, list):
-            normalized[str(key)] = _string_list(value, f"router_decision_contract.{name}.{key}")
-        elif isinstance(value, str) and value:
-            normalized[str(key)] = value
-        else:
+    if not isinstance(contract, dict):
+        raise ValueError(
+            "router_decision_contract.referenced_conversation_memory_contract must be a table"
+        )
+    if contract.get("enabled") is not True:
+        raise ValueError("referenced_conversation_memory_contract.enabled must be true")
+    required_strings = (
+        "registry_path",
+        "registry_schema",
+        "required_gate",
+        "memory_need",
+        "memory_lane",
+        "conversation_memory_decision",
+        "match_rule",
+        "completion_rule",
+    )
+    normalized: dict[str, Any] = {"enabled": True}
+    for field in required_strings:
+        value = contract.get(field)
+        if not isinstance(value, str) or not value.strip():
             raise ValueError(
-                f"router_decision_contract.{name}.{key} must be a non-empty string or string array"
+                f"referenced_conversation_memory_contract.{field} must be a non-empty string"
             )
+        normalized[field] = value
+    if Path(normalized["registry_path"]).name != normalized["registry_path"]:
+        raise ValueError(
+            "referenced_conversation_memory_contract.registry_path must be a local file name"
+        )
+    normalized["candidate_states"] = _string_list(
+        contract.get("candidate_states"),
+        "router_decision_contract.referenced_conversation_memory_contract.candidate_states",
+    )
+    max_candidates = int(contract.get("max_candidates") or 0)
+    if max_candidates < 1 or max_candidates > 10:
+        raise ValueError(
+            "referenced_conversation_memory_contract.max_candidates must be between 1 and 10"
+        )
+    normalized["max_candidates"] = max_candidates
     return normalized
 
 
@@ -296,36 +548,100 @@ def _normal_issue_prevention_gates(authoring: dict[str, Any]) -> dict[str, Any] 
     return normalized
 
 
-def _normal_permit(authoring: dict[str, Any]) -> dict[str, Any] | None:
+def _normal_behavior_correction_contract(
+    authoring: dict[str, Any],
+) -> dict[str, Any] | None:
     runtime = authoring.get("runtime_enforcement", {})
     if not isinstance(runtime, dict):
         raise ValueError("runtime_enforcement must be a table")
-    permit = runtime.get("human_confirmation_permit")
-    if permit is None:
+    contract = runtime.get("behavior_correction_contract")
+    if contract is None:
         return None
-    if not isinstance(permit, dict):
-        raise ValueError("human_confirmation_permit must be a table")
-    required_scope = permit.get("required_scope")
-    if required_scope != "single_event":
-        raise ValueError("human_confirmation_permit.required_scope must be single_event")
-    schema = permit.get("schema")
-    if schema != "cbh.r5_human_confirmation_permit.v1":
-        raise ValueError("human_confirmation_permit.schema is unsupported")
-    return {
-        "enabled": bool(permit.get("enabled", True)),
-        "schema": schema,
-        "required_scope": required_scope,
-        "required_fields": _string_list(permit.get("required_fields"), "human_confirmation_permit.required_fields"),
-        "consume_on_pass": bool(permit.get("consume_on_pass", True)),
-        "consume_requires_tool_text": bool(permit.get("consume_requires_tool_text", True)),
-        "used_ledger_env_var": str(permit.get("used_ledger_env_var") or "CBH_R5_PERMIT_USE_LEDGER"),
-        "used_ledger_record_schema": str(permit.get("used_ledger_record_schema") or "cbh.r5_human_confirmation_permit_use.v1"),
-        "rule": str(permit.get("rule") or ""),
-    }
+    if not isinstance(contract, dict):
+        raise ValueError("behavior_correction_contract must be a table")
+    if contract.get("enabled") is not True:
+        raise ValueError("behavior_correction_contract.enabled must be true")
+    if contract.get("schema") != "cbh.behavior_correction_contract.v1":
+        raise ValueError("behavior_correction_contract.schema is unsupported")
+    retired_fields = {
+        "first_match_enforcement",
+        "repeat_match_enforcement",
+        "verifier_unavailable_enforcement",
+        "capacity_overflow_mode",
+        "exact_target_unresolved_enforcement",
+    }.intersection(contract)
+    if retired_fields:
+        raise ValueError(
+            "behavior_correction_contract contains retired fields:"
+            + ",".join(sorted(retired_fields))
+        )
+    registry_name = str(contract.get("profile_registry_path") or "")
+    if registry_name != "behavior_correction_profiles.json":
+        raise ValueError(
+            "behavior_correction_contract.profile_registry_path is unsupported"
+        )
+    registry_path = SCRIPT_DIR / registry_name
+    try:
+        registry_bytes = registry_path.read_bytes()
+        registry = json.loads(registry_bytes.decode("utf-8-sig"))
+    except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+        raise ValueError("behavior correction profile registry is unreadable") from exc
+    if registry.get("schema") != "cbh.behavior_correction_profile_registry.v1":
+        raise ValueError("behavior correction profile registry schema is unsupported")
+    if contract.get("profile_registry_schema") != registry.get("schema"):
+        raise ValueError("behavior_correction_contract.profile_registry_schema mismatch")
+    for field in (
+        "automatic_freeze",
+        "automatic_long_term_memory_write",
+        "automatic_policy_mutation",
+    ):
+        if contract.get(field) is not False:
+            raise ValueError(f"behavior_correction_contract.{field} must be false")
+    prohibited = set(contract.get("prohibited_auto_actions") or [])
+    if prohibited != {"session_freeze", "long_term_memory_write", "policy_mutation"}:
+        raise ValueError("behavior_correction_contract.prohibited_auto_actions mismatch")
+    normalized = copy.deepcopy(contract)
+    migration = normalized.get("migration_hook")
+    if not isinstance(migration, dict) or migration.get("enabled") is not True:
+        raise ValueError("behavior_correction_contract.migration_hook must be enabled")
+    if migration.get("schema") != "cbh.behavior_correction_migration_hook.v1":
+        raise ValueError("behavior_correction_contract.migration_hook schema is unsupported")
+    if migration.get("hook_event") != "PreToolUse":
+        raise ValueError("behavior_correction_contract.migration_hook event is unsupported")
+    if migration.get("tool_name_matcher") != "^Bash$":
+        raise ValueError("behavior_correction_contract.migration_hook matcher is unsupported")
+    if migration.get("output_contract") != "allow_updated_input_only":
+        raise ValueError("behavior_correction_contract.migration_hook output is unsupported")
+    for field in (
+        "host_blocking",
+        "stateful",
+        "automatic_memory_write",
+        "automatic_policy_mutation",
+    ):
+        if migration.get(field) is not False:
+            raise ValueError(
+                f"behavior_correction_contract.migration_hook.{field} must be false"
+            )
+    entrypoint = str(migration.get("entrypoint") or "")
+    if entrypoint != "behavior_correction_hook.py":
+        raise ValueError("behavior_correction_contract.migration_hook entrypoint is unsupported")
+    try:
+        entrypoint_bytes = (SCRIPT_DIR / entrypoint).read_bytes()
+    except OSError as exc:
+        raise ValueError("behavior correction migration hook is unreadable") from exc
+    migration["entrypoint_sha256"] = hashlib.sha256(entrypoint_bytes).hexdigest()
+    normalized["profile_registry_sha256"] = hashlib.sha256(registry_bytes).hexdigest()
+    return normalized
 
 
 def compile_policy(base_policy: dict[str, Any], authoring: dict[str, Any]) -> dict[str, Any]:
     compiled = copy.deepcopy(base_policy)
+    compiled.get("router_decision_contract", {}).pop(
+        "referenced_conversation_memory_contract", None
+    )
+    compiled.get("runtime_enforcement", {}).pop(
+        "dangerous_delete_advisory_contract", None
+    )
 
     risk_rules = _normal_risk_trigger_rules(authoring)
     if risk_rules:
@@ -340,6 +656,10 @@ def compile_policy(base_policy: dict[str, Any], authoring: dict[str, Any]) -> di
     if r3_context is not None:
         _set_path(compiled, ("r3_context_decision_rules",), r3_context)
 
+    receipt_fields = _normal_receipt_fields(authoring)
+    if receipt_fields is not None:
+        _set_path(compiled, ("router_decision_contract", "receipt_fields"), receipt_fields)
+
     observation_scope_triggers = _normal_observation_scope_triggers(authoring)
     if observation_scope_triggers is not None:
         _set_path(compiled, ("router_decision_contract", "observation_scope_triggers"), observation_scope_triggers)
@@ -348,12 +668,52 @@ def compile_policy(base_policy: dict[str, Any], authoring: dict[str, Any]) -> di
     if feedback_loop_triggers is not None:
         _set_path(compiled, ("router_decision_contract", "feedback_loop_triggers"), feedback_loop_triggers)
 
+    feedback_loop_profile_rule = _normal_feedback_loop_profile_rule(authoring)
+    if feedback_loop_profile_rule is not None:
+        _set_path(
+            compiled,
+            ("router_decision_contract", "feedback_loop_profile_rule"),
+            feedback_loop_profile_rule,
+        )
+
     common_error_prevention_triggers = _normal_common_error_prevention_triggers(authoring)
     if common_error_prevention_triggers is not None:
         _set_path(
             compiled,
             ("router_decision_contract", "common_error_prevention_triggers"),
             common_error_prevention_triggers,
+        )
+
+    harness_governance_recall_triggers = _normal_harness_governance_recall_triggers(authoring)
+    if harness_governance_recall_triggers is not None:
+        _set_path(
+            compiled,
+            ("router_decision_contract", "harness_governance_recall_triggers"),
+            harness_governance_recall_triggers,
+        )
+
+    reflexive_gap_contract = _normal_reflexive_gap_contract(authoring)
+    if reflexive_gap_contract is not None:
+        _set_path(
+            compiled,
+            ("router_decision_contract", "reflexive_gap_contract"),
+            reflexive_gap_contract,
+        )
+
+    action_binding_contract = _normal_action_binding_contract(authoring)
+    if action_binding_contract is not None:
+        _set_path(
+            compiled,
+            ("router_decision_contract", "action_binding_contract"),
+            action_binding_contract,
+        )
+
+    correction_lifecycle_contract = _normal_correction_lifecycle_contract(authoring)
+    if correction_lifecycle_contract is not None:
+        _set_path(
+            compiled,
+            ("router_decision_contract", "correction_lifecycle_contract"),
+            correction_lifecycle_contract,
         )
 
     explicit_record_triggers = _normal_explicit_record_triggers(authoring)
@@ -368,13 +728,15 @@ def compile_policy(base_policy: dict[str, Any], authoring: dict[str, Any]) -> di
             conversation_lane_declaration_triggers,
         )
 
-    skill_audit_contract = _normal_router_profile_contract(authoring, "skill_audit_contract")
-    if skill_audit_contract is not None:
-        _set_path(compiled, ("router_decision_contract", "skill_audit_contract"), skill_audit_contract)
-
-    first_principles_contract = _normal_router_profile_contract(authoring, "first_principles_contract")
-    if first_principles_contract is not None:
-        _set_path(compiled, ("router_decision_contract", "first_principles_contract"), first_principles_contract)
+    referenced_conversation_memory_contract = _normal_referenced_conversation_memory_contract(
+        authoring
+    )
+    if referenced_conversation_memory_contract is not None:
+        _set_path(
+            compiled,
+            ("router_decision_contract", "referenced_conversation_memory_contract"),
+            referenced_conversation_memory_contract,
+        )
 
     causal_contract = _normal_causal_attribution_contract(authoring)
     if causal_contract is not None:
@@ -392,9 +754,13 @@ def compile_policy(base_policy: dict[str, Any], authoring: dict[str, Any]) -> di
     if full_lane is not None:
         _set_path(compiled, ("router_decision_contract", "conversation_memory_full_lane_triggers"), full_lane)
 
-    permit = _normal_permit(authoring)
-    if permit is not None:
-        _set_path(compiled, ("runtime_enforcement", "human_confirmation_permit"), permit)
+    behavior_correction = _normal_behavior_correction_contract(authoring)
+    if behavior_correction is not None:
+        _set_path(
+            compiled,
+            ("runtime_enforcement", "behavior_correction_contract"),
+            behavior_correction,
+        )
 
     return compiled
 

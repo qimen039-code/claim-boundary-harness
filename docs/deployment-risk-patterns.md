@@ -26,15 +26,19 @@ These records are not meant to expand every turn. Use them during adapter setup,
 
 ## Deployment Levels
 
+CBH v1.1 no longer bundles a deny/permit/wrapper/Stop chain. In the table and
+failure catalog below, any physical blocking or denial is a host-native
+security capability, not a CBH behavior-correction feature.
+
 | Level | What is wired | What it can enforce |
 | --- | --- | --- |
 | L0 instruction only | Root instructions such as `AGENTS.md`, `CLAUDE.md`, or workspace rules | Soft behavior contract only. Useful but not a hard stop. |
 | L1 advisory control plane | Intake router, memory/search/claim gates called by the agent or user | Structured decisions and receipts. Hard only if the caller obeys them. |
-| L2 selective hard gates | Pre-task, pre-tool, command wrapper, or final-answer hook for critical boundaries | Can block the paths that actually pass through the hook or wrapper. |
+| L2 optional behavior correction | Verified current-candidate rewrite hook | Can rewrite one mechanically matched input; no match or failure is a no-op. |
 | L3 tool proxy / in-process middleware | All protected tool execution goes through one policy function or proxy | Stronger runtime enforcement for covered tools. Bypass paths still matter. |
 | L4 sandbox/runtime enforcement | The host runtime or sandbox owns the policy check before execution | Physical blocking for covered execution paths. Requires host/runtime support. |
 
-Most adopters should aim for L1 plus L2. Do not try to wrap every tool call until the selective hard gates are reliable.
+Most adopters should aim for L1 plus an optional, verified L2 correction path. Do not wrap every tool call.
 
 ## Agent Runtime Families
 
@@ -66,7 +70,7 @@ Most adopters should aim for L1 plus L2. Do not try to wrap every tool call unti
 | DEP-013 | Public repository examples leak local settings | Local hook configs or personal paths were committed | Keep product-specific local settings out of the public package; publish templates only | Scan docs and examples for local paths, private project names, and credential-like fields |
 | DEP-014 | Everything becomes slow after adoption | The adapter wraps every tool call or loads all memory/skills by default | Keep L0/L1 cheap and use event-triggered expansion; hard-wrap only critical risks | Compare ordinary read-only task latency before and after adoption |
 | DEP-015 | `--fail-open` remains enabled | Setup diagnostics were left in production mode | Remove fail-open flags after first-time hook setup | Force a hook-runner error and confirm high-risk pre-tool calls fail closed |
-| DEP-016 | Human confirmation becomes too broad | A confirmation flag or permit is reused for future actions | Bind confirmation to the current concrete action only; prefer `cbh.r5_human_confirmation_permit.v1` with `scope: single_event`, task/tool hashes, short expiry, and a used-ledger that records a passed concrete tool event before execution | Confirm a replayed permit, second destructive action, changed command, wrong hash, expired permit, or non-`single_event` scope still blocks |
+| DEP-016 | Human confirmation becomes too broad | Host or model treats one confirmation as future authority | Bind confirmation to the exact current action in the governing host flow; CBH correction must not carry or create permission | Confirm a later or changed action still requires its own host-governed decision |
 | DEP-017 | Built-in background actions bypass gates | The agent performs background indexing, auto-fixes, or hidden commands outside tool hooks | Identify background execution surfaces and mark unhooked surfaces advisory | Check runtime logs during startup, indexing, and automatic actions |
 | DEP-018 | Tool input parsing misses dangerous commands | The command is nested under a tool-specific field not parsed by the adapter | Update the adapter to inspect the actual tool schema used by the host | Capture one real tool event JSON and verify hard patterns are detected |
 | DEP-019 | Hook runner logs `codec can't encode character '\ud...'` | Host stdin JSON decoded to lone UTF-16 surrogate values, then output/logging writes them as Unicode | Sanitize hook payloads before routing and log/output writes; prefer ASCII-escaped hook output | Replay a captured hook payload with `\udcac` or `\udc80` and confirm routing still returns context |

@@ -48,6 +48,7 @@ def stage(profile_id: str, output: Path) -> dict[str, Any]:
         "schema": "cbh.deployment_bundle_receipt.v1",
         "profile_id": profile_id,
         "runtime_mode": profile.get("runtime_mode"),
+        "required_predeployment_read": profile.get("required_predeployment_read"),
         "file_count": len(selected),
         "files": selected,
         "full_repository_copy": False,
@@ -67,7 +68,7 @@ def main() -> int:
     args = parser.parse_args()
     profile, selected = selected_files(args.profile)
     if args.list:
-        print(json.dumps({"profile_id": args.profile, "runtime_mode": profile.get("runtime_mode"), "files": selected}, indent=2))
+        print(json.dumps({"profile_id": args.profile, "runtime_mode": profile.get("runtime_mode"), "required_predeployment_read": profile.get("required_predeployment_read"), "files": selected}, indent=2))
         return 0
     if args.output is None:
         parser.error("--output is required unless --list is used")

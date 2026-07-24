@@ -1311,6 +1311,12 @@ if ($toolDiscoveryStatus -in @("not_checked", "user_named")) {
   $requiredGates += "tool_surface_discovery_gate"
 }
 $toolSurfaceReason = @($toolSurfaceReason | Select-Object -Unique)
+$correctionLifecycleProfile = "none"
+if ($feedbackLoopProfile -in @("prevention_review", "explicit_cycle")) {
+  $correctionLifecycleProfile = "memory_to_action"
+} elseif ($toolSurfaceNeed -ne "none") {
+  $correctionLifecycleProfile = "surface_preflight"
+}
 
 $strongClaimTerms = Get-MatchedTriggers $policy.blocked_claim_phrases_without_schema
 if ($strongClaimTerms.Count -gt 0) {
@@ -1330,6 +1336,7 @@ if ($staticKnowledgeHits.Count -gt 0) { $moduleNeed += "static_knowledge_index" 
 if ($debtHygieneHits.Count -gt 0) { $moduleNeed += "debt_hygiene_gate" }
 if ($targetSurface -eq "conversation_ledger") { $moduleNeed += "conversation_ledger_index" }
 if ($toolDiscoveryStatus -in @("not_checked", "user_named")) { $moduleNeed += "tool_surface_discovery" }
+if ($correctionLifecycleProfile -ne "none") { $moduleNeed += "correction_lifecycle" }
 if ($conversationMemoryDecision -ne "none") { $moduleNeed += "conversation_memory_index" }
 if ($linkIntent -ne "none") { $moduleNeed += "memory_link_ledger" }
 if (($externalNeed.Count -gt 0) -and ($externalNeed[0] -ne "none")) { $moduleNeed += "external_research_gate" }
@@ -1343,6 +1350,12 @@ if ($memoryNeed -ne "none") {
   $actionBindings += [pscustomobject]@{
     action = "retrieve_matching_memory"
     completion_evidence = "selected_record_id_and_provenance"
+  }
+}
+if ($correctionLifecycleProfile -ne "none") {
+  $actionBindings += [pscustomobject]@{
+    action = "prepare_task_local_correction_bundle"
+    completion_evidence = "task_local_correction_bundle"
   }
 }
 if (($externalNeed.Count -gt 0) -and ($externalNeed[0] -ne "none")) {
@@ -1433,6 +1446,7 @@ $routingReceipt = [ordered]@{
   skill_audit_profile = $skillAuditProfile
   skill_audit_signals = @($skillAuditSignals)
   feedback_loop_profile = $feedbackLoopProfile
+  correction_lifecycle_profile = $correctionLifecycleProfile
   first_principles_profile = $firstPrinciplesProfile
   first_principles_signals = @($firstPrinciplesSignals)
   read_semantic_boundary = @($readSemanticBoundary)
@@ -1471,6 +1485,7 @@ $compactReceipt = [ordered]@{
   skill_lifecycle_profile = $skillLifecycleProfile
   skill_audit_profile = $skillAuditProfile
   feedback_loop_profile = $feedbackLoopProfile
+  correction_lifecycle_profile = $correctionLifecycleProfile
   first_principles_profile = $firstPrinciplesProfile
   read_semantic_boundary = @($readSemanticBoundary)
   read_depth_profile = $readDepthProfile
@@ -1514,6 +1529,7 @@ $result = [ordered]@{
   skill_audit_profile = $skillAuditProfile
   skill_audit_signals = @($skillAuditSignals)
   feedback_loop_profile = $feedbackLoopProfile
+  correction_lifecycle_profile = $correctionLifecycleProfile
   first_principles_profile = $firstPrinciplesProfile
   first_principles_signals = @($firstPrinciplesSignals)
   read_semantic_boundary = @($readSemanticBoundary)

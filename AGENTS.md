@@ -10,6 +10,10 @@ and the final answer. Router, retrieval, and verifier helpers may compile
 bounded context or check a declared boundary, but they must return that result
 to the model rather than taking ownership of the user's task.
 
+Before installing or adapting CBH, an agent must read
+`docs/agent-deployment-map.md`, select a declared deployment profile, and keep
+the generated bundle receipt. Repository presence alone is not activation.
+
 ## Default Rules
 
 1. Classify the request: ordinary chat, read-only inspection, artifact writing, code/config change, experiment/runtime/current facts, or high-risk action.
@@ -33,7 +37,7 @@ routing receipt
 -> execution with the cheapest sufficient route
 -> event-triggered re-evaluation
 -> final claim/memory/version boundary check
--> selective runtime hard gate only for critical risks
+-> optional nonblocking behavior correction for verified recurrence profiles
 ```
 
 Routing receipt fields: task type, target surface, audience, active lane, risk level, semantic ambiguity, module need, skill lifecycle profile, feedback loop profile, first principles profile, memory need, memory mode, memory lane, memory source hints, action bindings, record intent, external need, claim risk, projectization decision, conversation memory decision, link intent, receipt profile, and required gates.
@@ -204,37 +208,24 @@ Trigger-term promotion must pass a durability check. Promote a term only when it
 
 ## Selective Runtime Enforcement Surface
 
-The routing, dynamic evaluation, and constitution rules become hard runtime checks only at selected critical boundaries and only when the adopting agent routes work through one of these surfaces:
+Routing, dynamic evaluation, and constitution rules remain model-facing control-plane guidance. The only bundled pre-tool migration is a narrow, stateless behavior-correction hook:
 
 ```text
-hook before task execution
-wrapper around command execution
-tool proxy before tool calls
-final-answer gate before strong claims
+profile match for the unchanged current candidate
+-> optional deterministic rewrite
+-> declared mechanical verifier
+-> allow + updatedInput only when verified
+-> silent no-op otherwise
 ```
 
-Required runtime entry scripts:
+Reference entry points:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File <HARNESS_ROOT>\harness_runtime_enforcer.ps1 -Stage pre_task -TaskText "<user task>" -Cwd "<cwd>"
-powershell -ExecutionPolicy Bypass -File <HARNESS_ROOT>\harness_tool_proxy.ps1 -Stage pre_tool -TaskText "<user task>" -ToolName "<tool>" -ToolInputJson "<json>"
-powershell -ExecutionPolicy Bypass -File <HARNESS_ROOT>\harness_task_wrapper.ps1 -TaskText "<user task>" -CommandPath "<command>" -CommandArgs @("<arg>")
+python <HARNESS_ROOT>\behavior_correction_gate.py --list-profiles
+python <HARNESS_ROOT>\behavior_correction_hook.py < pretool-event.json
 ```
 
-Bash equivalents for the four core gates live under `<HARNESS_ROOT>/bash` and require `jq`.
-
-Hard-stop conditions:
-
-- R5 without explicit human confirmation.
-- Low-confidence route without boundary review.
-- Nontrivial task with no available constitution entry.
-- High-risk tool call without explicit human confirmation.
-- Long-term memory write without explicit user request.
-- Final strong claim without claim schema evidence boundary.
-
-Explicit confirmation may be represented by a `cbh.r5_human_confirmation_permit.v1` permit only when it is short-lived, `scope: single_event`, `risk_level: R5`, `confirmed_by: human`, and hash-bound to the exact task text plus exact tool text. A permit must not create a session-wide, project-wide, or future-action bypass.
-
-Ordinary tool calls stay under the advisory control plane. This is not a sandbox. It is hard enforcement only for callers that invoke the hook, wrapper, or tool proxy before continuing.
+Bash equivalents for the advisory core gates live under `<HARNESS_ROOT>/bash` and require `jq`. The correction hook never denies, freezes, stores approval state, writes memory, mutates policy, or creates authority. R5 confirmation and execution remain governed by the active instructions and the host's native security boundary.
 
 ## Mandatory Search And Learning Decision Matrix
 

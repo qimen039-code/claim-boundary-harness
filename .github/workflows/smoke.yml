@@ -187,17 +187,9 @@ jobs:
           Assert-Contains $staticKnowledge.Json.module_need "static_knowledge_index" "static knowledge module need"
           Assert-Contains $staticKnowledge.Json.required_gates "static_knowledge_index_gate" "static knowledge required gate"
 
-          $runtimePass = Invoke-HarnessJson `
-            -ScriptPath ".\skills\embedded-harness\harness_runtime_enforcer.ps1" `
-            -Arguments @("-Stage", "pre_task", "-TaskText", "inspect project files", "-Cwd", (Get-Location).Path)
-          Assert-Equal $runtimePass.Json.status "pass" "runtime enforcer pass"
-
-          $toolInputJson = @{ command = "git commit -am update" } | ConvertTo-Json -Compress
-          $toolBlock = Invoke-HarnessJson `
-            -ScriptPath ".\skills\embedded-harness\harness_tool_proxy.ps1" `
-            -Arguments @("-Stage", "pre_tool", "-TaskText", "commit changes", "-ToolName", "shell_command", "-ToolInputJson", $toolInputJson, "-Cwd", (Get-Location).Path) `
-            -AllowedExitCodes @(2)
-          Assert-Equal $toolBlock.Json.status "blocked" "tool proxy block"
+          $profileInventory = python -B .\skills\embedded-harness\behavior_correction_gate.py --list-profiles | ConvertFrom-Json
+          Assert-Equal $profileInventory.status "pass" "behavior correction profile inventory"
+          Assert-Equal $profileInventory.host_blocking $false "behavior correction remains nonblocking"
 
           $conversationMemory = Invoke-HarnessJson `
             -ScriptPath ".\skills\embedded-harness\harness_intake_router.ps1" `

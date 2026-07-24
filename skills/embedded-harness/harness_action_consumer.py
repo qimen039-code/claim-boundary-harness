@@ -10,6 +10,14 @@ from pathlib import Path
 from typing import Any
 
 
+HARNESS_ROOT = Path(__file__).resolve().parent
+if str(HARNESS_ROOT) not in sys.path:
+    sys.path.insert(0, str(HARNESS_ROOT))
+
+from behavior_correction_gate import build_behavior_correction_receipt  # noqa: E402
+from execution_feedback import CorrectionProfileRegistryError  # noqa: E402
+
+
 SCHEMA = "cbh.model_context_consumption.v1"
 SOFT_TARGET_RECORDS = 3
 MAX_DIRECT_RECORDS = 8
@@ -441,6 +449,48 @@ def _additional_context(
     return "\n".join(parts), bool(omitted), omitted
 
 
+def _task_local_correction_bundle(
+    route: dict[str, Any],
+    *,
+    tool_input_text: str,
+    selected_records: list[dict[str, Any]],
+) -> dict[str, Any]:
+    environment = str(_route_field(route, "execution_environment", "") or "")
+    if not environment:
+        environment = "powershell" if re.search(r"(?i)\bforeach\s*\(|\$[A-Za-z_]", tool_input_text) else "any"
+    tool_surface = str(_route_field(route, "candidate_tool_surface", "") or "")
+    if not tool_surface and tool_input_text:
+        tool_surface = "shell_command"
+    try:
+        receipt = build_behavior_correction_receipt(
+            stage="pretool",
+            environment=environment,
+            tool_role=str(_route_field(route, "tool_role", "unknown") or "unknown"),
+            tool_surface=tool_surface,
+            text=tool_input_text,
+            execution_cwd=str(_route_field(route, "execution_cwd", "") or ""),
+            target_binding_sha256=str(_route_field(route, "target_binding_sha256", "") or ""),
+        )
+    except CorrectionProfileRegistryError as exc:
+        receipt = {
+            "schema": "cbh.behavior_correction_gate_receipt.v1",
+            "status": "unavailable",
+            "decision": "no_match",
+            "issues": [str(exc)],
+            "scope": "current_event_only",
+            "host_blocking": False,
+        }
+    receipt["selected_memory_record_ids"] = [
+        str(record["record_id"])
+        for record in selected_records
+        if str(record.get("record_id") or "")
+    ]
+    receipt["automatic_long_term_memory_write"] = False
+    receipt["automatic_policy_mutation"] = False
+    receipt["host_blocking"] = False
+    return receipt
+
+
 def build_action_consumption(
     route: dict[str, Any],
     *,
@@ -479,6 +529,16 @@ def build_action_consumption(
     )
     selected = list(retrieval["selected_records"])
     semantic_review_candidates = list(retrieval["semantic_review_candidates"])
+    wants_correction = bool(tool_input_text) or "prepare_task_local_correction_bundle" in binding_ids
+    correction_bundle = (
+        _task_local_correction_bundle(
+            route,
+            tool_input_text=tool_input_text,
+            selected_records=selected,
+        )
+        if wants_correction
+        else None
+    )
     additional_context, context_over_soft_target, omitted = (
         _additional_context(selected, semantic_review_candidates)
         if selected or semantic_review_candidates
@@ -503,6 +563,13 @@ def build_action_consumption(
             else:
                 action_status = retrieval["coverage_status"]
                 evidence = []
+        elif action_id == "prepare_task_local_correction_bundle":
+            if correction_bundle is None or correction_bundle["decision"] == "no_match":
+                action_status = "not_applicable_with_reason"
+                evidence = "no_current_candidate_match"
+            else:
+                action_status = "completed"
+                evidence = correction_bundle.get("candidate_key")
         else:
             action_status = "deferred_to_model_agent"
             evidence = binding.get("completion_evidence")
@@ -522,6 +589,7 @@ def build_action_consumption(
         "selected_records": selected,
         "semantic_review_candidates": semantic_review_candidates,
         "semantic_review_owner": "host_model_agent",
+        "task_local_correction_bundle": correction_bundle,
         "retrieval": {
             key: value
             for key, value in retrieval.items()

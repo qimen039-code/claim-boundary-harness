@@ -24,21 +24,21 @@ def test_policy_authoring_toml_is_machine_readable() -> None:
     assert payload["schema_version"] == "cbh.policy_authoring.v1"
     assert payload["compiled_sections"]
     router = payload["router_decision_contract"]
-    assert router["skill_audit_contract"]["minimum_risk"] == "R3"
-    assert "skill_audit_gate" in router["skill_audit_contract"]["required_gates"]
-    assert {"功能重叠", "长期未用", "可合并项"}.issubset(
-        set(router["skill_audit_contract"]["redundancy_triggers"])
-    )
-    assert router["first_principles_contract"]["required_gate"] == "first_principles_gate"
-    assert router["first_principles_contract"]["profile_values"] == [
-        "none",
-        "micro_constraints",
-        "constraint_gate",
-        "full_design",
+    lifecycle = router["correction_lifecycle_contract"]
+    assert lifecycle["schema"] == "cbh.correction_lifecycle_contract.v1"
+    assert lifecycle["objective_order"] == [
+        "real_effectiveness_and_required_components",
+        "minimum_sufficient_implementation",
+        "execution_time_and_token_efficiency",
+        "surface_simplicity",
     ]
-    assert payload["runtime_enforcement"]["human_confirmation_permit"]["required_scope"] == "single_event"
-    assert payload["runtime_enforcement"]["human_confirmation_permit"]["consume_on_pass"] is True
-    assert payload["runtime_enforcement"]["human_confirmation_permit"]["used_ledger_env_var"] == "CBH_R5_PERMIT_USE_LEDGER"
+    assert "postcondition_verification" in lifecycle["stages"]
+    assert "task_local_retirement" in lifecycle["stages"]
+    correction = payload["runtime_enforcement"]["behavior_correction_contract"]
+    assert correction["schema"] == "cbh.behavior_correction_contract.v1"
+    assert correction["migration_hook"]["host_blocking"] is False
+    assert correction["migration_hook"]["stateful"] is False
+    assert correction["migration_hook"]["ambiguous_behavior"] == "no_output_original_input_unchanged"
 
 
 def test_policy_authoring_toml_matches_runtime_json() -> None:
