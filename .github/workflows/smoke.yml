@@ -40,6 +40,7 @@ jobs:
           if (Get-Variable PSNativeCommandUseErrorActionPreference -ErrorAction SilentlyContinue) {
             $PSNativeCommandUseErrorActionPreference = $false
           }
+          $env:CBH_PROJECT_LANES_FILE = (Resolve-Path ".\skills\embedded-harness\embedded_harness_policy.local.example.json").Path
 
           function Invoke-HarnessJson {
             param(
@@ -97,8 +98,8 @@ jobs:
 
           $route = Invoke-HarnessJson `
             -ScriptPath ".\skills\embedded-harness\harness_intake_router.ps1" `
-            -Arguments @("-TaskText", "fix the script and run benchmark", "-Cwd", "C:\path\to\project")
-          Assert-Equal $route.Json.project_lane "EXAMPLE_PROJECT" "router project lane"
+            -Arguments @("-TaskText", "fix the script and run benchmark", "-Cwd", "C:\path\to\your-project")
+          Assert-Equal $route.Json.project_lane "YOUR_PROJECT" "router project lane"
           Assert-Equal $route.Json.risk_level "R4" "router risk level"
           Assert-Contains $route.Json.triggered_risks "R4" "router triggered risks"
           Assert-Contains $route.Json.triggered_risks "R3" "router triggered risks"
@@ -113,12 +114,12 @@ jobs:
 
           $memoryPass = Invoke-HarnessJson `
             -ScriptPath ".\skills\embedded-harness\harness_memory_isolation_gate.ps1" `
-            -Arguments @("-ProjectLane", "EXAMPLE_PROJECT", "-RequestedPath", "C:\path\to\project\.agent-memory\memory-item.md")
+            -Arguments @("-ProjectLane", "YOUR_PROJECT", "-RequestedPath", "C:\path\to\your-project\.agent-memory\memory-item.md")
           Assert-Equal $memoryPass.Json.status "pass" "memory isolation pass"
 
           $memoryBlock = Invoke-HarnessJson `
             -ScriptPath ".\skills\embedded-harness\harness_memory_isolation_gate.ps1" `
-            -Arguments @("-ProjectLane", "EXAMPLE_PROJECT", "-RequestedPath", "C:\path\to\project-evil\.agent-memory\memory-item.md") `
+            -Arguments @("-ProjectLane", "YOUR_PROJECT", "-RequestedPath", "C:\path\to\your-project-evil\.agent-memory\memory-item.md") `
             -AllowedExitCodes @(2)
           Assert-Equal $memoryBlock.Json.status "blocked" "memory prefix block"
 

@@ -8,16 +8,45 @@ param(
 $ErrorActionPreference = "Stop"
 $policy = Get-Content -LiteralPath (Join-Path $PSScriptRoot "embedded_harness_policy.json") -Raw -Encoding UTF8 | ConvertFrom-Json
 
-$allowedRoots = @()
-if ($policy.memory_roots.PSObject.Properties.Name -contains $ProjectLane) {
-  $allowedRoots = @($policy.memory_roots.$ProjectLane)
-}
-
 function ConvertTo-Array($value) {
   if ($null -eq $value) { return @() }
   if ($value -is [System.Array]) { return @($value) }
   return @($value)
 }
+
+function Get-ObjectPropertyValue($object, [string]$name) {
+  if ($null -eq $object) { return $null }
+  $prop = $object.PSObject.Properties[$name]
+  if ($null -eq $prop) { return $null }
+  return $prop.Value
+}
+
+$allowedRoots = @(ConvertTo-Array (Get-ObjectPropertyValue (Get-ObjectPropertyValue $policy "memory_roots") $ProjectLane))
+$overlayConfig = Get-ObjectPropertyValue $policy "local_project_lane_overlay"
+if (($null -eq $overlayConfig) -or ((Get-ObjectPropertyValue $overlayConfig "enabled") -ne $false)) {
+  $overlayEnvVar = [string](Get-ObjectPropertyValue $overlayConfig "env_var")
+  if ([string]::IsNullOrWhiteSpace($overlayEnvVar)) { $overlayEnvVar = "CBH_PROJECT_LANES_FILE" }
+  $overlayFilename = [string](Get-ObjectPropertyValue $overlayConfig "default_filename")
+  if ([string]::IsNullOrWhiteSpace($overlayFilename)) { $overlayFilename = "embedded_harness_policy.local.json" }
+  $overlayCandidates = @()
+  $overlayEnvPath = [Environment]::GetEnvironmentVariable($overlayEnvVar)
+  if (-not [string]::IsNullOrWhiteSpace($overlayEnvPath)) { $overlayCandidates += $overlayEnvPath }
+  $overlayCandidates += (Join-Path $PSScriptRoot $overlayFilename)
+  foreach ($overlayCandidate in $overlayCandidates) {
+    if ([string]::IsNullOrWhiteSpace([string]$overlayCandidate) -or
+        -not (Test-Path -LiteralPath $overlayCandidate -PathType Leaf)) { continue }
+    $overlay = Get-Content -LiteralPath $overlayCandidate -Raw -Encoding UTF8 | ConvertFrom-Json
+    $expectedSchema = [string](Get-ObjectPropertyValue $overlayConfig "schema")
+    $actualSchema = [string](Get-ObjectPropertyValue $overlay "schema")
+    if ((-not [string]::IsNullOrWhiteSpace($expectedSchema)) -and
+        (-not [string]::IsNullOrWhiteSpace($actualSchema)) -and
+        ($actualSchema -ne $expectedSchema)) { continue }
+    $overlayRoots = Get-ObjectPropertyValue (Get-ObjectPropertyValue $overlay "memory_roots") $ProjectLane
+    $allowedRoots += @(ConvertTo-Array $overlayRoots)
+    break
+  }
+}
+$allowedRoots = @($allowedRoots | Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) } | Select-Object -Unique)
 
 function Normalize-FullPath([string]$PathText) {
   return [System.IO.Path]::GetFullPath($PathText).TrimEnd([System.IO.Path]::DirectorySeparatorChar, [System.IO.Path]::AltDirectorySeparatorChar)
@@ -123,5 +152,4 @@ if ($OutputPath) {
 }
 $json
 if ($status -eq "blocked") { exit 2 }
-
 
