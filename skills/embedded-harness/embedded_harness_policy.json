@@ -3371,7 +3371,7 @@
       "schema": "cbh.behavior_correction_contract.v1",
       "profile_registry_path": "behavior_correction_profiles.json",
       "profile_registry_schema": "cbh.behavior_correction_profile_registry.v1",
-      "profile_registry_sha256": "1d0b9e4b7a9b8e863fbe7c7f725b33c3bff5be323f1fdb774c2426c20dff403e",
+      "profile_registry_sha256": "65ef697c221bfc37dcba3232c0b3bce842cc6f3dffa74e48fa3af898a7cc3b55",
       "registry_hash_algorithm": "sha256_raw_file_bytes",
       "profile_hash_algorithm": "sha256_canonical_json_profile",
       "profile_priority_rule": "descending_unique_integer_then_profile_id",
