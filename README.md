@@ -52,14 +52,15 @@ lane configuration, and verification tests run by the adopter.
 
 ## At A Glance
 
-Claim Boundary Harness is a small model-facing cognition layer for coding agents.
-This repository already contains:
+Claim Boundary Harness is a small model-facing capability and cognition layer
+for Codex-class host LLM agents. The host model remains responsible for
+planning, tool use, recovery, and the final answer. This repository already contains:
 
-- routing receipts and R0-R5 risk handling before work starts;
+- routing receipts, R0-R5 risk handling, and event-triggered re-evaluation before work starts;
 - project, conversation, common-error, archive, and static-knowledge lane boundaries;
-- source-preserving memory capsules, conversation ledgers, and link-only continuation records;
+- source-preserving memory capsules, meta-first retrieval, conversation ledgers, and link-only continuation records;
 - claim, causal-attribution, external-research, reading, feedback-loop, debt-hygiene, and skill-lifecycle contracts;
-- PowerShell reference gates plus Bash, WorkBuddy, Doubao, and Codex-oriented adaptation notes;
+- task-local behavior correction for the current action candidate, with deterministic rewrite only after an exact match and mechanical verification, and silent no-op otherwise;
 - tests, smoke checks, examples, credits, and reproduction notes for the parts that can be checked automatically.
 
 The README is the public orientation layer for people and for agents doing a
@@ -78,14 +79,13 @@ Fast paths:
 | Cite or review provenance | [CITATION.cff](CITATION.cff), [NOTICE.md](NOTICE.md), [docs/influences-and-attribution.md](docs/influences-and-attribution.md) |
 | Runtime troubleshooting | [docs/deployment-risk-patterns.md](docs/deployment-risk-patterns.md), [docs/integrations](docs/integrations) |
 
-## Capability Map
+## CBH Capability Map
 
 | Capability | Primary entry point | Current public status |
 | --- | --- | --- |
 | Routing and claim gates | `harness_intake_router.ps1`, `harness_claim_schema_verifier.ps1` | Tested script contracts |
 | Behavior correction | `behavior_correction_gate.py`, `behavior_correction_hook.py` | Verified current-input rewrite or silent no-op; never authorizes execution |
 | Policy and adoption checks | `compile_policy_from_toml.py`, `validate_policy.ps1`, `tools/cbh_doctor.py` | Drift and preflight checks |
-| WorkBuddy adapter | `integrations/workbuddy-python-runtime/` | Unit-tested reference adapter; adopter must verify hook wiring |
 | Memory lanes and ledgers | `templates/project/memory-library/`, `templates/conversation-memory/`, `codex_session_ledger.py` | Templates and evidence indexes |
 | Model context selection | `harness_action_consumer.py`, router `memory_source_hints` | Exact indexed matches become compact, provenance-bearing agent context |
 | External retrieval planning | `external_retrieval_strategy.py`, `harness_external_research_gate.ps1` | Task-local exact-anchor, source-native, per-target receipt; the model agent still performs lookup |
@@ -94,6 +94,10 @@ Fast paths:
 | Feedback and causal review | `docs/memory-feedback-loop-trial.md`, `docs/router-decision-contract.md` | CE reuse plus overclaim boundary |
 | Research route triage | `docs/research-triage-three-questions.md` | Separates mechanical verifiers from governance paths |
 | Interaction error routing | `docs/interaction-error-corpus.md` | One corpus with four isolated control-surface lanes |
+
+WorkBuddy, Doubao, Bash, and other host or platform adaptations are separate
+integration references, not CBH capability entries. Their availability depends
+on the adopter's host interface and local verification.
 
 ## Architecture At A Glance
 

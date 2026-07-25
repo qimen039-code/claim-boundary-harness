@@ -64,6 +64,10 @@ def test_bilingual_readme_and_local_overlay_template_are_present() -> None:
     assert policy["local_project_lane_overlay"]["default_filename"] == "embedded_harness_policy.local.json"
     assert "embedded_harness_policy.local.json" in readme
     assert "CBH_PROJECT_LANES_FILE" in readme_zh
+    assert "| WorkBuddy adapter |" not in readme
+    assert "| WorkBuddy adapter |" not in readme_zh
+    assert "not CBH capability entries" in readme
+    assert "不是 CBH 能力项" in readme_zh
 
 
 def test_citation_notice_are_visible_and_public_report_draft_is_absent() -> None:

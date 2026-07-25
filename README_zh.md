@@ -41,13 +41,14 @@ CBH 不是：
 
 ## 快速理解
 
-CBH 给编码 agent 增加一个低成本、面向模型的认知层。这个仓库已经包含：
+CBH 为 Codex 类宿主大模型 Agent 增加一层低成本、面向模型的能力增强与认知治理；
+模型仍负责规划、工具调用、恢复和最终答复。这个仓库已经包含：
 
-- 工作开始前的 routing receipt 和 R0-R5 风险处理；
+- 工作开始前的 routing receipt、R0-R5 风险处理和事件触发复评；
 - 项目、长对话、common-error、归档和静态知识的 lane 边界；
-- source-preserving 记忆胶囊、对话账本和 link-only 接续记录；
+- source-preserving 记忆胶囊、meta-first 检索、对话账本和 link-only 接续记录；
 - claim、因果归因、外部检索、读取、反馈闭环、债务清理和 skill 生命周期契约；
-- PowerShell 参考 gate，以及 Bash、WorkBuddy、豆包、Codex 适配说明；
+- 针对当前动作候选的任务内行为纠偏：只有精确匹配且机械验证通过时才改写，否则静默 no-op；
 - 可自动检查的测试、smoke、示例、引用来源和复现记录。
 
 这个 README 是给人和“快速扫 README 的 agent”看的公开概览。真正影响 agent 执行的
@@ -64,7 +65,7 @@ CBH 给编码 agent 增加一个低成本、面向模型的认知层。这个仓
 | 验证行为 | [docs/test-cases.md](docs/test-cases.md)、[docs/reproduction.md](docs/reproduction.md) |
 | 客户端适配 | [docs/integrations](docs/integrations) |
 
-## 能力索引
+## CBH 能力索引
 
 本文件提供中文快速理解、核心能力和迁移入口；英文 README 保留完整目录树和更长的
 复现清单。引用来源、测试边界和细分契约见下方关键文档。
@@ -74,7 +75,6 @@ CBH 给编码 agent 增加一个低成本、面向模型的认知层。这个仓
 | 路由与声明 gate | `harness_intake_router.ps1`、`harness_claim_schema_verifier.ps1` | 脚本契约和测试覆盖 |
 | 行为纠偏 | `behavior_correction_gate.py`、`behavior_correction_hook.py` | 验证后的当前输入改写或静默 no-op；不产生执行权限 |
 | 策略与适配预检 | `compile_policy_from_toml.py`、`validate_policy.ps1`、`tools/cbh_doctor.py` | 漂移和预检工具 |
-| WorkBuddy adapter | `integrations/workbuddy-python-runtime/` | 单元测试覆盖的参考 adapter；采用者需自行验证 hook 接线 |
 | 记忆 lane 与账本 | `templates/project/memory-library/`、`templates/conversation-memory/`、`codex_session_ledger.py` | 模板和证据索引 |
 | 模型上下文选择 | `harness_action_consumer.py`、router 的 `memory_source_hints` | 把精确索引命中转成保留来源的紧凑 Agent 上下文 |
 | 通用外部检索规划 | `external_retrieval_strategy.py`、`harness_external_research_gate.ps1` | 保留精确锚点、按原生来源与目标分别规划；实际检索仍由模型 Agent 执行 |
@@ -83,6 +83,9 @@ CBH 给编码 agent 增加一个低成本、面向模型的认知层。这个仓
 | 反馈与因果复核 | `docs/memory-feedback-loop-trial.md`、`docs/router-decision-contract.md` | CE 复用与过度归因边界 |
 | 科研路线分诊 | `docs/research-triage-three-questions.md` | 区分机械裁判、裁判审计和治理路径 |
 | 交互错误路由 | `docs/interaction-error-corpus.md` | 单语料库、四条隔离控制表面车道 |
+
+WorkBuddy、豆包、Bash 和其他宿主或平台适配属于独立的 integration reference，
+不是 CBH 能力项；是否可用取决于采用者的宿主接口和本地验证。
 
 ## 架构概览
 
