@@ -215,6 +215,10 @@ jobs:
       - name: Run cbh-doctor diagnostics
         run: python tools/cbh_doctor.py --repo-root . --json
 
+      - name: Run external retrieval regression checks
+        shell: pwsh
+        run: pwsh -NoProfile -File .\tests\test_external_retrieval_strategy.ps1
+
       - name: Run pytest contract checks
         run: python -m pytest tests
 

@@ -39,6 +39,17 @@ def test_policy_authoring_toml_is_machine_readable() -> None:
     assert correction["migration_hook"]["host_blocking"] is False
     assert correction["migration_hook"]["stateful"] is False
     assert correction["migration_hook"]["ambiguous_behavior"] == "no_output_original_input_unchanged"
+    retrieval = payload["search_and_learning_decision_matrix"]["external_retrieval_contract"]
+    assert retrieval["schema"] == "cbh.external_retrieval_contract.v1"
+    assert retrieval["receipt_schema"] == "cbh.external_retrieval_receipt.v1"
+    assert {"doi_resolver", "pypi", "npm", "huggingface", "github_repository"} <= set(
+        retrieval["source_native_routes"]
+    )
+    assert "max_queries" not in retrieval
+    assert "max_sources" not in retrieval
+    assert "provider" in retrieval["negative_claim_rule"].lower()
+    assert "miss" in retrieval["negative_claim_rule"].lower()
+    assert retrieval["currentness_evidence_rule"]
 
 
 def test_policy_authoring_toml_matches_runtime_json() -> None:

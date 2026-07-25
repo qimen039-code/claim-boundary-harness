@@ -1,7 +1,7 @@
 {
   "schema_version": "0.1",
   "manifest_type": "agent_memory_lane_compatibility_manifest",
-  "harness_version": "v1.1.0",
+  "harness_version": "v1.2.0",
   "adapter": {
     "name": "example-adapter",
     "version": "unverified",
@@ -49,6 +49,19 @@
     "host_loop_consumer_implemented": "unverified",
     "host_loop_consumption_receipt_verified": "unverified",
     "hook_only_must_not_claim_full_route_contract_execution": true
+  },
+  "external_retrieval_planner": {
+    "receipt_schema": "cbh.external_retrieval_receipt.v1",
+    "supported": "unverified",
+    "task_local_only": true,
+    "performs_network_access": false,
+    "writes_durable_memory": false,
+    "host_model_executes_search": true,
+    "exact_anchor_preservation": true,
+    "source_native_fallback": true,
+    "per_target_coverage": true,
+    "provider_miss_is_verified_absence": false,
+    "currentness_requires_checked_at_and_freshness": true
   },
   "hook_schema": {
     "prompt_stage": {

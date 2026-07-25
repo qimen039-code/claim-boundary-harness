@@ -10,8 +10,8 @@ Codex-class LLM agents. It helps the active model route a task, retrieve only
 the relevant memory or evidence, preserve claim boundaries, and reuse verified
 corrections without flooding its context.
 
-Current main-branch version: `v1.1.0` (not yet tagged).
-Latest tagged GitHub release: [`v1.0.0`](https://github.com/qimen039-code/claim-boundary-harness/releases/tag/v1.0.0).
+Current main-branch version: `v1.2.0`.
+Latest tagged GitHub release: [`v1.2.0`](https://github.com/qimen039-code/claim-boundary-harness/releases/tag/v1.2.0).
 Earlier tags remain historical snapshots, not current main-branch installation,
 capability, or compatibility guidance.
 
@@ -88,6 +88,7 @@ Fast paths:
 | WorkBuddy adapter | `integrations/workbuddy-python-runtime/` | Unit-tested reference adapter; adopter must verify hook wiring |
 | Memory lanes and ledgers | `templates/project/memory-library/`, `templates/conversation-memory/`, `codex_session_ledger.py` | Templates and evidence indexes |
 | Model context selection | `harness_action_consumer.py`, router `memory_source_hints` | Exact indexed matches become compact, provenance-bearing agent context |
+| External retrieval planning | `external_retrieval_strategy.py`, `harness_external_research_gate.ps1` | Task-local exact-anchor, source-native, per-target receipt; the model agent still performs lookup |
 | Retrieval and reading | `docs/hybrid-memory-retrieval-contract.md`, `docs/content-reading-contract.md` | Meta-first, source-preserving, bounded windows |
 | Skill lifecycle | `docs/skill-lifecycle-contract.md`, `templates/skill-lifecycle/` | Active-frame plus release receipt |
 | Feedback and causal review | `docs/memory-feedback-loop-trial.md`, `docs/router-decision-contract.md` | CE reuse plus overclaim boundary |
@@ -407,6 +408,7 @@ unbounded context growth.
 |   |   +-- behavior_correction_hook.py
 |   |   +-- behavior_correction_profiles.json
 |   |   +-- codex_session_ledger.py
+|   |   +-- external_retrieval_strategy.py
 |   +-- shared-semantic-anchors/
 |   +-- troubleshooting-skill-matrix/
 +-- tools/
@@ -581,7 +583,13 @@ fields that lack an Agent Loop consumer as advisory rather than deployed.
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\skills\embedded-harness\harness_intake_router.ps1 -TaskText "fix the script and run benchmark" -Cwd "C:\path\to\project"
+powershell -ExecutionPolicy Bypass -File .\skills\embedded-harness\harness_external_research_gate.ps1 -TaskText "核对 RFC 9110 当前状态"
 ```
+
+The external gate now returns a `cbh.external_retrieval_receipt.v1` plan that
+preserves exact anchors, selects source-native routes, and records per-target
+coverage and negative-evidence limits. It performs no network access or
+durable memory write; the host model agent executes the selected source tools.
 
 Validate the policy after editing it:
 

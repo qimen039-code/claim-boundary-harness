@@ -30,14 +30,16 @@ read this map
 | `AGENTS.md` | low-cost microkernel and risk/memory/claim/tool boundaries | every deployment |
 | `skills/embedded-harness/embedded_harness_policy.json` | compiled runtime policy | every scripted or adapter deployment |
 | `harness_intake_router.ps1` | deterministic route receipt | PowerShell/Codex direct-script profile |
-| `harness_action_consumer.py` | bounded memory context and task-local correction receipt | memory retrieval or full model-loop integration |
+| `harness_action_consumer.py` | bounded memory context, external retrieval plan, and task-local correction receipt | memory retrieval, external lookup, or full model-loop integration |
+| `external_retrieval_strategy.py` | task-local exact-anchor, source-native, per-target retrieval receipt | any profile that deploys the action consumer or external research gate |
 | `harness_memory_isolation_gate.ps1` | project-lane path receipt | PowerShell memory reads/writes |
 | `harness_external_research_gate.ps1` | external-evidence route receipt | external/current fact routing |
 | `harness_claim_schema_verifier.ps1` | claim/evidence-boundary receipt | PowerShell claim validation |
 
-The Bash directory is a reference equivalent for advisory core gates and
-requires `bash` plus `jq`. Deploy it only when that target shell is real and
-tested.
+The Bash directory is a trigger/router reference for advisory core gates and
+requires `bash` plus `jq`. It does not implement the Python
+`cbh.external_retrieval_receipt.v1` planner. Deploy it only when that target
+shell is real and tested.
 
 ### B. Behavior-Correction Closure
 

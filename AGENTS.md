@@ -255,6 +255,15 @@ source ledger. CBH does not run an independent crawler or background learning
 process, and an action binding is not completion evidence until the model-agent
 tool path returns evidence.
 
+Before those tool calls, use the task-local external retrieval receipt to keep
+the original query and exact identifiers unchanged, route typed objects to
+their canonical or source-native surfaces, and track coverage per target. An
+unknown namespace requires source-capability discovery rather than a guessed
+provider, and a provider/index miss is not proof of absence. Current or
+revision-sensitive claims require checked-at and freshness evidence. The
+planner only plans and reduces supplied attempts; it does not browse, block,
+write durable memory, or replace model judgment.
+
 ## Mandatory Memory Retrieval Chain
 
 For any nontrivial memory lookup, read the meta layer first. Do not jump directly into deep memory files.

@@ -70,6 +70,15 @@ Do not treat local architecture maintenance as external research unless it inclu
 Classify outside material as `fact`, `source_prior`, `hypothesis`, `inspiration`, `unverified_implementation_path`, or `not_applicable`.
 Do not upgrade external reading into local validation unless local evidence, tests, reproduction, or a concrete project-specific proof path exists.
 
+`harness_external_research_gate.ps1` now calls
+`external_retrieval_strategy.py` to produce a task-local
+`cbh.external_retrieval_receipt.v1`. It preserves the original query and exact
+identifiers, selects canonical/source-native routes, separates targets and
+facets, and keeps provider misses below verified absence. The receipt is a
+plan, not proof of browsing: it performs no network access, blocking, policy
+mutation, or durable memory write, and the host model agent remains the search
+and claim owner.
+
 Mandatory memory retrieval chain:
 
 ```text
@@ -96,6 +105,7 @@ python .\behavior_correction_hook.py < pretool-event.json
 .\validate_policy.ps1
 .\harness_memory_isolation_gate.ps1 -ProjectLane EXAMPLE_PROJECT -RequestedPath "<PROJECT_ROOT>/.agent-memory/item.md"
 .\harness_external_research_gate.ps1 -TaskText "check latest version"
+python .\external_retrieval_strategy.py --task-text "核对 DOI 10.1145/3596512" --mode official_authority_source_search
 .\harness_claim_schema_verifier.ps1 -ClaimJson '{"claim_type":"architecture_decision","source_type":"local_file","source_ref":"README.md","evidence_boundary":"whiteboard_smoke"}'
 ```
 

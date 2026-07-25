@@ -16,6 +16,7 @@ if str(HARNESS_ROOT) not in sys.path:
 
 from behavior_correction_gate import build_behavior_correction_receipt  # noqa: E402
 from execution_feedback import CorrectionProfileRegistryError  # noqa: E402
+from external_retrieval_strategy import build_external_retrieval_receipt  # noqa: E402
 
 
 SCHEMA = "cbh.model_context_consumption.v1"
@@ -506,6 +507,20 @@ def build_action_consumption(
         for item in bindings
         if isinstance(item, dict) and item.get("action")
     }
+    wants_external_retrieval = "perform_external_research_route" in binding_ids
+    external_modes_value = _route_field(route, "external_need", [])
+    external_modes = [
+        str(mode)
+        for mode in (external_modes_value if isinstance(external_modes_value, list) else [])
+        if str(mode) and str(mode) != "none"
+    ]
+    if wants_external_retrieval and not external_modes:
+        external_modes = ["general_web_cross_check"]
+    external_retrieval_receipt = (
+        build_external_retrieval_receipt(prompt, recommended_modes=external_modes)
+        if wants_external_retrieval
+        else None
+    )
     wants_retrieval = memory_need != "none" or "retrieve_matching_memory" in binding_ids
     retrieval = (
         select_memory_context(
@@ -544,6 +559,24 @@ def build_action_consumption(
         if selected or semantic_review_candidates
         else ("", False, [])
     )
+    if external_retrieval_receipt is not None:
+        exact_values = [
+            item["raw_text"] for item in external_retrieval_receipt["exact_anchors"]
+        ]
+        source_routes = [
+            item["source_route_id"]
+            for item in external_retrieval_receipt["source_capability_candidates"]
+        ]
+        external_context = (
+            "External retrieval near-action: "
+            f"profile={external_retrieval_receipt['retrieval_profile']}; "
+            f"exact_anchors={json.dumps(exact_values, ensure_ascii=False)}; "
+            f"source_routes={json.dumps(source_routes, ensure_ascii=False)}. "
+            "Preserve exact anchors, use matching source-native routes, bind evidence to each target, "
+            "and do not treat one provider/index miss as verified absence."
+        )
+        additional_context = "\n".join(part for part in (additional_context, external_context) if part)
+        context_over_soft_target = context_over_soft_target or len(additional_context) > CONTEXT_SOFT_TARGET_CHARS
 
     actions: list[dict[str, Any]] = []
     for binding in bindings:
@@ -570,6 +603,26 @@ def build_action_consumption(
             else:
                 action_status = "completed"
                 evidence = correction_bundle.get("candidate_key")
+        elif action_id == "perform_external_research_route":
+            action_status = "deferred_to_model_agent"
+            evidence = {
+                "receipt_schema": external_retrieval_receipt["schema"],
+                "retrieval_profile": external_retrieval_receipt["retrieval_profile"],
+                "coverage_status": external_retrieval_receipt["coverage_status"],
+                "query_ids": [
+                    item["query_id"] for item in external_retrieval_receipt["query_plan"]
+                ],
+                "pending_source_routes": [
+                    {
+                        "target_id": item["target_id"],
+                        "source_route_id": item["source_route_id"],
+                        "mode": item["mode"],
+                        "activation_condition": item["activation_condition"],
+                    }
+                    for item in external_retrieval_receipt["source_capability_candidates"]
+                ],
+                "negative_evidence_boundary": external_retrieval_receipt["negative_evidence_boundary"],
+            }
         else:
             action_status = "deferred_to_model_agent"
             evidence = binding.get("completion_evidence")
@@ -590,6 +643,7 @@ def build_action_consumption(
         "semantic_review_candidates": semantic_review_candidates,
         "semantic_review_owner": "host_model_agent",
         "task_local_correction_bundle": correction_bundle,
+        "external_retrieval_receipt": external_retrieval_receipt,
         "retrieval": {
             key: value
             for key, value in retrieval.items()

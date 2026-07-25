@@ -6,7 +6,19 @@ This project uses `vMAJOR.MINOR.PATCH` version labels.
 
 ## Unreleased
 
-Target main-branch version: `v1.1.0` (not yet tagged).
+No unreleased changes.
+
+## v1.2.0 - 2026-07-25
+
+- Added a generic task-local external retrieval planner that preserves original
+  queries and exact identifiers, routes typed objects to source-native
+  surfaces, and tracks evidence coverage per target.
+- Added DOI, RFC, arXiv, CVE, standards, package-registry, Hugging Face,
+  GitHub, official-entity, and unknown-namespace discovery routes without
+  treating provider misses as proof of absence.
+- Connected planner receipts to the PowerShell research gate, intake router,
+  bounded action consumer, deployment profiles, and Windows CI while
+  keeping actual search execution with the host model agent.
 
 - Replaced the retired CBH-owned runtime deny/permit/Stop chain with a
   stateless, nonblocking behavior-correction lifecycle.

@@ -662,13 +662,41 @@ if ($projectLane -ne "PROJECTLESS") {
   $requiredSkills += "$projectLane project AGENTS/router"
 }
 
+$externalRetrievalContract = Get-ObjectPropertyValue $policy.search_and_learning_decision_matrix "external_retrieval_contract"
 $externalResearchMatchSet = Get-TriggerMatchSet $policy.external_research_triggers
-$needsExternalResearch = @($externalResearchMatchSet.positive).Count -gt 0
-if ($needsExternalResearch) {
-  $matchedRiskTriggers["external_research"] = @($externalResearchMatchSet.positive)
+$explicitSearchIntentMatchSet = Get-TriggerMatchSet (Get-ObjectPropertyValue $externalRetrievalContract "explicit_search_intent_terms")
+$localOnlySearchHits = Get-MatchedTriggers (Get-ObjectPropertyValue $externalRetrievalContract "local_only_exclusion_terms")
+$externalPositive = @(
+  @($externalResearchMatchSet.positive) + @($explicitSearchIntentMatchSet.positive) |
+    Select-Object -Unique
+)
+$externalNegative = @(
+  @($externalResearchMatchSet.negated) + @($explicitSearchIntentMatchSet.negated) |
+    Select-Object -Unique
+)
+$currentnessPattern = '(?i)\bnow\b|\bcurrently\b|\bpresent\s+(?:role|office|holder)\b|现在|现任|目前'
+if ([regex]::IsMatch($TaskText, $currentnessPattern)) {
+  $externalPositive += "currentness_pattern"
 }
-if ($externalResearchMatchSet.negated.Count -gt 0) {
-  $negatedRiskTriggers["external_research"] = @($externalResearchMatchSet.negated)
+$typedExternalIdentifierPattern = '(?i)\bRFC\s*-?\s*\d{3,5}\b|\bCVE-\d{4}-\d{4,}\b|\b10\.\d{4,9}/[-._;()/:A-Z0-9]+\b|\barXiv\s*:\s*\d{4}\.\d{4,5}(?:v\d+)?\b|\barXiv\s+\d{4}\.\d{4,5}(?:v\d+)?\b|\b(?:ISO(?:/IEC)?|IEC|IEEE)\s+\d+(?:[-:]\d+)*(?::\d{4})?\b|(?<![A-Za-z0-9_.-])@[A-Za-z0-9][A-Za-z0-9._-]*/[A-Za-z0-9][A-Za-z0-9._-]*|\b(?:PyPI|npm|Hugging\s*Face)\b'
+if ([regex]::IsMatch($TaskText, $typedExternalIdentifierPattern)) {
+  $externalPositive += "typed_external_identifier_pattern"
+}
+$hasExplicitSearchIntent = @($explicitSearchIntentMatchSet.positive).Count -gt 0
+$ownerRepoPattern = '(?i)(?<![A-Za-z0-9_.-])[A-Za-z0-9](?:[A-Za-z0-9-]{0,38})/[A-Za-z0-9_.-]{1,100}(?![A-Za-z0-9_.-])'
+$hasOwnerRepoAnchor = $hasExplicitSearchIntent -and [regex]::IsMatch($TaskText, $ownerRepoPattern)
+$hasQuotedExternalAnchor = [regex]::IsMatch($TaskText, '["“][^"”\r\n]{2,200}["”]')
+$hasDirectExternalAnchor = [regex]::IsMatch($TaskText, '(?i)https?://|\b(?:v\d+(?:\.\d+){1,3})\b') -or [regex]::IsMatch($TaskText, $typedExternalIdentifierPattern)
+$hasExactExternalAnchor = $hasOwnerRepoAnchor -or $hasQuotedExternalAnchor -or $hasDirectExternalAnchor
+$needsExternalResearch = ($externalPositive.Count -gt 0) -and ($localOnlySearchHits.Count -eq 0)
+if ($needsExternalResearch) {
+  $matchedRiskTriggers["external_research"] = @($externalPositive | Select-Object -Unique)
+  if ($hasExactExternalAnchor) {
+    $requiredGates += "exact_anchor_preservation_gate"
+  }
+}
+if ($externalNegative.Count -gt 0) {
+  $negatedRiskTriggers["external_research"] = @($externalNegative)
 }
 
 $targetSurface = if ($skillAuditProfile -ne "none") { "skill_matrix" } else { Get-TargetSurface }
@@ -753,8 +781,17 @@ if ($null -ne $searchModes) {
     }
   }
 }
+if ($needsExternalResearch -and (@($explicitSearchIntentMatchSet.positive).Count -gt 0)) {
+  $externalNeed += "general_web_cross_check"
+}
+if ($needsExternalResearch -and [regex]::IsMatch($TaskText, '(?i)github\.com|\bGitHub\b|仓库|开源')) {
+  $externalNeed += "github_open_source_repository_search"
+}
+if (-not $needsExternalResearch) {
+  $externalNeed = @()
+}
 if (($needsExternalResearch) -and ($externalNeed.Count -eq 0)) {
-  $externalNeed += "official_authority_source_search"
+  $externalNeed += "general_web_cross_check"
 }
 if ($externalNeed.Count -eq 0) {
   $externalNeed += "none"
@@ -769,7 +806,19 @@ $pairedMemoryTriggers = $policy.router_decision_contract.paired_memory_triggers
 if ($null -eq $pairedMemoryTriggers) {
   $pairedMemoryTriggers = @("ERR-", "SOL-", "error memory", "solution memory", "self-reflection")
 }
-$explicitMemoryNeed = (Get-MatchedTriggers $memoryNeedTriggers).Count -gt 0
+$explicitMemoryNeedHits = Get-MatchedTriggers $memoryNeedTriggers
+$explicitMemoryNeed = $explicitMemoryNeedHits.Count -gt 0
+$localMemoryAccessIntentHits = Get-MatchedTriggers (Get-ObjectPropertyValue $externalRetrievalContract "local_memory_access_intent_terms")
+$genericMemoryFeatureHits = Get-TermIntersection -leftTerms $explicitMemoryNeedHits -rightTerms (Get-ObjectPropertyValue $externalRetrievalContract "generic_memory_feature_terms")
+if (
+  $needsExternalResearch -and
+  $hasExplicitSearchIntent -and
+  ($explicitMemoryNeedHits.Count -gt 0) -and
+  ($explicitMemoryNeedHits.Count -eq $genericMemoryFeatureHits.Count) -and
+  ($localMemoryAccessIntentHits.Count -eq 0)
+) {
+  $explicitMemoryNeed = $false
+}
 $pairedMemoryHits = Get-MatchedTriggers $pairedMemoryTriggers
 $staticKnowledgeTriggers = $policy.router_decision_contract.static_knowledge_triggers
 if ($null -eq $staticKnowledgeTriggers) {

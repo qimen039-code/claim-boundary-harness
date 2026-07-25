@@ -56,6 +56,21 @@ class DeploymentProfileTests(unittest.TestCase):
                 for path in files:
                     self.assertTrue((REPO_ROOT / path).is_file(), path)
 
+    def test_external_retrieval_planner_dependency_is_closed(self) -> None:
+        profiles = json.loads(
+            (ADAPTER_ROOT / "deployment-profiles.json").read_text(encoding="utf-8")
+        )["profiles"]
+        planner = "skills/embedded-harness/external_retrieval_strategy.py"
+        consumers = {
+            "skills/embedded-harness/harness_action_consumer.py",
+            "skills/embedded-harness/harness_external_research_gate.ps1",
+        }
+        for profile_id, profile in profiles.items():
+            include = set(profile["include"])
+            if include & consumers:
+                self.assertIn(planner, include, profile_id)
+        self.assertNotIn(planner, profiles["workbuddy-hook-minimal"]["include"])
+
     def test_staged_bundle_writes_exact_receipt_without_full_repo(self) -> None:
         temp_root = ADAPTER_ROOT / ".test-tmp"
         temp_root.mkdir(parents=True, exist_ok=True)

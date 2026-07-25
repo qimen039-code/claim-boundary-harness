@@ -21,6 +21,7 @@ compiled_sections = [
   "router_decision_contract.causal_attribution_triggers",
   "router_decision_contract.issue_prevention_gates",
   "router_decision_contract.conversation_memory_full_lane_triggers",
+  "search_and_learning_decision_matrix",
   "runtime_enforcement.behavior_correction_contract",
 ]
 
@@ -1471,6 +1472,487 @@ triggers = [
   "胶囊",
   "记忆文件",
 ]
+
+[search_and_learning_decision_matrix]
+mandatory = true
+purpose = "avoid closed-door invention, lossy query rewriting, narrow-source retrieval, and assumption-filled external claims"
+classification_labels = [
+  "fact",
+  "source_prior",
+  "hypothesis",
+  "inspiration",
+  "unverified_implementation_path",
+  "not_applicable",
+  "local_validated",
+]
+anti_closed_door_rule = "For external mechanisms, public repositories, current facts, unfamiliar methods, or explicit search requests, do not rely on local reasoning alone. Search or mark the result as unverified."
+
+[search_and_learning_decision_matrix.search_modes.official_authority_source_search]
+triggers = [
+  "official",
+  "authority",
+  "policy",
+  "law",
+  "price",
+  "product",
+  "product mechanism",
+  "institution",
+  "current",
+  "currently",
+  "now",
+  "latest",
+  "version",
+  "release date",
+  "official fact",
+  "official source",
+  "Claude",
+  "Anthropic",
+  "官方",
+  "官方事实",
+  "官方来源",
+  "现势",
+  "现在",
+  "现任",
+  "目前",
+  "产品机制",
+]
+boundary = "Use official or authority sources first for drift-prone public facts; cross-check when practical."
+
+[search_and_learning_decision_matrix.search_modes.github_open_source_repository_search]
+triggers = [
+  "GitHub",
+  "repo",
+  "repository",
+  "open source",
+  "GitHub release",
+  "changelog",
+  "issue",
+  "license",
+  "仓库",
+  "开源",
+]
+boundary = "Separate repository identity, README intent, source-code facts, release or issue evidence, activity signals, and license boundaries."
+
+[search_and_learning_decision_matrix.search_modes.general_web_cross_check]
+triggers = [
+  "search",
+  "search the web",
+  "look up",
+  "find online",
+  "browse the web",
+  "compare",
+  "comparison",
+  "ecosystem",
+  "community",
+  "tutorial",
+  "trend",
+  "uncertain",
+  "not sure",
+  "evidence needed",
+  "source needed",
+  "external evidence",
+  "external research",
+  "external search",
+  "external link",
+  "third-party",
+  "URL",
+  "http://",
+  "https://",
+  "搜索",
+  "检索",
+  "查找",
+  "联网搜索",
+  "外部搜索",
+  "不确定",
+  "没把握",
+  "需要证据",
+  "需要外部证据",
+  "需要检索",
+  "需要搜索",
+  "外链",
+  "链接",
+  "第三方",
+  "第三方口径",
+  "外部依据",
+]
+boundary = "Use independent sources when practical; mark source limits when evidence is thin."
+
+[search_and_learning_decision_matrix.search_modes.source_grounded_learning_intake]
+triggers = [
+  "mechanism",
+  "external architecture",
+  "architecture comparison",
+  "learn from",
+  "source-grounded",
+  "external mechanism",
+  "product mechanism",
+  "current mechanism",
+  "memory synthesis",
+  "avoid closed-door invention",
+  "external research",
+  "has anyone built",
+  "existing design",
+  "mature design",
+  "有没有别人做过",
+  "有没有研究",
+  "成熟方案",
+  "外部研究",
+  "外部机制",
+  "现势机制",
+  "产品机制",
+  "避免闭门造车",
+]
+boundary = "Build a source ledger, classify material, preserve non-applicable boundaries, and require local validation before adoption-success claims."
+
+[search_and_learning_decision_matrix.external_retrieval_contract]
+schema = "cbh.external_retrieval_contract.v1"
+receipt_schema = "cbh.external_retrieval_receipt.v1"
+profile_values = [
+  "none",
+  "exact_anchor_first",
+  "facet_coverage",
+  "exact_anchor_plus_facet_coverage",
+]
+objective_order = [
+  "preserve_user_intent_and_exact_anchors",
+  "cover_distinct_required_facets",
+  "verify_candidates_at_primary_sources",
+  "minimize_queries_time_and_tokens",
+]
+explicit_search_intent_terms = [
+  "search",
+  "search the web",
+  "look up",
+  "find online",
+  "browse the web",
+  "external search",
+  "搜索",
+  "检索",
+  "查找",
+  "联网搜索",
+  "外部搜索",
+]
+local_only_exclusion_terms = [
+  "search local files",
+  "search the local code",
+  "only search locally",
+  "do not browse",
+  "do not search the web",
+  "在本地文件中搜索",
+  "在本地代码中搜索",
+  "只在本地搜索",
+  "不要联网",
+  "不要外部检索",
+]
+generic_memory_feature_terms = [
+  "memory",
+  "记忆",
+]
+local_memory_access_intent_terms = [
+  "recall",
+  "remember",
+  "from memory",
+  "our memory",
+  "memory index",
+  "_META_INDEX",
+  "ERR-",
+  "SOL-",
+  "回忆",
+  "记忆中",
+  "查记忆",
+  "从记忆",
+  "我们的记忆",
+  "元摘要",
+  "之前",
+]
+memory_write_intent_terms = [
+  "write memory",
+  "write to memory",
+  "record in memory",
+  "save to memory",
+  "add this to memory",
+  "写入记忆",
+  "记录到记忆",
+  "保存到记忆",
+  "加入记忆",
+]
+anchor_kinds = [
+  "quoted_phrase",
+  "project_name",
+  "named_entity",
+  "owner_repo_slug",
+  "namespaced_identifier",
+  "package_id",
+  "model_or_dataset_id",
+  "url",
+  "doi",
+  "rfc",
+  "arxiv_id",
+  "cve_id",
+  "standard_id",
+  "version_or_release",
+  "identifier",
+  "error_literal",
+  "acronym",
+]
+query_stage_order = [
+  "literal_anchor",
+  "original_query",
+  "source_native_fallback",
+  "semantic_expansion",
+  "independent_cross_check",
+  "candidate_verification",
+]
+coverage_status_values = [
+  "not_requested",
+  "planned",
+  "fallback_required",
+  "source_read_required",
+  "semantic_review_required",
+  "complete",
+  "inconclusive",
+  "verified_absent",
+]
+target_coverage_status_values = [
+  "planned",
+  "unresolved",
+  "source_read_required",
+  "verified_at_primary_source",
+  "verified_absent",
+]
+source_status_values = [
+  "found_candidate",
+  "source_read_required",
+  "not_found_in_checked_source",
+  "provider_unavailable",
+  "access_limited",
+  "index_lag_possible",
+  "identifier_ambiguous",
+  "revision_or_status_unresolved",
+  "verified_absent",
+]
+generic_facet_source_route_ids = [
+  "official_entity",
+]
+authority_binding_status_values = [
+  "not_required_canonical_url_matched",
+  "verified_for_target",
+  "semantic_review_required",
+]
+max_future_skew_seconds = 300
+max_freshness_window_seconds = 86400
+source_ledger_fields = [
+  "attempt_id",
+  "query_id",
+  "mode",
+  "provider",
+  "provider_status",
+  "result_count",
+  "exact_anchor_hits",
+  "covered_facets",
+  "source_read",
+  "canonical_source_refs",
+  "absence_basis",
+  "target_ids",
+  "absence_targets",
+  "source_route_id",
+  "source_role",
+  "primary_source_verified",
+  "supports_target_ids",
+  "linked_target_ids",
+  "facet_association_status",
+  "checked_at",
+  "freshness_window_seconds",
+  "freshness_basis",
+  "freshness_validation_status",
+  "revision",
+  "conflict_status",
+  "authority_binding_status",
+  "authority_binding_basis",
+  "evidence_binding_status",
+]
+merge_policy = "Never merge an exact-anchor query into semantic expansion. Keep one reserved result path per exact anchor; canonicalize and deduplicate candidates, fuse heterogeneous ranked lists only as a ranking aid, rerank against the original task, and preserve provenance."
+fallback_rule = "If a checked surface is weak, empty, conflicting, unavailable, or loses an exact anchor, keep the original query and anchor query, then use the matching source-native search or known direct URL before broadening semantic variants."
+negative_claim_rule = "A provider, index, Top-K, snippet, or AI-search miss is only not_found_in_checked_sources or retrieval_inconclusive, never proof of absence. verified_absent requires a complete closed-world source, an authority's direct negative statement, or a verifiable known-address not-found result."
+coverage_rule = "Stop only when every required exact anchor is bound to a planned query and verified at a matching primary source, and every distinct required facet is supported or explicitly unresolved. In multi-entity tasks, each facet is first linked to the anchor in its local clause; ambiguous associations retain semantic_review_required. A source route must be registered and allowed by the linked target; routes without a mechanically known canonical URL require an explicit verified-for-target authority binding. Current or revision-sensitive claims require a timezone-aware checked-at value, a positive claim-specific freshness window, and a stated freshness basis, and unresolved source conflict prevents completion. Snippets and ranking scores locate candidates but are not final evidence."
+cost_rule = "Execute the original query and each exact anchor independently. Use a small first wave, then expand only for an unresolved anchor, distinct facet, weak evidence, conflict, or unavailable source; do not impose a hard source or query cap that drops required coverage."
+external_memory_boundary = "External candidates and source ledgers are task-local evidence. They do not enter durable memory unless a separately governed memory-write event is authorized."
+source_capability_rule = "Choose source-native routes from typed anchors and explicit source context. A provider hint is a route candidate, not proof of ownership or existence; verify the canonical source before completing the facet."
+unknown_source_rule = "For an untyped namespace or named entity, run capability/source discovery and retain semantic_review_required. Do not silently reinterpret it as GitHub, Hugging Face, a package registry, or an official site."
+currentness_evidence_rule = "For a current or revision-sensitive claim, checked_at must be a timezone-aware ISO-8601 timestamp, must not be beyond the configured future-skew tolerance, and must fall inside the positive claim-specific freshness_window_seconds declared with a non-empty freshness_basis. The declared window cannot exceed the contract's task-local maximum, and the caller remains responsible for choosing a stricter window appropriate to the volatility of the claim; otherwise retain semantic_review_required."
+source_refs = [
+  "https://learn.microsoft.com/en-us/azure/search/semantic-how-to-query-rewrite",
+  "https://support.google.com/websearch/answer/2466433",
+  "https://docs.github.com/en/search-github/searching-on-github/searching-for-repositories",
+  "https://doi.org/help.html",
+  "https://www.crossref.org/documentation/retrieve-metadata/rest-api/",
+  "https://support.datacite.org/docs/api",
+  "https://docs.pypi.org/api/json/",
+  "https://docs.npmjs.com/using-npm/registry.html",
+  "https://huggingface.co/docs/huggingface_hub/guides/search",
+  "https://www.rfc-editor.org/",
+  "https://www.cve.org/ResourcesSupport/AllResources/CNARules",
+  "https://www.iso.org/standards.html",
+  "https://developers.google.com/search/docs/fundamentals/how-search-works",
+  "https://aclanthology.org/2025.acl-srw.32/",
+  "https://arxiv.org/abs/2401.15884",
+  "https://cormack.uwaterloo.ca/cormacksigir09-rrf.pdf",
+]
+rule = "Freeze exact identifiers, preserve and execute the original query, keep exact and semantic lanes separate, select source-native fallbacks by capability, verify candidate sources, track per-query coverage and provenance, and retain an explicit inconclusive state. This contract plans and evaluates retrieval but does not browse, block, or write memory."
+
+[search_and_learning_decision_matrix.external_retrieval_contract.source_native_routes.official_entity]
+anchor_types = [
+  "quoted_phrase",
+  "project_name",
+  "named_entity",
+  "version_or_release",
+  "identifier",
+  "error_literal",
+  "acronym",
+  "standard_id",
+]
+provider_hints = [
+  "official_source_discovery",
+  "none",
+]
+mode = "official_authority_source_search"
+query_template = "{quoted} official"
+direct_url_template = ""
+activation_condition = "immediate_for_named_entity_or_after_literal_anchor"
+authority_boundary = "An official page can establish the entity's own statement or current metadata; independent claims still require an appropriate cross-check."
+
+[search_and_learning_decision_matrix.external_retrieval_contract.source_native_routes.doi_resolver]
+anchor_types = ["doi"]
+provider_hints = ["doi_resolver"]
+mode = "source_native_identifier_resolution"
+query_template = "{raw}"
+direct_url_template = "https://doi.org/{raw_url}"
+activation_condition = "immediate_for_explicit_identifier"
+authority_boundary = "doi.org resolves the identifier; resolver or registration metadata does not by itself validate the publication's substantive claims."
+
+[search_and_learning_decision_matrix.external_retrieval_contract.source_native_routes.crossref_metadata]
+anchor_types = ["doi"]
+provider_hints = ["doi_resolver"]
+mode = "source_native_scholarly_metadata"
+query_template = "{raw} Crossref metadata"
+direct_url_template = "https://api.crossref.org/works/{raw_url}"
+activation_condition = "after_doi_resolver_unavailable_or_for_registration_metadata_cross_check"
+authority_boundary = "Crossref metadata can establish records registered with Crossref. A miss does not exclude DataCite or another DOI registration agency, and metadata does not validate publication claims."
+
+[search_and_learning_decision_matrix.external_retrieval_contract.source_native_routes.datacite_metadata]
+anchor_types = ["doi"]
+provider_hints = ["doi_resolver"]
+mode = "source_native_scholarly_metadata"
+query_template = "{raw} DataCite metadata"
+direct_url_template = "https://api.datacite.org/dois/{raw_url}"
+activation_condition = "after_doi_or_crossref_unavailable_empty_or_registration_agency_unresolved"
+authority_boundary = "DataCite metadata can establish records registered with DataCite. A miss is scoped to that registry and does not validate publication claims."
+
+[search_and_learning_decision_matrix.external_retrieval_contract.source_native_routes.rfc_editor]
+anchor_types = ["rfc"]
+provider_hints = ["rfc_editor"]
+mode = "source_native_identifier_resolution"
+query_template = "{raw}"
+direct_url_template = "https://www.rfc-editor.org/rfc/rfc{number}.html"
+activation_condition = "immediate_for_explicit_identifier"
+authority_boundary = "The RFC Editor text is the canonical RFC publication surface; later errata or obsolescence status still need checking."
+
+[search_and_learning_decision_matrix.external_retrieval_contract.source_native_routes.rfc_status]
+anchor_types = ["rfc"]
+provider_hints = ["rfc_editor"]
+mode = "source_native_status_and_revision"
+query_template = "{raw} status errata"
+direct_url_template = "https://www.rfc-editor.org/info/rfc{number}"
+activation_condition = "when_current_status_errata_updates_or_obsolescence_is_requested"
+authority_boundary = "The RFC Editor info surface records publication status, updates, obsoletes links, and errata navigation; current protocol registries may still require IANA."
+
+[search_and_learning_decision_matrix.external_retrieval_contract.source_native_routes.standards_registry]
+anchor_types = ["standard_id"]
+provider_hints = ["standards_registry"]
+mode = "source_native_standard_registry"
+query_template = "{quoted} official standard status"
+direct_url_template = ""
+activation_condition = "immediate_for_explicit_standard_identifier"
+authority_boundary = "The issuing standards body is authoritative for identifier, edition, and lifecycle status. Public metadata does not imply access to or validation of a paywalled full text."
+
+[search_and_learning_decision_matrix.external_retrieval_contract.source_native_routes.arxiv]
+anchor_types = ["arxiv_id"]
+provider_hints = ["arxiv"]
+mode = "source_native_identifier_resolution"
+query_template = "{raw}"
+direct_url_template = "https://arxiv.org/abs/{identifier}"
+activation_condition = "immediate_for_explicit_identifier"
+authority_boundary = "arXiv is the primary preprint surface; peer-review or publication status must be verified separately."
+
+[search_and_learning_decision_matrix.external_retrieval_contract.source_native_routes.cve_record]
+anchor_types = ["cve_id"]
+provider_hints = ["cve_record"]
+mode = "source_native_identifier_resolution"
+query_template = "{raw}"
+direct_url_template = "https://www.cve.org/CVERecord?id={raw}"
+activation_condition = "immediate_for_explicit_identifier"
+authority_boundary = "The CVE record establishes the canonical identifier and published record; severity, exploitability, and vendor remediation may require NVD and vendor advisories."
+
+[search_and_learning_decision_matrix.external_retrieval_contract.source_native_routes.nvd_cve]
+anchor_types = ["cve_id"]
+provider_hints = ["cve_record"]
+mode = "source_native_security_cross_check"
+query_template = "{raw} NVD"
+direct_url_template = "https://nvd.nist.gov/vuln/detail/{raw}"
+activation_condition = "for_severity_scoring_reference_links_or_independent_official_cross_check"
+authority_boundary = "NVD enriches CVE records with analysis and references; vendor remediation and exploit status still require vendor advisories or the relevant operational authority."
+
+[search_and_learning_decision_matrix.external_retrieval_contract.source_native_routes.pypi]
+anchor_types = ["package_id"]
+provider_hints = ["pypi"]
+mode = "source_native_package_registry"
+query_template = "{raw} PyPI"
+direct_url_template = "https://pypi.org/project/{raw_url}/"
+activation_condition = "immediate_when_registry_is_explicit"
+authority_boundary = "PyPI is authoritative for the published Python distribution metadata on that registry, not for unrelated source-repository or runtime claims."
+
+[search_and_learning_decision_matrix.external_retrieval_contract.source_native_routes.npm]
+anchor_types = ["package_id"]
+provider_hints = ["npm"]
+mode = "source_native_package_registry"
+query_template = "{raw} npm"
+direct_url_template = "https://www.npmjs.com/package/{raw_url}"
+activation_condition = "immediate_when_registry_is_explicit"
+authority_boundary = "npm is authoritative for package metadata published to npm; repository, security, and runtime behavior require their matching sources."
+
+[search_and_learning_decision_matrix.external_retrieval_contract.source_native_routes.huggingface]
+anchor_types = ["model_or_dataset_id"]
+provider_hints = ["huggingface"]
+mode = "source_native_model_or_dataset_registry"
+query_template = "{raw}"
+direct_url_template = "https://huggingface.co/{raw_url}"
+activation_condition = "immediate_when_registry_is_explicit"
+authority_boundary = "The Hugging Face repository or model card is primary for material published there; model capability and safety claims remain source claims until independently evaluated."
+
+[search_and_learning_decision_matrix.external_retrieval_contract.source_native_routes.github_repository]
+anchor_types = [
+  "owner_repo_slug",
+  "project_name",
+  "namespaced_identifier",
+]
+provider_hints = [
+  "github",
+  "github_candidate",
+]
+mode = "github_open_source_repository_search"
+query_template = "repo:{raw}"
+direct_url_template = "https://github.com/{raw_url}"
+activation_condition = "immediate_when_github_is_explicit_otherwise_only_after_source_capability_confirmation"
+authority_boundary = "A GitHub repository can establish repository identity and its own code/docs/releases; it does not establish broader independent claims."
+
+[search_and_learning_decision_matrix.external_retrieval_contract.source_native_routes.namespace_discovery]
+anchor_types = ["namespaced_identifier"]
+provider_hints = ["source_registry_unknown"]
+mode = "source_native_capability_discovery"
+query_template = "{quoted} official registry"
+direct_url_template = ""
+activation_condition = "immediate_for_unknown_namespace_before_provider_specific_url_construction"
+authority_boundary = "This route identifies the owning registry or service. It cannot establish existence, ownership, or canonical URL until a matching source is opened."
 
 [runtime_enforcement.behavior_correction_contract]
 enabled = true

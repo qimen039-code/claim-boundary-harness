@@ -202,6 +202,14 @@ Use separate routes for:
 - source-grounded learning intake for external mechanisms and external architecture comparison;
 - local validation before claiming adoption, success, performance, or compatibility.
 
+Use the external gate and `external_retrieval_strategy.py` before search tool
+execution. Preserve the original query and exact identifiers, use the matching
+canonical/source-native route for typed objects, discover unknown namespaces
+before guessing a provider, and bind facets and evidence to each target. Feed
+attempt receipts back into the task-local reducer when available. Do not turn
+one provider/index miss into absence, or a plan into evidence that browsing
+already occurred.
+
 For external mechanism intake, write a compact source ledger before adapting anything:
 
 ```text

@@ -193,3 +193,31 @@ def test_action_consumer_unmatched_candidate_is_silent_noop() -> None:
     bundle = receipt["task_local_correction_bundle"]
     assert bundle["decision"] == "no_match"
     assert bundle["host_blocking"] is False
+
+
+def test_external_action_builds_source_native_model_context() -> None:
+    consumer = load_consumer_module()
+    receipt = consumer.build_action_consumption(
+        {
+            "memory_need": "none",
+            "external_need": ["official_authority_source_search", "general_web_cross_check"],
+            "action_bindings": [
+                {
+                    "action": "perform_external_research_route",
+                    "completion_evidence": "source_ledger_or_citations",
+                }
+            ],
+        },
+        prompt="核对 DOI 10.1145/3596512 的官方元数据",
+    )
+
+    plan = receipt["external_retrieval_receipt"]
+    assert plan["schema"] == "cbh.external_retrieval_receipt.v1"
+    assert "10.1145/3596512" in [item["raw_text"] for item in plan["exact_anchors"]]
+    assert "doi_resolver" in [
+        item["source_route_id"] for item in plan["source_capability_candidates"]
+    ]
+    assert "External retrieval near-action" in receipt["additional_context"]
+    action = next(item for item in receipt["actions"] if item["action_id"] == "perform_external_research_route")
+    assert action["status"] == "deferred_to_model_agent"
+    assert action["completion_evidence"]["receipt_schema"] == "cbh.external_retrieval_receipt.v1"

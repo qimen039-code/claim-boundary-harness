@@ -65,6 +65,7 @@
         "skills/embedded-harness/execution_feedback.py",
         "skills/embedded-harness/python_inline_write_analysis.py",
         "skills/embedded-harness/embedded_harness_policy.json",
+        "skills/embedded-harness/external_retrieval_strategy.py",
         "skills/embedded-harness/harness_action_consumer.py",
         "templates/adapter-contract/compatibility.manifest.json"
       ],
@@ -93,6 +94,7 @@
         "skills/embedded-harness/behavior_correction_profiles.json",
         "skills/embedded-harness/behavior_correction_source_map.md",
         "skills/embedded-harness/execution_feedback.py",
+        "skills/embedded-harness/external_retrieval_strategy.py",
         "skills/embedded-harness/harness_action_consumer.py",
         "skills/embedded-harness/harness_claim_schema_verifier.ps1",
         "skills/embedded-harness/harness_external_research_gate.ps1",

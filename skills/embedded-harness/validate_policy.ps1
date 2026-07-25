@@ -458,6 +458,101 @@ if ($null -ne $policy) {
     Add-Warning "template_placeholder_paths_present:replace_before_production_use"
   }
 
+  $searchMatrix = $policy.search_and_learning_decision_matrix
+  if ($null -eq $searchMatrix) {
+    Add-Issue "search_and_learning_decision_matrix_missing"
+  } else {
+    $externalRetrievalContract = Get-ObjectPropertyValue $searchMatrix "external_retrieval_contract"
+    if ($null -eq $externalRetrievalContract) {
+      Add-Issue "external_retrieval_contract_missing"
+    } else {
+      if ((Get-ObjectPropertyValue $externalRetrievalContract "schema") -ne "cbh.external_retrieval_contract.v1") {
+        Add-Issue "external_retrieval_contract_schema_invalid"
+      }
+      if ((Get-ObjectPropertyValue $externalRetrievalContract "receipt_schema") -ne "cbh.external_retrieval_receipt.v1") {
+        Add-Issue "external_retrieval_receipt_schema_invalid"
+      }
+      foreach ($field in @(
+        "profile_values",
+        "objective_order",
+        "explicit_search_intent_terms",
+        "local_only_exclusion_terms",
+        "generic_memory_feature_terms",
+        "local_memory_access_intent_terms",
+        "memory_write_intent_terms",
+        "anchor_kinds",
+        "query_stage_order",
+        "coverage_status_values",
+        "target_coverage_status_values",
+        "source_status_values",
+        "generic_facet_source_route_ids",
+        "authority_binding_status_values",
+        "source_ledger_fields",
+        "source_refs"
+      )) {
+        if ((ConvertTo-Array (Get-ObjectPropertyValue $externalRetrievalContract $field)).Count -eq 0) {
+          Add-Issue "external_retrieval_contract_field_empty:$field"
+        }
+      }
+      foreach ($field in @(
+        "merge_policy",
+        "fallback_rule",
+        "negative_claim_rule",
+        "coverage_rule",
+        "cost_rule",
+        "external_memory_boundary",
+        "source_capability_rule",
+        "unknown_source_rule",
+        "currentness_evidence_rule",
+        "rule"
+      )) {
+        if ([string]::IsNullOrWhiteSpace([string](Get-ObjectPropertyValue $externalRetrievalContract $field))) {
+          Add-Issue "external_retrieval_contract_field_empty:$field"
+        }
+      }
+      foreach ($forbidden in @("max_queries", "max_sources", "fixed_source_count")) {
+        if ($null -ne (Get-ObjectPropertyValue $externalRetrievalContract $forbidden)) {
+          Add-Issue "external_retrieval_contract_hard_cap_forbidden:$forbidden"
+        }
+      }
+      $maxFutureSkewSeconds = Get-ObjectPropertyValue $externalRetrievalContract "max_future_skew_seconds"
+      if ($null -eq $maxFutureSkewSeconds -or [int]$maxFutureSkewSeconds -lt 0 -or [int]$maxFutureSkewSeconds -gt 3600) {
+        Add-Issue "external_retrieval_contract_max_future_skew_invalid"
+      }
+      $maxFreshnessWindowSeconds = Get-ObjectPropertyValue $externalRetrievalContract "max_freshness_window_seconds"
+      if ($null -eq $maxFreshnessWindowSeconds -or [int]$maxFreshnessWindowSeconds -lt 1 -or [int]$maxFreshnessWindowSeconds -gt 2592000) {
+        Add-Issue "external_retrieval_contract_max_freshness_window_invalid"
+      }
+      $sourceNativeRoutes = Get-ObjectPropertyValue $externalRetrievalContract "source_native_routes"
+      if ($null -eq $sourceNativeRoutes -or $sourceNativeRoutes.PSObject.Properties.Count -eq 0) {
+        Add-Issue "external_retrieval_source_native_routes_missing"
+      } else {
+        foreach ($route in $sourceNativeRoutes.PSObject.Properties) {
+          foreach ($field in @("anchor_types", "provider_hints")) {
+            if ((ConvertTo-Array (Get-ObjectPropertyValue $route.Value $field)).Count -eq 0) {
+              Add-Issue "external_retrieval_source_route_field_empty:$($route.Name):$field"
+            }
+          }
+          foreach ($field in @("mode", "query_template", "activation_condition", "authority_boundary")) {
+            if ([string]::IsNullOrWhiteSpace([string](Get-ObjectPropertyValue $route.Value $field))) {
+              Add-Issue "external_retrieval_source_route_field_empty:$($route.Name):$field"
+            }
+          }
+          $directUrlTemplate = Get-ObjectPropertyValue $route.Value "direct_url_template"
+          if ($null -eq $directUrlTemplate) {
+            Add-Issue "external_retrieval_source_route_field_missing:$($route.Name):direct_url_template"
+          }
+        }
+        foreach ($routeId in (ConvertTo-Array (Get-ObjectPropertyValue $externalRetrievalContract "generic_facet_source_route_ids"))) {
+          if ($null -eq (Get-ObjectPropertyValue $sourceNativeRoutes ([string]$routeId))) {
+            Add-Issue "external_retrieval_generic_facet_route_unknown:$routeId"
+          }
+        }
+      }
+    }
+  }
+
+
   $claimContract = $policy.claim_schema_contract
   if ($null -eq $claimContract) {
     Add-Issue "claim_schema_contract_missing"

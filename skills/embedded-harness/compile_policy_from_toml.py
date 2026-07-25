@@ -57,6 +57,7 @@ TRACKED_PATHS: list[tuple[str, ...]] = [
     ("router_decision_contract", "causal_attribution_triggers"),
     ("router_decision_contract", "issue_prevention_gates"),
     ("router_decision_contract", "conversation_memory_full_lane_triggers"),
+    ("search_and_learning_decision_matrix",),
     ("runtime_enforcement", "behavior_correction_contract"),
 ]
 
@@ -548,6 +549,200 @@ def _normal_issue_prevention_gates(authoring: dict[str, Any]) -> dict[str, Any] 
     return normalized
 
 
+def _normal_search_and_learning_decision_matrix(
+    authoring: dict[str, Any],
+) -> dict[str, Any] | None:
+    matrix = authoring.get("search_and_learning_decision_matrix")
+    if matrix is None:
+        return None
+    if not isinstance(matrix, dict):
+        raise ValueError("search_and_learning_decision_matrix must be a table")
+    if matrix.get("mandatory") is not True:
+        raise ValueError("search_and_learning_decision_matrix.mandatory must be true")
+
+    purpose = matrix.get("purpose")
+    anti_closed_door_rule = matrix.get("anti_closed_door_rule")
+    if not isinstance(purpose, str) or not purpose:
+        raise ValueError("search_and_learning_decision_matrix.purpose must be a non-empty string")
+    if not isinstance(anti_closed_door_rule, str) or not anti_closed_door_rule:
+        raise ValueError(
+            "search_and_learning_decision_matrix.anti_closed_door_rule must be a non-empty string"
+        )
+
+    modes = matrix.get("search_modes")
+    if not isinstance(modes, dict) or not modes:
+        raise ValueError("search_and_learning_decision_matrix.search_modes must be a non-empty table")
+    normalized_modes: dict[str, Any] = {}
+    for mode_name, mode in modes.items():
+        if not isinstance(mode, dict):
+            raise ValueError(f"search mode {mode_name} must be a table")
+        boundary = mode.get("boundary")
+        if not isinstance(boundary, str) or not boundary:
+            raise ValueError(f"search mode {mode_name}.boundary must be a non-empty string")
+        normalized_modes[str(mode_name)] = {
+            "triggers": _string_list(
+                mode.get("triggers"), f"search_and_learning_decision_matrix.search_modes.{mode_name}.triggers"
+            ),
+            "boundary": boundary,
+        }
+
+    contract = matrix.get("external_retrieval_contract")
+    if not isinstance(contract, dict):
+        raise ValueError(
+            "search_and_learning_decision_matrix.external_retrieval_contract must be a table"
+        )
+    required_string_fields = [
+        "schema",
+        "receipt_schema",
+        "merge_policy",
+        "fallback_rule",
+        "negative_claim_rule",
+        "coverage_rule",
+        "cost_rule",
+        "external_memory_boundary",
+        "source_capability_rule",
+        "unknown_source_rule",
+        "currentness_evidence_rule",
+        "rule",
+    ]
+    required_list_fields = [
+        "profile_values",
+        "objective_order",
+        "explicit_search_intent_terms",
+        "local_only_exclusion_terms",
+        "generic_memory_feature_terms",
+        "local_memory_access_intent_terms",
+        "memory_write_intent_terms",
+        "anchor_kinds",
+        "query_stage_order",
+        "coverage_status_values",
+        "target_coverage_status_values",
+        "source_status_values",
+        "generic_facet_source_route_ids",
+        "authority_binding_status_values",
+        "source_ledger_fields",
+        "source_refs",
+    ]
+    normalized_contract: dict[str, Any] = {}
+    for field in required_string_fields:
+        value = contract.get(field)
+        if not isinstance(value, str) or not value:
+            raise ValueError(f"external_retrieval_contract.{field} must be a non-empty string")
+        normalized_contract[field] = value
+    for field in required_list_fields:
+        normalized_contract[field] = _string_list(
+            contract.get(field), f"external_retrieval_contract.{field}"
+        )
+
+    if normalized_contract["schema"] != "cbh.external_retrieval_contract.v1":
+        raise ValueError("unsupported external_retrieval_contract.schema")
+    if normalized_contract["receipt_schema"] != "cbh.external_retrieval_receipt.v1":
+        raise ValueError("unsupported external_retrieval_contract.receipt_schema")
+    required_profiles = {
+        "none",
+        "exact_anchor_first",
+        "facet_coverage",
+        "exact_anchor_plus_facet_coverage",
+    }
+    if set(normalized_contract["profile_values"]) != required_profiles:
+        raise ValueError("external_retrieval_contract.profile_values are incomplete")
+    required_statuses = {
+        "not_requested",
+        "planned",
+        "fallback_required",
+        "source_read_required",
+        "semantic_review_required",
+        "complete",
+        "inconclusive",
+        "verified_absent",
+    }
+    if not required_statuses.issubset(normalized_contract["coverage_status_values"]):
+        raise ValueError("external_retrieval_contract.coverage_status_values are incomplete")
+    for forbidden in ("max_queries", "max_sources", "fixed_source_count"):
+        if forbidden in contract:
+            raise ValueError(f"external_retrieval_contract forbids hard cap field: {forbidden}")
+
+    max_future_skew_seconds = contract.get("max_future_skew_seconds")
+    if (
+        not isinstance(max_future_skew_seconds, int)
+        or isinstance(max_future_skew_seconds, bool)
+        or not 0 <= max_future_skew_seconds <= 3600
+    ):
+        raise ValueError(
+            "external_retrieval_contract.max_future_skew_seconds must be an integer from 0 to 3600"
+        )
+    normalized_contract["max_future_skew_seconds"] = max_future_skew_seconds
+    max_freshness_window_seconds = contract.get("max_freshness_window_seconds")
+    if (
+        not isinstance(max_freshness_window_seconds, int)
+        or isinstance(max_freshness_window_seconds, bool)
+        or not 1 <= max_freshness_window_seconds <= 2_592_000
+    ):
+        raise ValueError(
+            "external_retrieval_contract.max_freshness_window_seconds must be an integer from 1 to 2592000"
+        )
+    normalized_contract["max_freshness_window_seconds"] = (
+        max_freshness_window_seconds
+    )
+
+    source_native_routes = contract.get("source_native_routes")
+    if not isinstance(source_native_routes, dict) or not source_native_routes:
+        raise ValueError(
+            "external_retrieval_contract.source_native_routes must be a non-empty table"
+        )
+    normalized_routes: dict[str, Any] = {}
+    for route_id, route in source_native_routes.items():
+        if not isinstance(route, dict):
+            raise ValueError(
+                f"external_retrieval_contract.source_native_routes.{route_id} must be a table"
+            )
+        route_prefix = f"external_retrieval_contract.source_native_routes.{route_id}"
+        normalized_route = {
+            "anchor_types": _string_list(
+                route.get("anchor_types"), f"{route_prefix}.anchor_types"
+            ),
+            "provider_hints": _string_list(
+                route.get("provider_hints"), f"{route_prefix}.provider_hints"
+            ),
+        }
+        for field in (
+            "mode",
+            "query_template",
+            "activation_condition",
+            "authority_boundary",
+        ):
+            value = route.get(field)
+            if not isinstance(value, str) or not value:
+                raise ValueError(f"{route_prefix}.{field} must be a non-empty string")
+            normalized_route[field] = value
+        direct_url_template = route.get("direct_url_template", "")
+        if not isinstance(direct_url_template, str):
+            raise ValueError(f"{route_prefix}.direct_url_template must be a string")
+        normalized_route["direct_url_template"] = direct_url_template
+        normalized_routes[str(route_id)] = normalized_route
+    normalized_contract["source_native_routes"] = normalized_routes
+    unknown_generic_routes = set(normalized_contract["generic_facet_source_route_ids"]) - set(
+        normalized_routes
+    )
+    if unknown_generic_routes:
+        raise ValueError(
+            "external_retrieval_contract.generic_facet_source_route_ids contains unknown routes: "
+            + ", ".join(sorted(unknown_generic_routes))
+        )
+
+    return {
+        "mandatory": True,
+        "purpose": purpose,
+        "search_modes": normalized_modes,
+        "classification_labels": _string_list(
+            matrix.get("classification_labels"),
+            "search_and_learning_decision_matrix.classification_labels",
+        ),
+        "anti_closed_door_rule": anti_closed_door_rule,
+        "external_retrieval_contract": normalized_contract,
+    }
+
+
 def _normal_behavior_correction_contract(
     authoring: dict[str, Any],
 ) -> dict[str, Any] | None:
@@ -753,6 +948,10 @@ def compile_policy(base_policy: dict[str, Any], authoring: dict[str, Any]) -> di
     full_lane = _normal_full_lane(authoring)
     if full_lane is not None:
         _set_path(compiled, ("router_decision_contract", "conversation_memory_full_lane_triggers"), full_lane)
+
+    search_and_learning = _normal_search_and_learning_decision_matrix(authoring)
+    if search_and_learning is not None:
+        _set_path(compiled, ("search_and_learning_decision_matrix",), search_and_learning)
 
     behavior_correction = _normal_behavior_correction_contract(authoring)
     if behavior_correction is not None:

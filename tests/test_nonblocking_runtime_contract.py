@@ -99,6 +99,18 @@ def test_public_behavior_profiles_contain_no_private_session_paths() -> None:
     assert "rollout-2026" not in raw
 
 
+def test_external_retrieval_planner_is_task_local_and_nonexecuting() -> None:
+    planner = _load_harness_module("external_retrieval_strategy")
+    receipt = planner.build_external_retrieval_receipt(
+        "核对 RFC 9110 当前状态",
+        recommended_modes=["official_authority_source_search"],
+    )
+    assert receipt["schema"] == "cbh.external_retrieval_receipt.v1"
+    assert receipt["network_access_performed"] is False
+    assert receipt["durable_memory_write_performed"] is False
+    assert receipt["execution_owner"] == "host_model_agent"
+
+
 def test_workbuddy_pretool_never_denies_r5_command(tmp_path: Path) -> None:
     prompt = _run_workbuddy_hook(
         {

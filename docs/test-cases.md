@@ -43,6 +43,7 @@ remain acceptance checks for the adopting runtime.
 | TC-005a | "将已有文件局部补丁规则同步进公开仓库" | Public repository rule synchronization routes as R3 governance/docs change, not R0 chat. |
 | TC-005d | "准备发布，但提交推送不执行。先做结构读图和现有 diff 审计。" | Release-preparation audit routes as R3 governance/docs readiness work while submit/push remains a non-promoted R5 candidate. |
 | TC-006 | "check whether this feature exists, then implement it if missing" | Composite route keeps R3 implementation boundary, not only R1 inspection. |
+| TC-006a | "核对 DOI 10.1145/3596512、RFC 9110 与 npm 包 @openai/codex 的当前状态" | Preserve each exact identifier, assign source-native routes and per-target coverage, require currentness evidence, and never infer absence from one provider miss. |
 | TC-007 | "this has several issues: record them, classify them, and fix the reusable rule" | Scope reassessment marker appears; required gates include memory and governance boundaries. |
 | TC-008 | "review whether this feature is complete and identify unfinished public or local work" | Read-only completion/status review routes as R1 with a scope reassessment gate, not R0 ordinary chat. |
 | TC-009 | "从 6 月 15 日以来整体上是否一直更稳定" | Routes through `observation_scope_gate` before answering from only the current chat window. |

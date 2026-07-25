@@ -57,9 +57,9 @@ def test_bilingual_readme_and_local_overlay_template_are_present() -> None:
 
     assert "[中文版](./README_zh.md) | English" in readme
     assert "[English](./README.md) | 中文" in readme_zh
-    assert "Current main-branch version: `v1.1.0` (not yet tagged)." in readme
-    assert "当前 main 分支版本：`v1.1.0`（尚未创建 tag）。" in readme_zh
-    assert read_text("VERSION").strip() == "v1.1.0"
+    assert "Current main-branch version: `v1.2.0`." in readme
+    assert "当前 main 分支版本：`v1.2.0`。" in readme_zh
+    assert read_text("VERSION").strip() == "v1.2.0"
     assert overlay["schema"] == "cbh.project_lane_overlay.v1"
     assert policy["local_project_lane_overlay"]["default_filename"] == "embedded_harness_policy.local.json"
     assert "embedded_harness_policy.local.json" in readme
@@ -101,7 +101,8 @@ def test_citation_notice_are_visible_and_public_report_draft_is_absent() -> None
     assert "claim-boundary-harness-technical-report.md" not in readme_zh
     assert "title: \"Claim Boundary Harness: A Model-Facing Capability Harness for LLM Agent Workflows\"" in citation
     assert "qimen039-code" in citation
-    assert "version: \"1.0.0\"" in citation
+    assert "version: \"1.2.0\"" in citation
+    assert "date-released: \"2026-07-25\"" in citation
     assert "doi: \"10.5281/zenodo.21189879\"" in citation
     assert "10.5281/zenodo.21189879" in doi_badge
     assert 'role="img"' in doi_badge
@@ -112,8 +113,15 @@ def test_citation_notice_are_visible_and_public_report_draft_is_absent() -> None
     assert "## v1.0.0 - 2026-07-20" in changelog
     stale_version = "v0." + "14.0"
     assert stale_version not in changelog
-    assert manifest["harness_version"] == "v1.1.0"
-    assert "Target main-branch version: `v1.1.0` (not yet tagged)." in changelog
+    assert manifest["harness_version"] == "v1.2.0"
+    assert "## v1.2.0 - 2026-07-25" in changelog
+    assert "No unreleased changes." in changelog
+    planner = manifest["external_retrieval_planner"]
+    assert planner["receipt_schema"] == "cbh.external_retrieval_receipt.v1"
+    assert planner["performs_network_access"] is False
+    assert planner["writes_durable_memory"] is False
+    assert planner["host_model_executes_search"] is True
+    assert planner["provider_miss_is_verified_absence"] is False
 
 
 def test_memory_feedback_loop_trial_is_optional_and_template_visible() -> None:

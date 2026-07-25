@@ -178,6 +178,19 @@ Expected highlight:
 
 - `needs_external_research`: `true`.
 - `recommended_search_modes` includes `github_open_source_repository_search` and `official_authority_source_search`.
+- `external_retrieval_receipt.schema`: `cbh.external_retrieval_receipt.v1`.
+- `external_retrieval_receipt.network_access_performed`: `false`.
+
+Run the cross-source regression matrix without network access:
+
+```powershell
+pwsh -NoProfile -File .\tests\test_external_retrieval_strategy.ps1
+python -B -m pytest .\tests\test_external_retrieval_strategy.py
+```
+
+The matrix covers DOI/RFC/CVE/arXiv/standards, PyPI/npm/Hugging Face/GitHub,
+unknown namespaces, currentness, multi-target binding, source-native fallback,
+and the rule that provider misses do not establish absence.
 
 ## 4-1. External Research Negation
 

@@ -9,8 +9,8 @@ Claim Boundary Harness（CBH）是一套面向 Codex 类大模型 Agent 的能�
 harness。它帮助当前模型完成任务路由、按需检索记忆与证据、保持声明边界，
 并复用已经验证的纠偏经验，同时避免把大量历史正文塞进上下文。
 
-当前 main 分支版本：`v1.1.0`（尚未创建 tag）。
-最新已打 tag 的 GitHub Release：[`v1.0.0`](https://github.com/qimen039-code/claim-boundary-harness/releases/tag/v1.0.0)。
+当前 main 分支版本：`v1.2.0`。
+最新已打 tag 的 GitHub Release：[`v1.2.0`](https://github.com/qimen039-code/claim-boundary-harness/releases/tag/v1.2.0)。
 更早的 tag 仅为历史快照，不是当前 main 分支安装、能力或兼容性依据。
 
 引用与署名：如果你在研究、工具、产品或评测中使用、改编或讨论 CBH，请优先使用
@@ -77,6 +77,7 @@ CBH 给编码 agent 增加一个低成本、面向模型的认知层。这个仓
 | WorkBuddy adapter | `integrations/workbuddy-python-runtime/` | 单元测试覆盖的参考 adapter；采用者需自行验证 hook 接线 |
 | 记忆 lane 与账本 | `templates/project/memory-library/`、`templates/conversation-memory/`、`codex_session_ledger.py` | 模板和证据索引 |
 | 模型上下文选择 | `harness_action_consumer.py`、router 的 `memory_source_hints` | 把精确索引命中转成保留来源的紧凑 Agent 上下文 |
+| 通用外部检索规划 | `external_retrieval_strategy.py`、`harness_external_research_gate.ps1` | 保留精确锚点、按原生来源与目标分别规划；实际检索仍由模型 Agent 执行 |
 | 检索与读取 | `docs/hybrid-memory-retrieval-contract.md`、`docs/content-reading-contract.md` | meta-first、保留来源、有界窗口 |
 | skill 生命周期 | `docs/skill-lifecycle-contract.md`、`templates/skill-lifecycle/` | active-frame 与 release receipt |
 | 反馈与因果复核 | `docs/memory-feedback-loop-trial.md`、`docs/router-decision-contract.md` | CE 复用与过度归因边界 |
@@ -236,7 +237,10 @@ PowerShell：
 python .\skills\embedded-harness\compile_policy_from_toml.py --check
 powershell -ExecutionPolicy Bypass -File .\skills\embedded-harness\validate_policy.ps1
 powershell -ExecutionPolicy Bypass -File .\skills\embedded-harness\harness_intake_router.ps1 -TaskText "fix the script and run benchmark" -Cwd "C:\path\to\project"
+powershell -ExecutionPolicy Bypass -File .\skills\embedded-harness\harness_external_research_gate.ps1 -TaskText "核对 RFC 9110 当前状态"
 ```
+
+外部 gate 会返回 `cbh.external_retrieval_receipt.v1`：保留原始查询和精确标识，按 DOI、RFC、包注册表、模型库、GitHub 或未知来源能力发现等原生表面规划，并逐目标记录覆盖与否定证据边界。planner 本身不联网、不阻断任务、不写长期记忆。
 
 Bash 环境：
 
