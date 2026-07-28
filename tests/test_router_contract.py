@@ -16,11 +16,7 @@ CORE_R3_CONFORMANCE = json.loads(
 )
 CORE_R3_CASES = CORE_R3_CONFORMANCE["cases"]
 POWERSHELL = shutil.which("pwsh") or shutil.which("powershell")
-BASH = shutil.which("bash")
-if not BASH:
-    git_bash = Path(r"C:\Program Files\Git\bin\bash.exe")
-    if git_bash.exists():
-        BASH = str(git_bash)
+BASH = shutil.which("bash") if os.name != "nt" else None
 
 
 def run_json(args: list[str], *, allowed_exit_codes: set[int] | None = None, env: dict[str, str] | None = None) -> tuple[int, dict]:
@@ -141,7 +137,7 @@ def test_bash_router_matches_core_r3_intent_contract(
     case: dict,
 ) -> None:
     if not BASH:
-        pytest.skip("Bash is not available")
+        pytest.skip("Bash conformance runs on a native Bash host")
     completed = subprocess.run(
         [
             BASH,

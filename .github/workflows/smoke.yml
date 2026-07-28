@@ -264,3 +264,20 @@ jobs:
           submit_report="$(bash ./skills/embedded-harness/bash/harness_intake_router.sh --task-text "提交报告" --cwd "$work_root")"
           test "$(printf '%s' "$submit_report" | jq -r '.risk_level')" != "R5"
           printf '%s' "$submit_report" | jq -e '.risk_context_decisions.R5.action_surface == "documentation_or_discussion"' >/dev/null
+
+          while IFS= read -r case_json; do
+            case_id="$(printf '%s' "$case_json" | jq -r '.id')"
+            task_text="$(printf '%s' "$case_json" | jq -r '.task')"
+            expected_risk="$(printf '%s' "$case_json" | jq -r '.expected_risk')"
+            expected_promotion="$(printf '%s' "$case_json" | jq -r '.expected_r3_promotion')"
+            actual="$(bash ./skills/embedded-harness/bash/harness_intake_router.sh --task-text "$task_text" --cwd "$work_root")"
+
+            test "$(printf '%s' "$actual" | jq -r '.risk_level')" = "$expected_risk" || {
+              printf 'R3 conformance risk mismatch: %s\n' "$case_id" >&2
+              exit 1
+            }
+            test "$(printf '%s' "$actual" | jq -r '.risk_context_decisions.R3.promote_to_risk')" = "$expected_promotion" || {
+              printf 'R3 conformance promotion mismatch: %s\n' "$case_id" >&2
+              exit 1
+            }
+          done < <(jq -c '.cases[]' tests/fixtures/router_core_r3_conformance.json)
