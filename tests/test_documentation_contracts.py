@@ -70,6 +70,32 @@ def test_bilingual_readme_and_local_overlay_template_are_present() -> None:
     assert "不是 CBH 能力项" in readme_zh
 
 
+def test_public_docs_describe_current_nonblocking_runtime_and_existing_minimal_profiles() -> None:
+    readme = read_text("README.md")
+    readme_zh = read_text("README_zh.md")
+    deployment = read_text("docs/deployment-risk-patterns.md")
+
+    for retired in (
+        "harness_runtime_enforcer.ps1",
+        "harness_task_wrapper.ps1",
+        "harness_tool_proxy.ps1",
+    ):
+        assert retired not in readme
+
+    assert "selective tool-proxy blocking" not in deployment
+    assert "Run the intake router or runtime enforcer directly" not in deployment
+    assert "high-risk tasks return blocked" not in deployment
+    assert "host-native" in deployment
+    assert "advisory" in deployment
+
+    for text in (readme, readme_zh):
+        assert "codex-local-minimal" in text
+        assert "deployment-profiles.json" in text
+        assert "build-deployment-bundle.py" in text
+    assert "Copy this package into a new workspace" not in readme
+    assert "把这个包复制到目标 workspace" not in readme_zh
+
+
 def test_citation_notice_are_visible_and_public_report_draft_is_absent() -> None:
     required_files = [
         "CITATION.cff",

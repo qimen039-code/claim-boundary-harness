@@ -34,6 +34,7 @@ R5_CONTEXT_FIELDS = [
 
 R3_CONTEXT_FIELDS = [
     "diagnostic_intent_terms",
+    "decision_only_markers",
     "explicit_mutation_phrases",
     "strong_mutation_terms",
 ]

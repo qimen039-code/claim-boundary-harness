@@ -6,15 +6,24 @@ configuration, or claiming that a capability is active.
 
 ## Core Rule
 
-Do not copy the repository wholesale. Select one declared deployment profile,
-stage its exact files, map them to the real host surfaces, and verify every
-claimed capability. Repository presence is not deployment evidence.
+Select one complete declared deployment profile, stage every file in its
+resolved dependency closure, map that integrated baseline to the real host
+surfaces, and verify every claimed capability before adapting it. Do not
+cherry-pick individual capability files during initial deployment. Repository
+presence is not deployment evidence.
+
+CBH's routing, memory, retrieval, correction, and verification components are
+designed to exchange bounded context and evidence as one control loop. Removing
+one part can break those links and leave the remaining parts less useful than
+their isolated file list suggests. A runtime profile may exclude public-source
+documentation, papers, examples, and development tests, but its declared
+runtime dependency closure should be treated as one unit.
 
 ```text
 read this map
 -> inspect real host instruction / model-loop / hook surfaces
--> select one deployment profile
--> stage the exact runtime bundle and keep its receipt
+-> select one complete deployment profile
+-> stage its full resolved runtime bundle and keep its receipt
 -> initialize deployment-local lane/config state from public templates
 -> wire only supported host surfaces
 -> run policy, behavior, and host-lifecycle checks
@@ -110,8 +119,8 @@ runtime does not activate capabilities.
 
 1. Inspect the exact host version and its real instruction, model-loop,
    updated-input, permission, and sandbox surfaces.
-2. Run the bundle builder with `--list`; review the resolved file list.
-3. Stage one profile into an empty directory and retain
+2. Run the bundle builder with `--list`; review the complete resolved file list.
+3. Stage that entire profile into an empty directory and retain
    `cbh-deployment-receipt.json`.
 4. Map the root instruction entry and compiled policy.
 5. Initialize project/memory roots and lane state from the published templates

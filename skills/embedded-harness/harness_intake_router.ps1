@@ -1,6 +1,8 @@
 ﻿param(
   [string]$TaskText = "",
   [string]$Cwd = (Get-Location).Path,
+  [ValidateSet("diagnostic", "compact")]
+  [string]$ReceiptMode = "diagnostic",
   [string]$OutputPath = ""
 )
 
@@ -363,25 +365,52 @@ function Get-R3ContextDecision {
   if ($null -eq $contextRules) {
     $contextRules = [pscustomobject]@{
       diagnostic_intent_terms = @("read-only", "inspect", "check", "detect", "只读", "检查", "核查", "检测")
+      decision_only_markers = @("whether", "是否需要", "需不需要", "要不要")
       explicit_mutation_phrases = @("please update", "please modify", "please fix", "update config", "modify config", "请更新", "请修改", "请修复", "更新配置", "修改配置")
-      strong_mutation_terms = @("implement", "fix", "patch", "edit", "sync", "实现", "修复", "补丁", "落地", "同步")
+      strong_mutation_terms = @("modify", "update", "change", "implement", "fix", "patch", "edit", "sync", "修改", "更新", "变更", "实现", "修复", "补丁", "落地", "同步")
     }
   }
 
   $diagnosticHits = Get-SourceMatchedTerms -source $SourceText -terms $contextRules.diagnostic_intent_terms
+  $decisionOnlyHits = Get-SourceMatchedTerms -source $SourceText -terms $contextRules.decision_only_markers
   $explicitMutationMatchSet = Get-TriggerMatchSet $contextRules.explicit_mutation_phrases
   $explicitMutationHits = @($explicitMutationMatchSet.positive)
-  $strongMutationHits = Get-TermIntersection -leftTerms $candidateTerms -rightTerms $contextRules.strong_mutation_terms
+  $strongMutationHits = Get-SourceMatchedTerms -source $SourceText -terms $contextRules.strong_mutation_terms
+  $effectiveStrongMutationHits = @(
+    foreach ($strongTerm in $strongMutationHits) {
+      $coveredByReadOnlyMarker = $false
+      foreach ($readOnlyMarker in @(@($diagnosticHits) + @($decisionOnlyHits))) {
+        if ([string]$readOnlyMarker -like "*$strongTerm*") { $coveredByReadOnlyMarker = $true; break }
+      }
+      if (-not $coveredByReadOnlyMarker) { $strongTerm }
+    }
+  )
 
-  if (($diagnosticHits.Count -gt 0) -and ($explicitMutationHits.Count -eq 0) -and ($strongMutationHits.Count -eq 0)) {
+  if ($explicitMutationHits.Count -gt 0) {
+    return [pscustomobject]@{
+      decision = "change_context"
+      action_surface = "actionable_R3"
+      promote_to_risk = $true
+      candidate_terms = @($candidateTerms)
+      negated_terms = @($negatedTerms)
+      diagnostic_terms = @($diagnosticHits)
+      decision_only_terms = @($decisionOnlyHits)
+      reason = "explicit_mutation_phrase_detected"
+    }
+  }
+
+  if (($diagnosticHits.Count -gt 0) -or ($decisionOnlyHits.Count -gt 0) -or ($effectiveStrongMutationHits.Count -eq 0)) {
+    $readOnlyHits = @(@($diagnosticHits) + @($decisionOnlyHits))
+    if ($readOnlyHits.Count -eq 0) { $readOnlyHits = @($candidateTerms) }
     return [pscustomobject]@{
       decision = "contextual_read_only"
       action_surface = "read_only_diagnostic"
       promote_to_risk = $false
       candidate_terms = @($candidateTerms)
       negated_terms = @($negatedTerms)
-      diagnostic_terms = @($diagnosticHits)
-      reason = "R3_terms_are_diagnostic_context_not_mutation"
+      diagnostic_terms = @($readOnlyHits | Select-Object -Unique)
+      decision_only_terms = @($decisionOnlyHits)
+      reason = if ($decisionOnlyHits.Count -gt 0) { "R3_change_is_only_being_evaluated" } else { "R3_object_terms_without_mutation_intent" }
     }
   }
 
@@ -392,7 +421,8 @@ function Get-R3ContextDecision {
     candidate_terms = @($candidateTerms)
     negated_terms = @($negatedTerms)
     diagnostic_terms = @($diagnosticHits)
-    reason = if ($explicitMutationHits.Count -gt 0) { "explicit_mutation_phrase_detected" } elseif ($strongMutationHits.Count -gt 0) { "strong_mutation_term_detected" } else { "R3_candidate_without_read_only_context" }
+    decision_only_terms = @($decisionOnlyHits)
+    reason = "strong_mutation_term_detected"
   }
 }
 
@@ -1222,7 +1252,12 @@ if (($readSemanticBoundary -contains "contamination_or_debt") -and (Test-TaskCon
 }
 
 $editOperationProfile = "none"
-$readOnlyTask = Test-TaskContainsAny @("read-only", "readonly", "inspect only", "check only", "verify whether", "detect", "do not modify", "do not execute", "report only", "只读", "只检查", "检测", "核对", "不要修改", "不修改", "不要执行", "不执行", "先检查")
+$r3EditRules = Get-ObjectPropertyValue $policy "r3_context_decision_rules"
+$decisionOnlyTaskHits = Get-SourceMatchedTerms -source $TaskText -terms $r3EditRules.decision_only_markers
+$explicitMutationTaskHits = @((Get-TriggerMatchSet $r3EditRules.explicit_mutation_phrases).positive)
+$r3ContextReadOnly = ($risk_context_decisions.Contains("R3") -and (-not [bool]$risk_context_decisions["R3"].promote_to_risk))
+$decisionOnlyReadOnly = (($decisionOnlyTaskHits.Count -gt 0) -and ($explicitMutationTaskHits.Count -eq 0))
+$readOnlyTask = $r3ContextReadOnly -or $decisionOnlyReadOnly -or (Test-TaskContainsAny @("read-only", "readonly", "inspect only", "check only", "verify whether", "detect", "do not modify", "do not execute", "report only", "只读", "只检查", "检测", "核对", "不要修改", "不修改", "不要执行", "不执行", "先检查"))
 $diskDeleteMatch = [regex]::Match($TaskText, "(?i)(删除|移除|清理|delete|remove).{0,48}(文件夹|目录|folder|directory|file|文件|旧\s*release|release\s*folder)|\brm\s+-rf\b|Remove-Item")
 $diskDeleteRequested = ($diskDeleteMatch.Success -and (-not (Test-NegatedMatch -source $TaskText -index $diskDeleteMatch.Index)))
 $recordDeleteMatch = [regex]::Match($TaskText, "(?i)(删掉|删除|移除|去掉|remove|delete).{0,48}(段|描述|行|条目|内容|字段|section|paragraph|line|entry|README\s+中)")
@@ -1545,12 +1580,19 @@ $compactReceipt = [ordered]@{
   memory_lane = $memoryLane
   memory_source_hints = @($memorySourceHints)
   action_binding_ids = @($actionBindingIds)
+  action_bindings = @($actionBindings)
+  memory_need = $memoryNeed
   conversation_memory_decision = $conversationMemoryDecision
   conversation_full_lane_triggered = [bool]$conversationFullLaneTriggered
   link_intent = $linkIntent
   external_need = @($externalNeed)
   claim_risk = $claimRisk
   human_confirmation_need = $humanConfirmationNeed
+  target_surface = $targetSurface
+  project_lane = $projectLane
+  classification_confidence = $classificationConfidence
+  matched_risk_triggers = $matchedRiskTriggers
+  receipt_profile = $receiptProfile
 }
 
 $result = [ordered]@{
@@ -1617,7 +1659,14 @@ $result = [ordered]@{
   enforcement_boundary = $policy.gate_enforcement_boundary
 }
 
-$json = $result | ConvertTo-Json -Depth 20
+$compactResult = [ordered]@{
+  schema = "cbh.routing_receipt.compact.v1"
+  phase = "intake_router"
+  status = "pass"
+  receipt_profile = $receiptProfile
+  compact_receipt = $compactReceipt
+}
+$json = $(if ($ReceiptMode -eq "compact") { $compactResult } else { $result }) | ConvertTo-Json -Depth 20
 if ($OutputPath) {
   $dir = Split-Path -Parent $OutputPath
   if ($dir) { New-Item -ItemType Directory -Force -Path $dir | Out-Null }

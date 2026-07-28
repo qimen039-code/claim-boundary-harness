@@ -11,7 +11,16 @@ import pytest
 
 
 ROOT = Path(__file__).resolve().parents[1]
+CORE_R3_CONFORMANCE = json.loads(
+    (ROOT / "tests" / "fixtures" / "router_core_r3_conformance.json").read_text(encoding="utf-8")
+)
+CORE_R3_CASES = CORE_R3_CONFORMANCE["cases"]
 POWERSHELL = shutil.which("pwsh") or shutil.which("powershell")
+BASH = shutil.which("bash")
+if not BASH:
+    git_bash = Path(r"C:\Program Files\Git\bin\bash.exe")
+    if git_bash.exists():
+        BASH = str(git_bash)
 
 
 def run_json(args: list[str], *, allowed_exit_codes: set[int] | None = None, env: dict[str, str] | None = None) -> tuple[int, dict]:
@@ -79,6 +88,146 @@ def run_router_with_cwd(task: str, cwd: Path, *, env: dict[str, str] | None = No
 
 def contains(items, expected: str) -> bool:
     return expected in list(items or [])
+
+
+@pytest.mark.parametrize(
+    "task",
+    [
+        "看看这个 code/harness 项目并评价",
+        "Review this code/harness project and evaluate it without making changes",
+        "explain this code without editing it",
+        "审阅但不改这个 harness",
+    ],
+)
+def test_object_nouns_without_mutation_intent_stay_read_only(task: str) -> None:
+    payload = run_router(task)
+
+    assert payload["risk_level"] != "R3"
+    assert payload["edit_operation_profile"] == "read_only"
+    assert payload["risk_context_decisions"]["R3"]["promote_to_risk"] is False
+
+
+def test_decision_only_improvement_review_does_not_create_an_edit_action() -> None:
+    payload = run_router(
+        "根据另一台设备的评估，再按本地记录以及公开仓库内容审计，"
+        "评审是否需要按此评估报告进行改进，同时确保全链路通畅"
+    )
+
+    assert payload["risk_level"] != "R3"
+    assert payload["edit_operation_profile"] == "read_only"
+    assert "apply_edit_operation_profile" not in payload["action_binding_ids"]
+
+
+def test_explicit_follow_up_fix_still_promotes_r3_after_review() -> None:
+    payload = run_router("先评审这个 harness 是否需要改进，然后进行修复")
+
+    assert "R3" in payload["triggered_risks"]
+    assert payload["edit_operation_profile"] == "in_place_patch"
+
+
+@pytest.mark.parametrize("case", CORE_R3_CASES, ids=lambda case: case["id"])
+def test_powershell_router_matches_core_r3_intent_contract(case: dict) -> None:
+    payload = run_router(case["task"])
+
+    assert payload["risk_level"] == case["expected_risk"]
+    assert (
+        payload["risk_context_decisions"]["R3"]["promote_to_risk"]
+        is case["expected_r3_promotion"]
+    )
+
+
+@pytest.mark.parametrize("case", CORE_R3_CASES, ids=lambda case: case["id"])
+def test_bash_router_matches_core_r3_intent_contract(
+    case: dict,
+) -> None:
+    if not BASH:
+        pytest.skip("Bash is not available")
+    completed = subprocess.run(
+        [
+            BASH,
+            "./skills/embedded-harness/bash/harness_intake_router.sh",
+            "--task-text",
+            case["task"],
+            "--cwd",
+            str(ROOT),
+        ],
+        cwd=ROOT,
+        text=True,
+        encoding="utf-8",
+        errors="strict",
+        capture_output=True,
+        check=False,
+    )
+    assert completed.returncode == 0, completed.stderr
+    payload = json.loads(completed.stdout)
+    assert payload["risk_level"] == case["expected_risk"]
+    assert (
+        payload["risk_context_decisions"]["R3"]["promote_to_risk"]
+        is case["expected_r3_promotion"]
+    )
+
+
+def test_compact_router_output_is_bounded_and_action_consumer_ready(tmp_path: Path) -> None:
+    if not POWERSHELL:
+        pytest.skip("PowerShell is not available on PATH")
+    route_path = tmp_path / "compact-route.json"
+    result = subprocess.run(
+        [
+            POWERSHELL,
+            "-NoProfile",
+            "-ExecutionPolicy",
+            "Bypass",
+            "-File",
+            "skills/embedded-harness/harness_intake_router.ps1",
+            "-TaskText",
+            "按 memory 里的预防规则检查 PowerShell foreach 管道 ParserError",
+            "-Cwd",
+            str(ROOT),
+            "-ReceiptMode",
+            "compact",
+            "-OutputPath",
+            str(route_path),
+        ],
+        cwd=ROOT,
+        text=True,
+        encoding="utf-8",
+        errors="strict",
+        capture_output=True,
+        check=False,
+    )
+    assert result.returncode == 0, result.stderr
+    payload = json.loads(result.stdout)
+
+    assert len(result.stdout.encode("utf-8")) < 8_192
+    assert payload["schema"] == "cbh.routing_receipt.compact.v1"
+    assert payload["receipt_profile"] in {"compact_runtime", "extended_governance"}
+    compact = payload["compact_receipt"]
+    assert compact["action_bindings"]
+    assert "memory_source_hints" in compact
+
+    consumed = subprocess.run(
+        [
+            sys.executable,
+            "skills/embedded-harness/harness_action_consumer.py",
+            "--route-file",
+            str(route_path),
+            "--receipt-mode",
+            "compact",
+            "--prompt",
+            "按 memory 里的预防规则检查 PowerShell foreach 管道 ParserError",
+        ],
+        cwd=ROOT,
+        text=True,
+        encoding="utf-8",
+        errors="strict",
+        capture_output=True,
+        check=False,
+    )
+    assert consumed.returncode == 0, consumed.stderr
+    action_receipt = json.loads(consumed.stdout)
+    assert action_receipt["schema"] == "cbh.action_consumption_receipt.compact.v1"
+    assert action_receipt["actions"]
+    assert "additional_context" in action_receipt
 
 
 ROUTER_CASES = [

@@ -188,6 +188,70 @@ def _r5_context_decision(*, source_text: str, positive_terms: list[str], negated
     }
 
 
+def _r3_context_decision(*, source_text: str, positive_terms: list[str], negated_terms: list[str], policy: dict[str, Any]) -> dict[str, Any]:
+    candidate_terms = _unique([str(item) for item in positive_terms])
+    negated = _unique([str(item) for item in negated_terms])
+    if not candidate_terms:
+        return {
+            "decision": "none",
+            "action_surface": "none",
+            "promote_to_risk": False,
+            "candidate_terms": [],
+            "negated_terms": negated,
+            "diagnostic_terms": [],
+            "decision_only_terms": [],
+            "reason": "no_R3_candidate",
+        }
+
+    rules = policy.get("r3_context_decision_rules", {})
+    diagnostic_hits = _source_matched_terms(source_text, rules.get("diagnostic_intent_terms", []))
+    decision_only_hits = _source_matched_terms(source_text, rules.get("decision_only_markers", []))
+    explicit_mutation_hits = _trigger_matches(source_text, rules.get("explicit_mutation_phrases", []))["positive"]
+    strong_mutation_hits = _source_matched_terms(source_text, rules.get("strong_mutation_terms", []))
+    effective_strong_mutation_hits = [
+        term
+        for term in strong_mutation_hits
+        if not any(
+            term.lower() in marker.lower()
+            for marker in [*diagnostic_hits, *decision_only_hits]
+        )
+    ]
+
+    if explicit_mutation_hits:
+        return {
+            "decision": "change_context",
+            "action_surface": "actionable_R3",
+            "promote_to_risk": True,
+            "candidate_terms": candidate_terms,
+            "negated_terms": negated,
+            "diagnostic_terms": diagnostic_hits,
+            "decision_only_terms": decision_only_hits,
+            "reason": "explicit_mutation_phrase_detected",
+        }
+    if diagnostic_hits or decision_only_hits or not effective_strong_mutation_hits:
+        read_only_hits = _unique([*diagnostic_hits, *decision_only_hits]) or candidate_terms
+        return {
+            "decision": "contextual_read_only",
+            "action_surface": "read_only_diagnostic",
+            "promote_to_risk": False,
+            "candidate_terms": candidate_terms,
+            "negated_terms": negated,
+            "diagnostic_terms": read_only_hits,
+            "decision_only_terms": decision_only_hits,
+            "reason": "R3_change_is_only_being_evaluated" if decision_only_hits else "R3_object_terms_without_mutation_intent",
+        }
+    return {
+        "decision": "change_context",
+        "action_surface": "actionable_R3",
+        "promote_to_risk": True,
+        "candidate_terms": candidate_terms,
+        "negated_terms": negated,
+        "diagnostic_terms": diagnostic_hits,
+        "decision_only_terms": decision_only_hits,
+        "reason": "strong_mutation_term_detected",
+    }
+
+
 def _conversation_full_lane_groups(task_text: str, contract: dict[str, Any]) -> tuple[dict[str, dict[str, Any]], bool]:
     config = contract.get("conversation_memory_full_lane_triggers", {})
     groups = config.get("threshold_groups", {}) if isinstance(config, dict) else {}
@@ -482,6 +546,7 @@ def intake_router(task_text: str = "", cwd: str | None = None, policy: dict[str,
     required_gates = ["microkernel"]
     approval_required: list[str] = []
     required_skills: list[str] = []
+    diagnostic_r1_fallback_hits: list[str] = []
     classification_confidence = "high"
     fallback_recommended = False
 
@@ -504,11 +569,32 @@ def intake_router(task_text: str = "", cwd: str | None = None, policy: dict[str,
                     classification_confidence = "low"
                     required_gates.append("risk_context_review_gate")
                 continue
+        if name == "R3" and match_set["positive"]:
+            r3_decision = _r3_context_decision(
+                source_text=task_text,
+                positive_terms=match_set["positive"],
+                negated_terms=match_set["negated"],
+                policy=policy,
+            )
+            risk_candidates["R3"] = match_set["positive"]
+            risk_context_decisions["R3"] = r3_decision
+            if not r3_decision.get("promote_to_risk"):
+                diagnostic_r1_fallback_hits.extend(
+                    str(term) for term in _as_list(r3_decision.get("diagnostic_terms"))
+                )
+                continue
         if match_set["positive"]:
             triggered_risks.append(name)
             matched_risk_triggers[name] = match_set["positive"]
             required_gates.extend(str(gate) for gate in _as_list(policy.get("risk_gate_rules", {}).get(name)))
             approval_required.extend(str(rule) for rule in _as_list(policy.get("risk_approval_rules", {}).get(name)))
+
+    if diagnostic_r1_fallback_hits:
+        triggered_risks.append("R1")
+        matched_risk_triggers["R1"] = _unique(
+            [*matched_risk_triggers.get("R1", []), *diagnostic_r1_fallback_hits]
+        )
+        required_gates.extend(str(gate) for gate in _as_list(policy.get("risk_gate_rules", {}).get("R1")))
 
     risk_level = "R0"
     for risk_name in _as_list(policy.get("risk_order_high_to_low")):
@@ -894,7 +980,16 @@ def intake_router(task_text: str = "", cwd: str | None = None, policy: dict[str,
         read_depth_profile = "capsule_only"
 
     edit_operation_profile = "none"
-    read_only_task = has_any(["read-only", "readonly", "inspect only", "check only", "do not modify", "do not execute", "report only", "只读", "只检查", "不要修改", "不修改", "不要执行", "不执行", "先检查"])
+    r3_context_read_only = bool(risk_context_decisions.get("R3")) and not bool(
+        risk_context_decisions["R3"].get("promote_to_risk")
+    )
+    r3_edit_rules = policy.get("r3_context_decision_rules", {})
+    decision_only_read_only = bool(
+        _source_matched_terms(task_text, r3_edit_rules.get("decision_only_markers", []))
+    ) and not bool(
+        _trigger_matches(task_text, r3_edit_rules.get("explicit_mutation_phrases", []))["positive"]
+    )
+    read_only_task = r3_context_read_only or decision_only_read_only or has_any(["read-only", "readonly", "inspect only", "check only", "do not modify", "do not execute", "report only", "只读", "只检查", "不要修改", "不修改", "不要执行", "不执行", "先检查"])
     disk_delete_match = re.search(r"(?i)(删除|移除|清理|delete|remove).{0,48}(文件夹|目录|folder|directory|file|文件|旧\s*release|release\s*folder)|\brm\s+-rf\b|Remove-Item", task_text)
     disk_delete_requested = bool(disk_delete_match and not _is_negated(task_text, disk_delete_match.start()))
     record_delete_match = re.search(r"(?i)(删掉|删除|移除|去掉|remove|delete).{0,48}(段|描述|行|条目|内容|字段|section|paragraph|line|entry|README\s+中)", task_text)
@@ -922,10 +1017,10 @@ def intake_router(task_text: str = "", cwd: str | None = None, policy: dict[str,
         edit_operation_profile = "archive_or_move"
     elif section_replace_requested:
         edit_operation_profile = "section_replace"
-    elif in_place_patch_requested or risk_level == "R3":
-        edit_operation_profile = "in_place_patch"
     elif read_only_task or risk_level == "R1":
         edit_operation_profile = "read_only"
+    elif in_place_patch_requested or risk_level == "R3":
+        edit_operation_profile = "in_place_patch"
 
     if read_semantic_boundary:
         matched_risk_triggers["read_semantic_boundary"] = read_semantic_boundary

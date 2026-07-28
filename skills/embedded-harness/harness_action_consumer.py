@@ -101,6 +101,9 @@ def _route_field(route: dict[str, Any], name: str, default: Any = None) -> Any:
     receipt = route.get("routing_receipt")
     if isinstance(receipt, dict) and name in receipt:
         return receipt[name]
+    compact = route.get("compact_receipt")
+    if isinstance(compact, dict) and name in compact:
+        return compact[name]
     return route.get(name, default)
 
 
@@ -659,20 +662,122 @@ def build_action_consumption(
     }
 
 
+def _compact_record_metadata(record: Any) -> dict[str, Any]:
+    if not isinstance(record, dict):
+        return {}
+    return {
+        key: record[key]
+        for key in (
+            "record_id",
+            "family",
+            "class",
+            "status",
+            "record_status",
+            "path",
+            "index_path",
+            "sha256",
+            "source_tag",
+            "belief_status",
+            "confidence",
+            "score",
+            "score_method",
+            "match_confidence",
+            "selection_reasons",
+            "eligible_for_current_reuse",
+            "linked_record_ids",
+        )
+        if key in record
+    }
+
+
+def _compact_runtime_receipt(receipt: dict[str, Any]) -> dict[str, Any]:
+    external = receipt.get("external_retrieval_receipt")
+    if isinstance(external, dict):
+        external = {
+            key: external[key]
+            for key in (
+                "schema",
+                "retrieval_profile",
+                "recommended_modes",
+                "original_query",
+                "original_query_preserved",
+                "exact_anchors",
+                "semantic_facets",
+                "currentness_or_revision_required",
+                "anchor_preservation_status",
+                "query_plan",
+                "source_capability_candidates",
+                "target_coverage",
+                "facet_coverage",
+                "coverage_status",
+                "fallback_state",
+                "negative_evidence_boundary",
+                "unresolved_facets",
+            )
+            if key in external
+        }
+    return {
+        "schema": "cbh.action_consumption_receipt.compact.v1",
+        "output_profile": "compact_runtime",
+        "status": receipt.get("status"),
+        "execution_owner": receipt.get("execution_owner"),
+        "consumer_role": receipt.get("consumer_role"),
+        "selected_records": [
+            _compact_record_metadata(record) for record in receipt.get("selected_records", [])
+        ],
+        "semantic_review_candidates": [
+            _compact_record_metadata(record)
+            for record in receipt.get("semantic_review_candidates", [])
+        ],
+        "semantic_review_owner": receipt.get("semantic_review_owner"),
+        "task_local_correction_bundle": receipt.get("task_local_correction_bundle"),
+        "external_retrieval_receipt": external,
+        "retrieval": receipt.get("retrieval", {}),
+        "actions": receipt.get("actions", []),
+        "additional_context": receipt.get("additional_context", ""),
+        "context_char_count": receipt.get("context_char_count", 0),
+        "context_soft_target_chars": receipt.get("context_soft_target_chars"),
+        "context_over_soft_target": receipt.get("context_over_soft_target", False),
+        "omitted_context_record_ids": receipt.get("omitted_context_record_ids", []),
+        "boundary": receipt.get("boundary"),
+    }
+
+
+def _load_route(args: argparse.Namespace) -> dict[str, Any]:
+    if args.route_json is not None:
+        source = args.route_json
+    elif args.route_file is not None:
+        source = Path(args.route_file).read_text(encoding="utf-8-sig")
+    else:
+        if hasattr(sys.stdin, "reconfigure"):
+            sys.stdin.reconfigure(encoding="utf-8", errors="strict")
+        source = sys.stdin.read()
+    route = json.loads(source)
+    if not isinstance(route, dict):
+        raise ValueError("route input must be a JSON object")
+    return route
+
+
 def main() -> int:
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8", errors="strict")
     parser = argparse.ArgumentParser(description="Select bounded CBH memory context for a model agent.")
-    parser.add_argument("--route-json", required=True)
+    source = parser.add_mutually_exclusive_group(required=True)
+    source.add_argument("--route-json")
+    source.add_argument("--route-file")
+    source.add_argument("--route-stdin", action="store_true")
+    parser.add_argument("--receipt-mode", choices=("compact", "diagnostic"), default="compact")
     parser.add_argument("--prompt", default="")
     parser.add_argument("--tool-input-text", default="")
     args = parser.parse_args()
-    route = json.loads(args.route_json)
+    route = _load_route(args)
     result = build_action_consumption(
         route,
         prompt=args.prompt,
         tool_input_text=args.tool_input_text,
     )
+    if args.receipt_mode == "compact":
+        result = _compact_runtime_receipt(result)
     print(json.dumps(result, ensure_ascii=False, sort_keys=True))
     return 0
 

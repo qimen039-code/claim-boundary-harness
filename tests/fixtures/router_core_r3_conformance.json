@@ -1,0 +1,53 @@
+{
+  "schema": "cbh.router_core_r3_conformance.v1",
+  "scope": "narrow_r3_intent_boundary_regression",
+  "core_fields": [
+    "risk_level",
+    "risk_context_decisions.R3.promote_to_risk"
+  ],
+  "allowed_adapter_differences": [
+    "timestamps",
+    "path_normalization",
+    "host_metadata",
+    "additional_advisory_fields",
+    "receipt_projection"
+  ],
+  "cases": [
+    {
+      "id": "r3-object-inspect-en",
+      "task": "inspect this code",
+      "expected_risk": "R1",
+      "expected_r3_promotion": false
+    },
+    {
+      "id": "r3-object-evaluate-en",
+      "task": "evaluate this harness",
+      "expected_risk": "R1",
+      "expected_r3_promotion": false
+    },
+    {
+      "id": "r3-object-inspect-zh",
+      "task": "看看这个代码",
+      "expected_risk": "R1",
+      "expected_r3_promotion": false
+    },
+    {
+      "id": "r3-decision-only-en",
+      "task": "evaluate this harness and determine if a fix is needed",
+      "expected_risk": "R1",
+      "expected_r3_promotion": false
+    },
+    {
+      "id": "r3-explicit-followup-fix-en",
+      "task": "evaluate this code and fix it",
+      "expected_risk": "R3",
+      "expected_r3_promotion": true
+    },
+    {
+      "id": "r3-decision-then-update-en",
+      "task": "self-check README/docs wording for similar boundary errors; if a fix is needed, update README",
+      "expected_risk": "R3",
+      "expected_r3_promotion": true
+    }
+  ]
+}

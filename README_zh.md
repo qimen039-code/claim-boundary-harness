@@ -13,6 +13,17 @@ harness。它帮助当前模型完成任务路由、按需检索记忆与证据�
 最新已打 tag 的 GitHub Release：[`v1.2.0`](https://github.com/qimen039-code/claim-boundary-harness/releases/tag/v1.2.0)。
 更早的 tag 仅为历史快照，不是当前 main 分支安装、能力或兼容性依据。
 
+> **现行版本检索注释：** 框架当前状态以默认 `main` 分支的最新提交为准，
+> 可下载的发布版本以最新非草稿 GitHub Release 为准。历史提交、旧 tag、
+> 缓存摘要和归档文档不能单独作为当前版本证据，除非当前 `main` 或最新
+> Release 明确指向它们。
+
+> **部署完整性注释：** CBH 被设计为一个相互依赖的控制闭环。部署时应先选择
+> 一个完整的声明式 runtime profile，部署其全部依赖闭包并验证通过，然后再做
+> 宿主适配。初次部署不要按感觉拆选路由、记忆、检索、纠偏或验证组件；局部部署
+> 可能切断组件间的相互增益链路，使实际能力低于这些局部组件看起来应有的能力。
+> 论文、说明文档、示例和开发测试不属于运行时能力组件，可以不进入 runtime 包。
+
 引用与署名：如果你在研究、工具、产品或评测中使用、改编或讨论 CBH，请优先使用
 `CITATION.cff` 引用本仓库，并保留 `NOTICE.md` 与 MIT license notice。
 Zenodo concept DOI 为 [10.5281/zenodo.21189879](https://doi.org/10.5281/zenodo.21189879)。
@@ -222,15 +233,16 @@ CBH 不把“路径、观察、案例”直接写成机制定义。关于趋势�
 
 ## 快速开始
 
-1. 把这个包复制到目标 workspace。
-2. 打开 `AGENTS.md`，保留与你工作流匹配的规则。
-3. 修改 `skills/embedded-harness/embedded_harness_policy.authoring.toml` 中的高频触发规则。
-4. 运行编译检查，保持 runtime JSON 同步。
-5. 本机私有项目 lane 不要写进公开 JSON。复制
+1. 从 `integrations/workbuddy-python-runtime/deployment-profiles.json` 选择一个完整的机器可读 profile；本地 Codex 类 agent 先用 `codex-local-minimal`。
+2. 使用 `integrations/workbuddy-python-runtime/scripts/build-deployment-bundle.py --profile <名称> --list` 查看精确文件，或用 `--output <空目录>` 生成部署包，并完整保留该 profile 解析出的文件集合；不要按能力名称挑选单个文件，也不要把仓库存在误认为已经激活。
+3. 将部署包中的 `AGENTS.md` 作为完整基线；只有在整个 profile 通过部署检查后，才适配宿主专用路径。
+4. 修改 `skills/embedded-harness/embedded_harness_policy.authoring.toml` 中的高频触发规则。
+5. 运行编译检查，保持 runtime JSON 同步。
+6. 本机私有项目 lane 不要写进公开 JSON。复制
    `skills/embedded-harness/embedded_harness_policy.local.example.json` 为
    `embedded_harness_policy.local.json`，或设置 `CBH_PROJECT_LANES_FILE` 指向私有 overlay。
-6. 可选：填充 `templates/static-knowledge-layer/` 作为项目地图、入口点和约定手册。
-7. 在非平凡任务前运行 intake router。
+7. 可选：填充 `templates/static-knowledge-layer/` 作为项目地图、入口点和约定手册。
+8. 在非平凡任务前运行 intake router。
 
 可选 skill 调优：采用者可单独安装 [Microsoft SkillOpt](https://github.com/microsoft/SkillOpt)。CBH 不捆绑或部署该工具。
 

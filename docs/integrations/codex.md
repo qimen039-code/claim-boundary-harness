@@ -20,9 +20,10 @@ Run the advisory controls directly when needed:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File <HARNESS_ROOT>\harness_intake_router.ps1 `
-  -TaskText "<user task>" -Cwd "<workspace root>"
+  -TaskText "<user task>" -Cwd "<workspace root>" `
+  -ReceiptMode compact -OutputPath "<workspace root>\.cbh-route.json" | Out-Null
 python <HARNESS_ROOT>\harness_action_consumer.py `
-  --route-json '<ROUTE_JSON>' --prompt '<USER_TASK>'
+  --route-file "<workspace root>\.cbh-route.json" --receipt-mode compact --prompt '<USER_TASK>'
 python <HARNESS_ROOT>\behavior_correction_gate.py --list-profiles
 ```
 

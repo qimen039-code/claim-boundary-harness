@@ -98,8 +98,8 @@ Memory retrieval results used as reusable context should return these fields wit
 Scripts:
 
 ```powershell
-.\harness_intake_router.ps1 -TaskText "fix the build and run benchmark" -Cwd "<PROJECT_ROOT>"
-python .\harness_action_consumer.py --route-json '<ROUTE_JSON>' --prompt '<USER_TASK>'
+.\harness_intake_router.ps1 -TaskText "fix the build and run benchmark" -Cwd "<PROJECT_ROOT>" -ReceiptMode compact -OutputPath ".cbh-route.json" | Out-Null
+python .\harness_action_consumer.py --route-file ".cbh-route.json" --receipt-mode compact --prompt '<USER_TASK>'
 python .\behavior_correction_gate.py --list-profiles
 python .\behavior_correction_hook.py < pretool-event.json
 .\validate_policy.ps1

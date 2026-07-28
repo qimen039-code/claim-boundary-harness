@@ -115,6 +115,29 @@ is_r5_documentation_or_discussion_context() {
   return 1
 }
 
+is_r3_explicit_mutation_context() {
+  has_matches_filter '.r3_context_decision_rules.explicit_mutation_phrases'
+}
+
+is_r3_decision_only_context() {
+  has_matches_filter '.r3_context_decision_rules.decision_only_markers'
+}
+
+is_r3_effective_strong_mutation_context() {
+  local candidate diagnostic covered
+  for candidate in "${r3_strong_mutation_hits[@]}"; do
+    covered=false
+    for diagnostic in "${r3_diagnostic_hits[@]}" "${r3_decision_only_hits[@]}"; do
+      if [[ "${diagnostic,,}" == *"${candidate,,}"* ]]; then
+        covered=true
+        break
+      fi
+    done
+    [ "$covered" = false ] && return 0
+  done
+  return 1
+}
+
 has_matches_filter() {
   local filter="$1"
   local hits=()
@@ -157,6 +180,37 @@ r5_context_decision_json() {
       promote_to_risk: $promote,
       candidate_terms: $candidate_terms,
       negated_terms: $negated_terms,
+      reason: $reason
+    }'
+}
+
+r3_context_decision_json() {
+  local decision="$1"
+  local action_surface="$2"
+  local promote="$3"
+  local reason="$4"
+  local candidate_json negated_json diagnostic_json decision_only_json
+  candidate_json="$(json_array "${positives[@]}")"
+  negated_json="$(json_array "${negated[@]}")"
+  diagnostic_json="$(json_array "${r3_diagnostic_hits[@]}")"
+  decision_only_json="$(json_array "${r3_decision_only_hits[@]}")"
+  jq -n \
+    --arg decision "$decision" \
+    --arg action_surface "$action_surface" \
+    --arg reason "$reason" \
+    --argjson promote "$promote" \
+    --argjson candidate_terms "$candidate_json" \
+    --argjson negated_terms "$negated_json" \
+    --argjson diagnostic_terms "$diagnostic_json" \
+    --argjson decision_only_terms "$decision_only_json" \
+    '{
+      decision: $decision,
+      action_surface: $action_surface,
+      promote_to_risk: $promote,
+      candidate_terms: $candidate_terms,
+      negated_terms: $negated_terms,
+      diagnostic_terms: $diagnostic_terms,
+      decision_only_terms: $decision_only_terms,
       reason: $reason
     }'
 }
@@ -311,6 +365,10 @@ triggered_risks=()
 required_gates=("microkernel")
 required_skills=()
 approval_required=()
+diagnostic_r1_fallback_hits=()
+r3_diagnostic_hits=()
+r3_decision_only_hits=()
+r3_strong_mutation_hits=()
 
 mapfile -t risk_order < <(jq -r '.risk_order_high_to_low[]' "$POLICY_PATH" | tr -d '\r')
 for risk_name in "${risk_order[@]}"; do
@@ -345,6 +403,31 @@ for risk_name in "${risk_order[@]}"; do
       continue
     fi
   fi
+  if [ "$risk_name" = "R3" ] && [ "${#positives[@]}" -gt 0 ]; then
+    r3_diagnostic_hits=()
+    r3_decision_only_hits=()
+    r3_strong_mutation_hits=()
+    collect_matching_triggers '.r3_context_decision_rules.diagnostic_intent_terms' r3_diagnostic_hits
+    collect_matching_triggers '.r3_context_decision_rules.decision_only_markers' r3_decision_only_hits
+    collect_matching_triggers '.r3_context_decision_rules.strong_mutation_terms' r3_strong_mutation_hits
+    set_object_array "$candidates_file" "R3" "${positives[@]}"
+    if is_r3_explicit_mutation_context; then
+      set_object_json "$context_file" "R3" "$(r3_context_decision_json "change_context" "actionable_R3" true "explicit_mutation_phrase_detected")"
+    elif [ "${#r3_diagnostic_hits[@]}" -gt 0 ] || [ "${#r3_decision_only_hits[@]}" -gt 0 ] || ! is_r3_effective_strong_mutation_context; then
+      if [ "${#r3_diagnostic_hits[@]}" -eq 0 ] && [ "${#r3_decision_only_hits[@]}" -eq 0 ]; then
+        r3_diagnostic_hits=("${positives[@]}")
+      fi
+      for term in "${r3_diagnostic_hits[@]}" "${r3_decision_only_hits[@]}"; do
+        add_unique diagnostic_r1_fallback_hits "$term"
+      done
+      reason="R3_object_terms_without_mutation_intent"
+      [ "${#r3_decision_only_hits[@]}" -gt 0 ] && reason="R3_change_is_only_being_evaluated"
+      set_object_json "$context_file" "R3" "$(r3_context_decision_json "contextual_read_only" "read_only_diagnostic" false "$reason")"
+      continue
+    else
+      set_object_json "$context_file" "R3" "$(r3_context_decision_json "change_context" "actionable_R3" true "strong_mutation_term_detected")"
+    fi
+  fi
   if [ "${#positives[@]}" -gt 0 ]; then
     add_unique triggered_risks "$risk_name"
     set_object_array "$matched_file" "$risk_name" "${positives[@]}"
@@ -352,6 +435,14 @@ for risk_name in "${risk_order[@]}"; do
     while IFS= read -r approval; do add_unique approval_required "$approval"; done < <(jq -r --arg risk "$risk_name" '.risk_approval_rules[$risk] // [] | .[]' "$POLICY_PATH" | tr -d '\r')
   fi
 done
+
+if [ "${#diagnostic_r1_fallback_hits[@]}" -gt 0 ]; then
+  r1_hits=("${diagnostic_r1_fallback_hits[@]}")
+  while IFS= read -r hit; do add_unique r1_hits "$hit"; done < <(jq -r '.R1[]?' "$matched_file" | tr -d '\r')
+  add_unique triggered_risks "R1"
+  set_object_array "$matched_file" "R1" "${r1_hits[@]}"
+  while IFS= read -r gate; do add_unique required_gates "$gate"; done < <(jq -r '.risk_gate_rules.R1 // [] | .[]' "$POLICY_PATH" | tr -d '\r')
+fi
 
 for risk_name in "${risk_order[@]}"; do
   for triggered in "${triggered_risks[@]}"; do

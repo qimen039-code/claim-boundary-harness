@@ -11,8 +11,11 @@ bounded context or check a declared boundary, but they must return that result
 to the model rather than taking ownership of the user's task.
 
 Before installing or adapting CBH, an agent must read
-`docs/agent-deployment-map.md`, select a declared deployment profile, and keep
-the generated bundle receipt. Repository presence alone is not activation.
+`docs/agent-deployment-map.md`, select one complete declared deployment
+profile, stage its entire resolved dependency closure, and keep the generated
+bundle receipt. Do not cherry-pick capability files during initial deployment;
+adapt host-specific paths only after the integrated profile passes its checks.
+Repository presence alone is not activation.
 
 ## Default Rules
 

@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import subprocess
+import sys
 from pathlib import Path
 
 
@@ -16,6 +18,165 @@ def load_consumer_module():
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
+
+
+def test_cli_accepts_large_route_from_stdin_and_emits_compact_receipt() -> None:
+    route = {
+        "padding": "x" * 60_000,
+        "compact_receipt": {
+            "action_bindings": [],
+            "memory_mode": "none",
+            "memory_lane": "none",
+        },
+    }
+    completed = subprocess.run(
+        [
+            sys.executable,
+            str(CONSUMER_PATH),
+            "--route-stdin",
+            "--receipt-mode",
+            "compact",
+            "--prompt",
+            "只读检查一个超长 route 的传输链",
+        ],
+        input=json.dumps(route, ensure_ascii=False),
+        text=True,
+        encoding="utf-8",
+        errors="strict",
+        capture_output=True,
+        check=False,
+    )
+
+    assert completed.returncode == 0, completed.stderr
+    payload = json.loads(completed.stdout)
+    assert payload["schema"] == "cbh.action_consumption_receipt.compact.v1"
+    assert len(completed.stdout.encode("utf-8")) < 8_192
+    assert "additional_context" in payload
+    assert "context_segments" not in payload
+
+
+def test_cli_diagnostic_mode_preserves_full_receipt() -> None:
+    route = {"compact_receipt": {"action_bindings": [], "memory_mode": "none"}}
+    completed = subprocess.run(
+        [
+            sys.executable,
+            str(CONSUMER_PATH),
+            "--route-stdin",
+            "--receipt-mode",
+            "diagnostic",
+        ],
+        input=json.dumps(route),
+        text=True,
+        encoding="utf-8",
+        errors="strict",
+        capture_output=True,
+        check=False,
+    )
+
+    assert completed.returncode == 0, completed.stderr
+    payload = json.loads(completed.stdout)
+    assert payload["schema"] == "cbh.model_context_consumption.v1"
+    assert "semantic_review_candidates" in payload
+
+
+def test_cli_accepts_utf8_bom_route_file(tmp_path: Path) -> None:
+    route_path = tmp_path / "large-route.json"
+    route_path.write_text(
+        json.dumps(
+            {
+                "padding": "中文" * 30_000,
+                "compact_receipt": {
+                    "action_bindings": [],
+                    "memory_mode": "none",
+                },
+            },
+            ensure_ascii=False,
+        ),
+        encoding="utf-8-sig",
+    )
+    completed = subprocess.run(
+        [
+            sys.executable,
+            str(CONSUMER_PATH),
+            "--route-file",
+            str(route_path),
+            "--receipt-mode",
+            "compact",
+        ],
+        text=True,
+        encoding="utf-8",
+        errors="strict",
+        capture_output=True,
+        check=False,
+    )
+
+    assert completed.returncode == 0, completed.stderr
+    assert json.loads(completed.stdout)["schema"] == "cbh.action_consumption_receipt.compact.v1"
+
+
+def test_compact_projection_keeps_provenance_without_duplicate_record_text() -> None:
+    module = load_consumer_module()
+    receipt = {
+        "status": "complete",
+        "selected_records": [
+            {
+                "record_id": "CE-1",
+                "path": "CE-1.md",
+                "sha256": "a" * 64,
+                "score": 9,
+                "score_method": "field_weighted_exact_and_lexical_v1",
+                "rule": "full selected record text",
+                "prevention": "full selected record text",
+            }
+        ],
+        "semantic_review_candidates": [
+            {
+                "record_id": "SOL-1",
+                "path": "SOL-1.md",
+                "sha256": "b" * 64,
+                "score": 2,
+                "rule": "full semantic candidate text",
+            }
+        ],
+        "external_retrieval_receipt": {
+            "schema": "cbh.external_retrieval_receipt.v1",
+            "retrieval_profile": "source_native_exact_anchor",
+            "original_query": "check release v1.2.0",
+            "exact_anchors": [{"target_id": "anchor-001", "raw_text": "v1.2.0"}],
+            "query_plan": [
+                {
+                    "query_id": "Q-001",
+                    "query_text": "v1.2.0",
+                    "exact_anchor": "v1.2.0",
+                    "anchor_preserved": True,
+                    "source_route_id": "github_release",
+                }
+            ],
+            "source_capability_candidates": [
+                {
+                    "target_id": "anchor-001",
+                    "source_route_id": "github_release",
+                    "activation_condition": "github_release_available",
+                }
+            ],
+            "coverage_status": "planned",
+            "negative_evidence_boundary": "one source miss is not absence",
+        },
+        "additional_context": "full selected record text\nfull semantic candidate text",
+    }
+
+    compact = module._compact_runtime_receipt(receipt)
+
+    assert compact["additional_context"] == receipt["additional_context"]
+    assert compact["selected_records"][0]["sha256"] == "a" * 64
+    assert "rule" not in compact["selected_records"][0]
+    assert "prevention" not in compact["selected_records"][0]
+    assert "rule" not in compact["semantic_review_candidates"][0]
+    external = compact["external_retrieval_receipt"]
+    assert external["query_plan"][0]["query_id"] == "Q-001"
+    assert external["query_plan"][0]["exact_anchor"] == "v1.2.0"
+    assert external["source_capability_candidates"][0]["source_route_id"] == "github_release"
+    assert external["coverage_status"] == "planned"
 
 
 def write_lane(root: Path) -> Path:

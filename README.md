@@ -15,6 +15,21 @@ Latest tagged GitHub release: [`v1.2.0`](https://github.com/qimen039-code/claim-
 Earlier tags remain historical snapshots, not current main-branch installation,
 capability, or compatibility guidance.
 
+> **Current-version retrieval note:** Treat the latest commit on the default
+> `main` branch as the current framework state, and the latest non-draft GitHub
+> Release as the current packaged release. Historical commits, old tags, cached
+> snippets, and archived documents are not current-version evidence unless the
+> current `main` branch or latest Release explicitly points to them.
+
+> **Deployment integrity note:** CBH is designed as one interdependent control
+> loop. Start with one complete declared runtime profile and deploy its full
+> dependency closure before adapting it to a host. Do not cherry-pick routing,
+> memory, retrieval, correction, or verification components during initial
+> installation: a partial deployment can break the links that let these parts
+> reinforce one another and can provide less capability than the selected parts
+> suggest. Documentation, papers, examples, and development tests may remain
+> outside the runtime bundle.
+
 Citation and attribution: if you use, adapt, evaluate, or productize CBH,
 please cite this repository with `CITATION.cff` and retain `NOTICE.md` plus the
 MIT license notice. The Zenodo concept DOI is
@@ -316,9 +331,12 @@ their runtime can actually honor:
   additive R0-R5 routing, governance contracts, and policy TOML/JSON. This is
   mandatory as a decision chain, but cheap by default through compact and delta
   receipts.
-- **Runtime interception:** PowerShell runtime enforcer, tool proxy, task
-  wrapper, Bash references, and WorkBuddy hook runner. These are hard only on
-  paths where the host actually calls and honors the gate.
+- **Runtime integration:** PowerShell/Bash advisory routers and gates, the
+  direct action consumer, and reference adapters such as the WorkBuddy hook
+  runner. The optional correction hook can rewrite one mechanically verified
+  current input but cannot deny, freeze, or grant authority. Physical blocking,
+  if an adopter needs it, belongs to the host's native sandbox or permission
+  system rather than CBH.
 - **Memory continuity:** project memory library, conversation memory lane,
   raw-session ledger, memory links, static knowledge layer, meta indexes, and
   source-monitoring capsule schema. This gives lane-and-link continuity without
@@ -566,23 +584,32 @@ The package includes generic synthetic examples that show the intended record sh
 
 ## Quick Start
 
-1. Copy this package into a new workspace.
-2. Open `AGENTS.md` and keep only the rules that match your workflow.
-3. Edit `skills/embedded-harness/embedded_harness_policy.authoring.toml` for high-churn trigger sections, then keep `embedded_harness_policy.json` in sync for runtime use.
-4. For private machine-local project lanes, copy `skills/embedded-harness/embedded_harness_policy.local.example.json` to `embedded_harness_policy.local.json`, or point `CBH_PROJECT_LANES_FILE` at a private overlay file. Do not commit private local project roots into the public policy JSON.
-5. Optionally fill `templates/static-knowledge-layer/` with a project map,
+1. Choose one complete machine-readable profile from
+   `integrations/workbuddy-python-runtime/deployment-profiles.json`. For a
+   local Codex-style agent, start with `codex-local-minimal`.
+2. Use `integrations/workbuddy-python-runtime/scripts/build-deployment-bundle.py`
+   with `--profile <name> --list` or `--output <empty-directory>`, and stage the
+   profile's entire resolved file set. Do not cherry-pick individual capability
+   files or treat repository presence as activation.
+3. Open the staged `AGENTS.md` as the integrated baseline. Adapt host-specific
+   paths only after the complete profile passes its deployment checks.
+4. Edit `skills/embedded-harness/embedded_harness_policy.authoring.toml` for high-churn trigger sections, then keep `embedded_harness_policy.json` in sync for runtime use.
+5. For private machine-local project lanes, copy `skills/embedded-harness/embedded_harness_policy.local.example.json` to `embedded_harness_policy.local.json`, or point `CBH_PROJECT_LANES_FILE` at a private overlay file. Do not commit private local project roots into the public policy JSON.
+6. Optionally fill `templates/static-knowledge-layer/` with a project map,
    entry points, conventions, and interface notes.
-6. Register the skill folders using whatever skill or command mechanism your agent supports.
-7. Run the intake router before nontrivial work.
+7. Register the skill folders using whatever skill or command mechanism your agent supports.
+8. Run the intake router before nontrivial work.
 
 Optional skill tuning: adopters may install [Microsoft SkillOpt](https://github.com/microsoft/SkillOpt) separately. CBH does not bundle or deploy it.
 
-For deployment, do not copy the repository wholesale. Resolve one of the
-machine-readable profiles in
+For deployment, resolve one complete machine-readable profile in
 `integrations/workbuddy-python-runtime/deployment-profiles.json` and use
-`scripts/build-deployment-bundle.py` to list or stage the exact runtime files.
-The minimal profiles exclude papers, articles, research material, examples,
-and development tests. WorkBuddy hook-only deployments must also report route
+`integrations/workbuddy-python-runtime/scripts/build-deployment-bundle.py` to
+list or stage all of its exact runtime files. Do not remove parts from that
+resolved dependency closure during initial deployment. Runtime profiles may
+exclude papers, articles, research material, examples, and development tests
+because those are not active capability components. WorkBuddy hook-only
+deployments must also report route
 fields that lack an Agent Loop consumer as advisory rather than deployed.
 
 ```powershell

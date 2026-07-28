@@ -10,6 +10,12 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
+REPO_ROOT = Path(__file__).resolve().parents[3]
+CORE_R3_CONFORMANCE = json.loads(
+    (REPO_ROOT / "tests" / "fixtures" / "router_core_r3_conformance.json").read_text(
+        encoding="utf-8"
+    )
+)
 sys.path.insert(0, str(ROOT))
 
 import workbuddy_harness.hook_runner as hook_runner  # noqa: E402
@@ -44,6 +50,16 @@ class AdvisoryRuntimeTests(unittest.TestCase):
         self.assertEqual("R5", route["risk_level"])
         self.assertTrue(route["compact_receipt"]["human_confirmation_need"])
         self.assertNotIn("blocked_reasons", route)
+
+    def test_r3_object_terms_require_actual_mutation_intent(self) -> None:
+        for case in CORE_R3_CONFORMANCE["cases"]:
+            with self.subTest(case_id=case["id"]):
+                route = intake_router(case["task"], cwd=str(self.neutral_cwd), policy=self.policy)
+                self.assertEqual(case["expected_risk"], route["risk_level"])
+                self.assertEqual(
+                    case["expected_r3_promotion"],
+                    route["risk_context_decisions"]["R3"]["promote_to_risk"],
+                )
 
     def test_user_prompt_context_keeps_model_agent_ownership(self) -> None:
         output = hook_runner.handle_user_prompt_event(

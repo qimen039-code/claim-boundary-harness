@@ -1,6 +1,6 @@
 {
   "schema": "cbh.deployment_profiles.v1",
-  "rule": "Deploy a named runtime profile. Do not copy the repository wholesale.",
+  "rule": "Deploy one complete named runtime profile as a dependency-closed baseline; do not cherry-pick individual capability files or infer activation from repository presence.",
   "profiles": {
     "workbuddy-hook-minimal": {
       "required_predeployment_read": "docs/agent-deployment-map.md",

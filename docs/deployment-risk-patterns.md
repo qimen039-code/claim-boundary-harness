@@ -13,7 +13,7 @@ python tools/cbh_doctor.py --repo-root . --json
 ```
 
 The doctor checks package files, policy shape, PowerShell routing probes,
-selective tool-proxy blocking, and Bash/jq availability. It does not configure
+documentation alignment, and Bash/jq availability. It does not configure
 hooks, install dependencies, write memory, or prove that a host agent honors
 every execution path.
 
@@ -45,9 +45,9 @@ Most adopters should aim for L1 plus an optional, verified L2 correction path. D
 | Runtime family | Typical integration surface | Main deployment risk | Practical solution |
 | --- | --- | --- | --- |
 | Instruction-file agents | Workspace rule files, project docs, memory files | The file is present but not loaded by the agent | Ask the agent to report the routing receipt on a test task, and keep a visible root instruction entry. |
-| CLI agents with hooks | Pre-prompt, pre-tool, post-tool, stop hooks | Hook exists but is not on the actual execution path | Place the gate at the earliest pre-execution hook and verify a blocked action never reaches the tool. |
+| CLI agents with hooks | Pre-prompt, pre-tool, post-tool, stop hooks | Hook exists but is not on the actual execution path | Use CBH for advisory routing/correction; if the host exposes a native denial hook, verify that host-native denial before relying on it. |
 | IDE or desktop agents | IDE extension settings, tool executor pipeline, output gate | UI actions, background tasks, or built-in tools bypass the wrapper | Identify every tool execution surface and mark unhooked surfaces as advisory. |
-| Custom orchestrators | Python/Node middleware, tool registry, function dispatcher | Policy is called after execution or its result is ignored | Put `runtime_enforcer` before dispatch and raise/return a blocking error on `status: blocked`. |
+| Custom orchestrators | Python/Node middleware, tool registry, function dispatcher | Policy is called after execution or its result is ignored | Keep CBH advisory, or put an adopter-owned host-native enforcement function before dispatch when physical blocking is independently required. |
 | Hosted or SaaS agents | Limited settings, system prompts, external tools | No local pre-tool hook is available | Treat the harness as advisory, or move protected actions behind an external proxy you control. |
 | Terminal-only assistants | Shell aliases, wrapper scripts, project instructions | Users or tools can call the raw shell directly | Use wrappers for high-risk commands and state clearly that raw shell paths bypass enforcement. |
 
@@ -163,7 +163,7 @@ Solution path:
 
 1. Add a prompt-stage hook that stores `session_id`, `cwd`, original task text, and compact receipt.
 2. During pre-tool checks, reload the stored task by session id.
-3. Pass both the compact risk override and the original task text into the runtime enforcer.
+3. Pass both the compact risk override and the original task text into the advisory router, and separately into any adopter-owned host-native enforcer if one exists.
 4. If the host has no prompt-stage event, keep the route advisory and state the limitation.
 
 Acceptance check:
@@ -329,12 +329,12 @@ Solution path:
 1. Use explicit UTF-8 reads in every PowerShell policy reader.
 2. Search all scripts for `Get-Content ... ConvertFrom-Json`.
 3. Keep machine policy JSON parseable in the exact shell that will execute it.
-4. Validate both the standalone validator and the runtime enforcer.
+4. Validate the standalone validator and intake router; validate any adopter-owned host-native enforcer separately.
 
 Acceptance check:
 
 ```text
-The validator, intake router, and runtime enforcer all parse the same policy file in the target shell.
+The validator and intake router parse the same policy file in the target shell. Any adopter-owned host-native enforcer has its own explicit compatibility check.
 ```
 
 ### Example 10: Windows PowerShell Receives Bash Heredoc Syntax
@@ -492,14 +492,14 @@ Inspect:
 Test the gate directly from the same workspace:
 
 ```text
-Run the intake router or runtime enforcer directly with a known high-risk task.
+Run the intake router directly with a known mixed-risk task. If the adopter also has host-native enforcement, test that independent path with a disposable action.
 ```
 
 Expected:
 
-- allowed tasks return pass;
-- high-risk tasks return blocked;
-- the gate exits with the documented blocked code when the script supports exit codes.
+- CBH returns the expected advisory risk, gates, and confirmation need;
+- the optional correction path only rewrites a mechanically verified current input;
+- any host-native enforcement test uses the host's documented denial schema and exit behavior.
 
 If direct execution fails, the problem is adapter setup, dependencies, policy JSON, quoting, or file paths. Do not debug the agent hook yet.
 
