@@ -5,10 +5,57 @@
 [![Smoke checks](https://github.com/qimen039-code/claim-boundary-harness/actions/workflows/smoke.yml/badge.svg?branch=main)](https://github.com/qimen039-code/claim-boundary-harness/actions/workflows/smoke.yml)
 [![Zenodo concept DOI](./docs/assets/doi-badge.svg)](https://doi.org/10.5281/zenodo.21189879)
 
-Claim Boundary Harness (CBH) is a model-facing capability harness for
-Codex-class LLM agents. It helps the active model route a task, retrieve only
-the relevant memory or evidence, preserve claim boundaries, and reuse verified
-corrections without flooding its context.
+Claim Boundary Harness (CBH) is an add-on control layer for coding agents. It
+helps an existing agent keep the right context, separate projects and memories,
+reuse verified corrections, check evidence before strong claims, and avoid
+turning every task into a large prompt.
+
+The host model still plans, reasons, uses tools, recovers from errors, and writes
+the final answer. CBH gives that model a compact set of routes, records, and
+verification helpers; it does not replace the model or run tasks on its own.
+
+## Quick Start
+
+You do not need to understand every CBH contract before trying it. This path is
+for Codex-class IDE or terminal agents that can read workspace instructions and
+run local tools. Open a new task in the agent you want to use, give it access to
+a local workspace, and paste the following single-line deployment request:
+
+```text
+Deploy the latest main branch of Claim Boundary Harness from https://github.com/qimen039-code/claim-boundary-harness into this coding-agent environment: read docs/agent-deployment-map.md first; inspect this host's real instruction, skill, command, hook, model-loop, permission, and sandbox surfaces; show the exact write targets and back up existing configuration; select one complete declared deployment profile and stage its full resolved dependency closure; after any required approval, adapt only the surfaces this host actually supports; initialize private local overlays from the public templates without publishing local paths or memory; run the compiler, validator, doctor, relevant profile tests, and one fresh-task lifecycle smoke test; then return the deployment receipt with checked_available, checked_missing, and checked_blocked, and never claim that copied files alone are active.
+```
+
+This is an instruction for the coding agent, not a universal shell installer.
+Different clients expose different instruction files, skill registries, hooks,
+permission systems, and tool lifecycles, so the agent must inspect the real host
+before adapting CBH. A local Codex-style host can use `codex-local-minimal` as
+its initial complete baseline; another host may use that profile as an
+integration reference, but not as proof of compatibility.
+
+### What The Agent Should Do
+
+1. Read the deployment map and inspect the installed client before writing.
+2. Show the files or settings it intends to change and preserve existing local
+   configuration.
+3. Stage one complete declared runtime profile; do not pick isolated capability
+   files by name.
+4. Map the integrated baseline into only the host surfaces that actually exist.
+5. Run repository checks plus a fresh-task host-lifecycle check, then report what
+   is active, missing, or blocked.
+
+### Before You Trust The Deployment
+
+- CBH augments the host agent; it is not a separate autonomous application.
+- Copying the repository is not activation. The host must actually load the
+  instruction entry and call any claimed router, consumer, or hook surface.
+- Preserve existing instructions and configuration with a reviewed patch or
+  backup; do not blindly overwrite the user's agent setup.
+- Keep private project paths, credentials, memory records, and local incidents
+  in local overlays. Do not add them to the public repository or runtime policy.
+- Treat unsupported host surfaces as `checked_missing` or `checked_blocked`, not
+  as silently enabled features.
+- Re-run the local compatibility checks after the host client, hook protocol, or
+  relevant configuration changes.
 
 Current main-branch version: `v1.2.0`.
 Latest tagged GitHub release: [`v1.2.0`](https://github.com/qimen039-code/claim-boundary-harness/releases/tag/v1.2.0).
@@ -89,7 +136,7 @@ Fast paths:
 | --- | --- |
 | Understand the problem | [What Problem It Solves](#what-problem-it-solves) |
 | See the architecture | [Architecture At A Glance](#architecture-at-a-glance) |
-| Install or adapt | [Quick Start](#quick-start), [Agent Self-Deployment Map](docs/agent-deployment-map.md), [docs/adoption.md](docs/adoption.md) |
+| Install or adapt | [Quick Start](#quick-start), [Manual Deployment And Verification](#manual-deployment-and-verification), [Agent Self-Deployment Map](docs/agent-deployment-map.md), [docs/adoption.md](docs/adoption.md) |
 | Validate behavior | [docs/test-cases.md](docs/test-cases.md), [docs/reproduction.md](docs/reproduction.md) |
 | Cite or review provenance | [CITATION.cff](CITATION.cff), [NOTICE.md](NOTICE.md), [docs/influences-and-attribution.md](docs/influences-and-attribution.md) |
 | Runtime troubleshooting | [docs/deployment-risk-patterns.md](docs/deployment-risk-patterns.md), [docs/integrations](docs/integrations) |
@@ -582,7 +629,7 @@ The package includes generic synthetic examples that show the intended record sh
 - [docs/integrations/doubao.md](docs/integrations/doubao.md): Doubao adaptation boundary notes. Treat persistent custom-skill/tool registration as unverified until the target new chat proves it; CBH is limited to chat/workspace-scoped advisory guidance there.
 - [docs/examples.md](docs/examples.md): expected gate behavior and how to interpret examples.
 
-## Quick Start
+## Manual Deployment And Verification
 
 1. Choose one complete machine-readable profile from
    `integrations/workbuddy-python-runtime/deployment-profiles.json`. For a

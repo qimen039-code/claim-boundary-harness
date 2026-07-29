@@ -5,9 +5,46 @@
 [![Smoke checks](https://github.com/qimen039-code/claim-boundary-harness/actions/workflows/smoke.yml/badge.svg?branch=main)](https://github.com/qimen039-code/claim-boundary-harness/actions/workflows/smoke.yml)
 [![Zenodo concept DOI](./docs/assets/doi-badge.svg)](https://doi.org/10.5281/zenodo.21189879)
 
-Claim Boundary Harness（CBH）是一套面向 Codex 类大模型 Agent 的能力
-harness。它帮助当前模型完成任务路由、按需检索记忆与证据、保持声明边界，
-并复用已经验证的纠偏经验，同时避免把大量历史正文塞进上下文。
+Claim Boundary Harness（CBH）是给编码 Agent 使用的一层外接控制与能力增强框架。
+它帮助现有 Agent 保留真正需要的上下文，隔离不同项目和记忆，复用已经验证的纠偏
+经验，在做强声明前检查证据，并避免把每个任务都膨胀成一大段提示词。
+
+宿主大模型仍然负责规划、推理、工具调用、错误恢复和最终答复。CBH 只向模型提供紧凑
+的路由、记录和验证辅助，不替代模型，也不会脱离模型独立执行用户任务。
+
+## 快速开始
+
+第一次使用不需要先读懂 CBH 的全部契约。只要你的类 Codex IDE 或终端 Agent 能读取
+工作区指令并运行本地工具，就可以在目标 Agent 中新建任务、给它一个可访问的本地
+工作区，然后把下面这一整行直接发给它：
+
+```text
+请将 https://github.com/qimen039-code/claim-boundary-harness 默认 main 分支的最新 Claim Boundary Harness 部署到当前编码 Agent 环境：先阅读 docs/agent-deployment-map.md；检查当前宿主真实存在的指令、Skill、Command、Hook、模型循环、权限与沙箱接口；列出精确写入目标并备份现有配置；选择一个完整的声明式部署 profile，生成并保留其全部依赖闭包；取得必要授权后，只对宿主确实支持的表面进行本地适配；使用公开模板初始化私有本地 overlay，不得公开本机路径或记忆；运行编译器、验证器、doctor、相关 profile 测试和一次新任务生命周期 smoke；最后返回包含 checked_available、checked_missing、checked_blocked 的部署回执，且不得把“文件已复制”说成“能力已激活”。
+```
+
+这是一条发给编码 Agent 的部署指令，不是假装适用于所有系统的通用 shell 安装命令。
+不同客户端的指令文件、Skill 注册、Hook、权限系统和工具生命周期并不相同，因此必须
+先检查真实宿主，再进行适配。本地 Codex 类宿主可以将 `codex-local-minimal` 作为第一
+个完整基线；其他宿主可以把它当作集成参考，但不能把它当作兼容性证明。
+
+### Agent 接下来应该做什么
+
+1. 先读部署地图并检查实际安装的客户端，再开始写入。
+2. 列出准备修改的文件或设置，保留并备份采用者已有的本地配置。
+3. 完整生成一个声明式 runtime profile，不按能力名称零散挑选文件。
+4. 将这套完整基线映射到宿主真实存在的接口，不伪造不存在的 Hook 或 Skill 能力。
+5. 运行仓库检查和一次新任务生命周期检查，再报告哪些能力已激活、缺失或被阻塞。
+
+### 使用前需要注意
+
+- CBH 是宿主 Agent 的能力增强层，不是另一个脱离模型运行的自治软件。
+- 下载或复制仓库不等于激活；宿主必须真正加载指令入口，并调用所声明的 router、
+  consumer 或 hook。
+- 现有指令和配置必须通过经过复核的局部补丁或备份保留，不能盲目覆盖用户环境。
+- 私有项目路径、凭据、记忆记录和本地事故只能留在 local overlay，不能写入公开仓库
+  或公开 runtime policy。
+- 宿主不支持的能力应标记为 `checked_missing` 或 `checked_blocked`，不能静默宣称启用。
+- 客户端、Hook 协议或相关配置更新后，需要重新运行本地兼容性检查。
 
 当前 main 分支版本：`v1.2.0`。
 最新已打 tag 的 GitHub Release：[`v1.2.0`](https://github.com/qimen039-code/claim-boundary-harness/releases/tag/v1.2.0)。
@@ -72,7 +109,7 @@ CBH 为 Codex 类宿主大模型 Agent 增加一层低成本、面向模型的�
 | --- | --- |
 | 理解框架 | [解决的问题](#解决的问题) |
 | 看整体结构 | [架构概览](#架构概览) |
-| 安装或迁移 | [快速开始](#快速开始)、[Agent 自部署地图](docs/agent-deployment-map.md)、[docs/adoption.md](docs/adoption.md) |
+| 安装或迁移 | [快速开始](#快速开始)、[手动部署与验证](#手动部署与验证)、[Agent 自部署地图](docs/agent-deployment-map.md)、[docs/adoption.md](docs/adoption.md) |
 | 验证行为 | [docs/test-cases.md](docs/test-cases.md)、[docs/reproduction.md](docs/reproduction.md) |
 | 客户端适配 | [docs/integrations](docs/integrations) |
 
@@ -231,7 +268,7 @@ CBH 不把“路径、观察、案例”直接写成机制定义。关于趋势�
 
 公开/私有边界是另一类问题，不放进因果归因 gate。
 
-## 快速开始
+## 手动部署与验证
 
 1. 从 `integrations/workbuddy-python-runtime/deployment-profiles.json` 选择一个完整的机器可读 profile；本地 Codex 类 agent 先用 `codex-local-minimal`。
 2. 使用 `integrations/workbuddy-python-runtime/scripts/build-deployment-bundle.py --profile <名称> --list` 查看精确文件，或用 `--output <空目录>` 生成部署包，并完整保留该 profile 解析出的文件集合；不要按能力名称挑选单个文件，也不要把仓库存在误认为已经激活。
