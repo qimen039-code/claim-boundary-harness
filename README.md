@@ -5,21 +5,60 @@
 [![Smoke checks](https://github.com/qimen039-code/claim-boundary-harness/actions/workflows/smoke.yml/badge.svg?branch=main)](https://github.com/qimen039-code/claim-boundary-harness/actions/workflows/smoke.yml)
 [![Zenodo concept DOI](./docs/assets/doi-badge.svg)](https://doi.org/10.5281/zenodo.21189879)
 
-Claim Boundary Harness (CBH) is an add-on control layer for coding agents. It
-helps an existing agent keep the right context, separate projects and memories,
-reuse verified corrections, check evidence before strong claims, and avoid
-turning every task into a large prompt.
+## In 30 Seconds
+
+Claim Boundary Harness (CBH) is a set of working rules, memory structures, and
+verification helpers for coding agents. It works beside the host model; it is
+not another AI, a background task runner, or a replacement for the model.
+
+In practical terms, CBH helps an agent keep the overall goal visible during a
+long task, continue with traceable context, separate unrelated projects, reuse
+verified corrections, and check evidence before presenting a strong claim. It
+also helps the agent load only the context and capabilities needed for the
+current task instead of turning every request into one large prompt.
 
 The host model still plans, reasons, uses tools, recovers from errors, and writes
-the final answer. CBH gives that model a compact set of routes, records, and
-verification helpers; it does not replace the model or run tasks on its own.
+the final answer. CBH reduces avoidable failures, but it cannot guarantee
+correctness or eliminate hallucinations. A capability counts as active only
+when the host actually loads and tests the relevant CBH entry points.
+
+## Problems It Helps Solve
+
+| Common problem | How CBH helps | Technical entry |
+| --- | --- | --- |
+| A long task drifts, or the agent treats one finished subtask as the whole goal | Keeps the task goal, current scope, and final checks connected | Task routing, event re-evaluation, final claim check |
+| A new conversation or a nearly full context window loses important details | Keeps compact navigation records that can lead back to the original evidence | Conversation ledger, source-preserving memory |
+| One project's history leaks into another | Separates project, conversation, error, archive, and reference memory by default | Memory lanes, meta-first retrieval |
+| The same execution mistake keeps returning | Stores a verified error together with its solution and reviews it before a similar action | CE/ERR/SOL records, behavior correction |
+| A guess, partial run, or mock result is reported as proven | Requires the strength of a claim to match the available file, test, log, or source evidence | Claim and evidence boundaries |
+| Too much history, too many skills, or too many tools crowd the model context | Selects the smallest sufficient context and activates capabilities only when needed | Context selection, skill lifecycle |
+| A client or tool update breaks an earlier integration | Provides checks for the real host entry points so only passing surfaces are reported as active | Compatibility and lifecycle checks |
+
+## Choose How To Use CBH
+
+CBH is not something every coding-agent user must install. Choose the smallest
+use level that matches the problem you actually have; these are usage modes,
+not a maturity ladder.
+
+| Use level | When it fits | Recommended action | Is CBH deployed? |
+| --- | --- | --- | --- |
+| Read and reference | You want ideas for prompts, memory boundaries, handoffs, evidence checks, or agent governance | Read the relevant README or contract and cite the source when you reuse it | No |
+| Reuse a design pattern | You need one bounded idea in your own system, such as project-scoped memory or source-preserving handoff | Adapt and test that pattern in your own implementation; retain the applicable attribution and license notice | No; this is an adaptation inspired by CBH |
+| Complete local deployment | You repeatedly encounter long-task drift, cross-project memory bleed, weak evidence claims, or recurring execution mistakes | Use one complete declared deployment profile, adapt it to the real host, and run the acceptance checks | Only after the host lifecycle checks pass |
+| Host or product integration | You build or maintain an agent runtime, adapter, or team control plane | Integrate the model-loop contracts, receipts, local overlays, and supported hook surfaces with versioned tests | Only the verified surfaces count as active |
+
+Reading or borrowing from CBH is a valid outcome. You do not need to deploy the
+framework merely because one contract or pattern is useful. The complete-profile
+rule applies when you choose to install CBH as an integrated runtime and claim
+that its linked capabilities are active.
 
 ## Quick Start
 
-You do not need to understand every CBH contract before trying it. This path is
-for Codex-class IDE or terminal agents that can read workspace instructions and
-run local tools. Open a new task in the agent you want to use, give it access to
-a local workspace, and paste the following single-line deployment request:
+If you selected complete local deployment or host integration, you do not need
+to understand every CBH contract before starting. This path is for Codex-class
+IDE or terminal agents that can read workspace instructions and run local tools.
+Open a new task in the agent you want to use, give it access to a local
+workspace, and paste the following single-line deployment request:
 
 ```text
 Deploy the latest main branch of Claim Boundary Harness from https://github.com/qimen039-code/claim-boundary-harness into this coding-agent environment: read docs/agent-deployment-map.md first; inspect this host's real instruction, skill, command, hook, model-loop, permission, and sandbox surfaces; show the exact write targets and back up existing configuration; select one complete declared deployment profile and stage its full resolved dependency closure; after any required approval, adapt only the surfaces this host actually supports; initialize private local overlays from the public templates without publishing local paths or memory; run the compiler, validator, doctor, relevant profile tests, and one fresh-task lifecycle smoke test; then return the deployment receipt with checked_available, checked_missing, and checked_blocked, and never claim that copied files alone are active.
@@ -112,7 +151,7 @@ The public package is a framework and reference implementation. Actual
 enforcement strength depends on the host runtime, hook surface, local project
 lane configuration, and verification tests run by the adopter.
 
-## At A Glance
+## Technical Overview
 
 Claim Boundary Harness is a small model-facing capability and cognition layer
 for Codex-class host LLM agents. The host model remains responsible for
@@ -134,7 +173,8 @@ Fast paths:
 
 | Need | Start here |
 | --- | --- |
-| Understand the problem | [What Problem It Solves](#what-problem-it-solves) |
+| Decide whether to deploy | [Choose How To Use CBH](#choose-how-to-use-cbh) |
+| Understand CBH quickly | [In 30 Seconds](#in-30-seconds), [Problems It Helps Solve](#problems-it-helps-solve) |
 | See the architecture | [Architecture At A Glance](#architecture-at-a-glance) |
 | Install or adapt | [Quick Start](#quick-start), [Manual Deployment And Verification](#manual-deployment-and-verification), [Agent Self-Deployment Map](docs/agent-deployment-map.md), [docs/adoption.md](docs/adoption.md) |
 | Validate behavior | [docs/test-cases.md](docs/test-cases.md), [docs/reproduction.md](docs/reproduction.md) |
@@ -337,7 +377,7 @@ See [docs/adoption.md](docs/adoption.md) and
 [docs/deployment-risk-patterns.md](docs/deployment-risk-patterns.md) for the
 long-form deployment notes.
 
-## What Problem It Solves
+## Technical Problem Map
 
 Modern coding agents often fail in the same places:
 
