@@ -33,7 +33,7 @@ the router without publishing private local paths in the shared policy JSON.
 
 The repository also includes adapter examples outside the core skill folder, such as `integrations/workbuddy-python-runtime`. These adapters should be treated as host-specific references. They can reuse the same `embedded_harness_policy.json`, but they do not change the core framework contract unless the adopting runtime actually calls them at the right execution boundary.
 
-The mandatory advisory control plane sits around the router:
+The mandatory model-layer pre-action control plane sits around the router:
 
 ```text
 routing receipt
@@ -45,6 +45,18 @@ routing receipt
 
 The control plane decides whether to use project instructions, a project router, memory retrieval, existing skills/tools/plugins, external research, claim checks, or human confirmation. It should not expand into every memory, every skill, or every tool call by default.
 
+For a protected high-risk action, the control plane is an execution-state gate:
+without exact current human authorization, the model must stop before forming
+or calling the tool action. That model-layer pre-action stop is distinct from a
+host-enforced execution stop. The latter requires a tested hook, proxy,
+permission system, sandbox, or operating-system boundary that can reject the
+action independently of model compliance.
+
+Authorization is one-event, one-declared-scope, and one-use. A later, repeated,
+expanded, or materially changed risky action must enter the gate again. The
+operator accepts the disclosed decision risk for the exact authorized action;
+CBH does not certify it as safe or assume responsibility for its consequences.
+
 ## Hook Capture Point Matrix
 
 Adopters can map the control plane onto host lifecycle hooks when the runtime exposes them. These stages capture the right context at the right time; they are not a requirement to run a full memory backend.
@@ -53,12 +65,15 @@ Adopters can map the control plane onto host lifecycle hooks when the runtime ex
 | --- | --- | --- | --- |
 | `session_start` | Rehydrate only the minimum active lane context. | Read root instructions and memory meta index when needed. | Meta/index only; no payload scan. |
 | `user_prompt_submit` | Preserve the original user task before tools lose context. | Build route receipt, classify memory/search/claim needs, store compact prompt state if hooks support it. | Compact receipt; no full history. |
-| `pre_tool` | Stop or warn before protected actions. | Enforce R5, low-confidence route review, memory write, high-risk command, and external-search requirements. | Hard only on hooked paths. |
+| `pre_tool` | Stop or warn before protected actions. | Enforce R5, low-confidence route review, memory write, high-risk command, and external-search requirements. | Model-layer stop is mandatory; host hard denial exists only on hooked paths. |
 | `post_tool` | Capture what actually happened. | Store observations, tool failures, or candidate CE records as raw or working memory; do not mark success as validated without evidence. | Raw observation or working memory only. |
 | `pre_compact` | Avoid context-compression loss. | Write a conversation checkpoint or open-loop summary when routed. | Summary and links only. |
 | `stop` / `final` | Prevent final overclaims and decide durable updates. | Run final claim boundary, update memory only when routed, and record remaining verification debt. | Claim schema plus optional capsule update. |
 
-If a host lacks one of these hooks, keep that stage advisory and record the missing surface in the compatibility manifest.
+If a host lacks one of these hooks, record the missing host-enforcement surface
+in the compatibility manifest. The model-layer pre-action stop still applies
+for protected high-risk actions; only the independent execution-time denial is
+unavailable.
 
 ## Router Decision Contract
 
@@ -338,7 +353,11 @@ current candidate
 -> allow + updatedInput, or silent no-op
 ```
 
-There is no CBH hard-stop state in this layer. Ambiguity, verifier failure, unsupported protocol, or no match leaves the event unchanged. R5 confirmation, claims, memory writes, and execution authority remain governed by the model's instructions and the host's native boundaries.
+There is no CBH hard-stop state inside this correction layer. Ambiguity,
+verifier failure, unsupported protocol, or no match leaves the event unchanged.
+This narrow statement does not describe the whole CBH control plane: R5 and
+other protected actions still stop at the model decision layer until exact
+authorization, while independent execution-time denial remains host-native.
 
 ## Search And Learning Decision Matrix
 
@@ -443,10 +462,17 @@ Routing is additive. A task can match R3 and R4 at the same time. The router kee
 
 ## Boundary
 
-The harness is advisory unless connected to a wrapper or hook system. It produces structured decisions, but the caller must honor them.
+The harness has a mandatory model-layer pre-action contract whenever the host
+model loads it. It can stop that governed model before an unauthorized
+protected action, but it cannot independently suppress a tool process unless a
+wrapper, hook, proxy, permission system, or sandbox is connected and honors the
+decision.
 
 Even after hook or wrapper integration, enforcement is limited to paths that actually invoke the scripts. Use local smoke checks after agent client updates because launch paths, hook behavior, and bundled runtimes can change.
 
-Do not treat this layer as a hard sandbox. If an agent still has a direct execution route that bypasses the wrapper or tool proxy, the hard stop degrades back to advisory for that route.
+Do not treat this layer as a hard sandbox. If an agent has a direct execution
+route that bypasses the wrapper or tool proxy, host-enforced denial is absent on
+that route. The model-layer pre-action stop still applies when that agent loads
+and follows the CBH control path.
 
 The published adapters are not complete compatibility certifications. PowerShell, Bash, and WorkBuddy Python paths must be smoke-tested in the target device, shell, client version, and hook or loop surface before any hard-enforcement claim is made.

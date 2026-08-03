@@ -22,6 +22,14 @@ the final answer. CBH reduces avoidable failures, but it cannot guarantee
 correctness or eliminate hallucinations. A capability counts as active only
 when the host actually loads and tests the relevant CBH entry points.
 
+For protected high-risk actions, CBH's first enforcement surface is earlier
+than a tool hook: the model-facing control path must stop before forming or
+calling the action, report the exact target, scope, impact, and recovery
+boundary, and wait for exact human authorization. This is a mandatory
+pre-action decision gate. It is distinct from host-enforced tool interception,
+which exists only on execution paths that expose and honor a compatible hook,
+proxy, permission system, or sandbox.
+
 ## Problems It Helps Solve
 
 | Common problem | How CBH helps | Technical entry |
@@ -150,6 +158,28 @@ CBH is not:
 The public package is a framework and reference implementation. Actual
 enforcement strength depends on the host runtime, hook surface, local project
 lane configuration, and verification tests run by the adopter.
+
+### Pre-Action Stop And Human Authorization
+
+CBH separates two meanings that were previously described too broadly as
+"advisory" versus "hard blocking":
+
+- **Model-layer pre-action stop:** once a protected high-risk action is
+  identified, the governed agent must not advance to tool execution without
+  exact human authorization. This is a mandatory transition rule in the CBH
+  decision path, even when the host exposes no deny-capable tool hook.
+- **Host-enforced execution stop:** a hook, proxy, permission system, sandbox,
+  or operating-system boundary rejects the tool call independently of model
+  compliance. CBH claims this only for paths that were actually wired and
+  tested.
+
+Authorization is bound to one concrete event, one declared scope, and one use.
+It is consumed by that operation and does not authorize a later or materially
+different risky action. When the operator authorizes the exact action after
+receiving its disclosed risks, CBH records that decision boundary but does not
+certify the action as safe or assume responsibility for consequences of that
+authorized operation. The agent must still stay inside the approved scope and
+report the observed result.
 
 ## Technical Overview
 
@@ -368,7 +398,9 @@ cross-conversation, or archive-to-active memory bleed.
 ## Reality Check
 
 - Reference path: PowerShell scripts. Bash and Python adapters are starting points.
-- Hard blocking works only on execution paths that actually call and honor the gates.
+- The model-layer pre-action stop applies when the host model loads and follows
+  the CBH control path. Host-enforced execution blocking applies only on paths
+  that actually call and honor a deny-capable gate.
 - Client updates can break instruction paths, hooks, runtimes, or skill loading; rerun smoke checks after updates.
 - No memory backend is required. Add one only if it preserves lane isolation and provenance metadata.
 - Public examples are synthetic; private project records are intentionally not included.
@@ -395,7 +427,7 @@ This project gives those pieces a simple shared structure.
 user request
 -> root microkernel
 -> intake router R0-R5
--> mandatory advisory control plane
+-> mandatory model-layer pre-action control plane
 -> lightweight routing receipt
 -> event-triggered re-evaluation
 -> only needed gates
@@ -418,12 +450,13 @@ their runtime can actually honor:
   additive R0-R5 routing, governance contracts, and policy TOML/JSON. This is
   mandatory as a decision chain, but cheap by default through compact and delta
   receipts.
-- **Runtime integration:** PowerShell/Bash advisory routers and gates, the
+- **Runtime integration:** PowerShell/Bash decision routers and gates, the
   direct action consumer, and reference adapters such as the WorkBuddy hook
   runner. The optional correction hook can rewrite one mechanically verified
-  current input but cannot deny, freeze, or grant authority. Physical blocking,
-  if an adopter needs it, belongs to the host's native sandbox or permission
-  system rather than CBH.
+  current input but cannot deny, freeze, or grant authority. That narrow hook
+  contract does not remove CBH's mandatory model-layer stop before an
+  unauthorized high-risk action. Independent execution-time blocking belongs
+  to the host's native hook, sandbox, proxy, or permission system.
 - **Memory continuity:** project memory library, conversation memory lane,
   raw-session ledger, memory links, static knowledge layer, meta indexes, and
   source-monitoring capsule schema. This gives lane-and-link continuity without
@@ -789,7 +822,11 @@ See [docs/reproduction.md](docs/reproduction.md) for commands and expected resul
 This is a foundation package, not a complete safety system.
 
 - The scripts are not a hard sandbox.
-- Most gates are intentionally advisory. The behavior hook can only return one verified current-input rewrite and cannot substitute for host authorization or sandboxing.
+- Helper scripts may return decision receipts rather than host denial payloads,
+  but protected high-risk actions remain mandatory model-layer stops until
+  exact authorization exists. The behavior-correction hook can only return one
+  verified current-input rewrite and cannot substitute for authorization,
+  host-enforced interception, or sandboxing.
 - The trigger lists are intentionally small and should be tuned.
 - The memory format is a template, not a database.
 - Different agents need different adapter files and launch methods.

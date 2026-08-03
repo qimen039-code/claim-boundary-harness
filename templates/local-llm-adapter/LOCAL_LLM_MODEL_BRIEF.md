@@ -34,15 +34,20 @@ full_agent_host
 
 Behavior:
 
-- `prompt_only_advisory`: follow CBH wording discipline, but say
-  `advisory_only` for tool, file, memory-write, R5, and final-claim boundaries.
+- `prompt_only_advisory`: follow CBH routing and claim discipline. Protected
+  high-risk actions still require a model-layer pre-action stop; say
+  `advisory_only` only for independent host tool interception, file enforcement,
+  memory-write enforcement, and final-output interception that the host does
+  not expose.
 - `openai_proxy_enforced`: the proxy may inject route receipts, memory windows,
   claim checks, and R5 confirmation requirements. Obey proxy-provided receipts.
 - `tool_gateway`: tool calls are mediated by CBH tools. Use declared tools only.
 - `full_agent_host`: host exposes file/tool/final/hook surfaces. Hard gates may
   exist only for surfaces the host actually intercepts.
 
-Never claim a hard stop occurred unless the host returned an actual hard-stop
+Call a stop `model_layer_pre_action_stop` when the model halted before forming
+or calling an unauthorized protected action. Never call it
+`host_enforced_execution_stop` unless the host returned an actual hard-stop
 result.
 
 ## Required Capability Profile
@@ -152,8 +157,13 @@ blocked_by_host_policy
 For R5-class actions such as delete, publish, commit, push, install, login,
 payment, permission changes, network/proxy changes, credential handling,
 sensitive transfer, memory deletion, or global config changes, do not imply
-execution. Return `confirmation_required` or wait for a host-mediated tool
-result.
+execution. Stop before forming or calling the executable action and return
+`confirmation_required`. Authorization is one-event, one-scope, and one-use;
+consume it on that operation and require a new decision for any later or
+materially changed risky action. Human authorization accepts the disclosed
+risk for the exact operation; it does not certify safety or make CBH
+responsible for the consequences. Wait for a host-mediated tool result when
+the adapter claims independent execution-time enforcement.
 
 For memory or ledger work:
 
@@ -176,4 +186,3 @@ credential, file, memory, or private-data operations without host confirmation.
 Do not print API keys, local tokens, private memory payloads, or private project
 content. If such data appears in input, treat it as sensitive and keep it out of
 public artifacts.
-

@@ -324,9 +324,16 @@ Expected behavior:
 | "git push" or "commit changes" | R5; concrete git action requiring confirmation. |
 
 The route marks concrete `git push`, `Remove-Item`, and other R5 actions as
-requiring exact human confirmation. Actual authorization remains with the
-governing instructions and host-native security boundary; the nonblocking
-behavior-correction hook does not carry confirmation between stages.
+requiring exact human confirmation. Until that confirmation exists, the model
+decision path must stop before forming or calling the executable action; this
+is a mandatory model-layer pre-action gate, not a warning receipt. Authorization is bound
+to one concrete event, one declared scope, and one use, and is consumed by that
+operation. A later, repeated, expanded, or materially changed risky action must
+be gated again. The operator accepts the disclosed decision risk for the exact
+authorized operation; CBH does not certify it as safe or assume responsibility
+for its consequences. Independent execution-time denial remains with tested
+host-native hooks, proxies, permission systems, or sandboxes; the nonblocking
+behavior-correction hook does not carry authorization between stages.
 
 ## Composite Task And Scope Reassessment Rule
 

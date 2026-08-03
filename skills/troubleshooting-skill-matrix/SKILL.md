@@ -38,9 +38,9 @@ request
 
 If no meta layer exists yet, use this router manifest and the compact point index as the temporary meta layer. Do not scan every point payload before choosing by retrieval surface.
 
-## Mandatory Advisory Control Plane
+## Mandatory Model-Layer Pre-Action Control Plane
 
-Use this router under the required advisory control plane:
+Use this router under the required model-layer pre-action control plane:
 
 ```text
 routing receipt
@@ -48,6 +48,11 @@ routing receipt
 -> event-triggered re-evaluation after trigger events
 -> final claim/memory/version boundary check
 ```
+
+When routing identifies a protected high-risk action, stop before forming or
+calling the executable action until exact human authorization exists. Treat
+authorization as one-event, one-scope, and one-use; host-enforced tool denial
+is a separate capability that may or may not exist in the current adapter.
 
 Trigger events include new evidence, missing files, tool errors, scope changes, user corrections, cross-project terminology, currentness/version claims, and risk or cost escalation.
 

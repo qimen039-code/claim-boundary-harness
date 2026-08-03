@@ -96,6 +96,29 @@ def test_public_docs_describe_current_nonblocking_runtime_and_existing_minimal_p
     assert "把这个包复制到目标 workspace" not in readme_zh
 
 
+def test_public_docs_separate_model_pre_action_stop_from_host_enforcement() -> None:
+    readme = read_text("README.md")
+    readme_zh = read_text("README_zh.md")
+    agents = read_text("AGENTS.md")
+    architecture = read_text("docs/architecture.md")
+    router_contract = read_text("docs/router-decision-contract.md")
+    test_cases = read_text("docs/test-cases.md")
+    policy = json.loads(read_text("skills/embedded-harness/embedded_harness_policy.json"))
+
+    for text in (readme, agents, architecture, router_contract):
+        assert "model-layer pre-action" in text
+        assert "one" in text and "scope" in text and "use" in text
+    assert "模型层执行前停止" in readme_zh
+    assert "一个具体事件、一个声明范围和一次使用" in readme_zh
+    assert "certify the action as safe" in readme
+    assert "TC-044a" in test_cases
+    assert "TC-044b" in test_cases
+    boundary = policy["gate_enforcement_boundary"]
+    assert "mandatory model-layer pre-action stops" in boundary
+    assert "does not extend to later or materially changed risky actions" in boundary
+    assert "host-enforced execution blocking" in boundary
+
+
 def test_citation_notice_are_visible_and_public_report_draft_is_absent() -> None:
     required_files = [
         "CITATION.cff",
@@ -145,7 +168,7 @@ def test_citation_notice_are_visible_and_public_report_draft_is_absent() -> None
     assert stale_version not in changelog
     assert manifest["harness_version"] == "v1.2.1"
     assert "## v1.2.1 - 2026-08-03" in changelog
-    assert "No unreleased changes." in changelog
+    assert "mandatory model-layer pre-action stops" in changelog
     planner = manifest["external_retrieval_planner"]
     assert planner["receipt_schema"] == "cbh.external_retrieval_receipt.v1"
     assert planner["performs_network_access"] is False

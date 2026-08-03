@@ -49,7 +49,9 @@ This is slower than guessing, but much cheaper than broad history scans. It also
 
 ## Routing Receipts
 
-The routing receipt is the contract between the advisory control plane and any runtime adapter that wants to enforce it.
+The routing receipt is the contract between the model-layer pre-action control
+plane and any runtime adapter that wants to add independent execution-time
+enforcement.
 
 Important fields include:
 
@@ -128,13 +130,22 @@ New conversations that continue old ones should use link-only continuation by de
 
 This is not mainly about storage format. It is about preventing a useful memory system from becoming a source of contamination.
 
-## Advisory Control Plane And Native Host Boundaries
+## Pre-Action Control Plane And Native Host Boundaries
 
 This was one of the sharper deployment lessons.
 
-A harness receipt can route risk, memory, evidence, or review work, but it does
-not create physical enforcement. Permission and sandbox enforcement remain on
-the native host surfaces that actually own execution.
+A harness receipt routes risk, memory, evidence, or review work. For a
+protected high-risk action, the governing model must stop before forming or
+calling the action until exact human authorization exists. This is a real
+model-layer execution-state gate, but it is not physical enforcement:
+permission and sandbox denial remain on the native host surfaces that actually
+own execution.
+
+Authorization is valid for one concrete event, one declared scope, and one
+use. It does not extend to a later or materially changed risky action. Once the
+operator authorizes the exact action after reviewing its risks, CBH records the
+decision boundary but does not certify safety or assume responsibility for the
+operation's consequences.
 
 ```python
 candidate = harness.behavior_correction_gate(tool_input)

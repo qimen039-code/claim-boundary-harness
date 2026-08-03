@@ -10,7 +10,7 @@ Default chain:
 ```text
 root AGENTS.md microkernel
 -> deterministic intake router
--> mandatory advisory control plane
+-> mandatory model-layer pre-action control plane
 -> lightweight routing receipt
 -> event-triggered re-evaluation
 -> optional project router / project AGENTS / project memory
@@ -28,7 +28,7 @@ Design boundaries:
 - `R4` includes `R3` change and claim gates, plus external research and verification gates.
 - If no deterministic risk rule matches, fallback review is reserved for medium-length text with fallback terms or long unclassified text. Short ordinary questions stay cheap R0 unless another rule fires.
 - `GLOBAL` memory is manual-only by default.
-- The mandatory advisory control plane is required for nontrivial tasks: create a lightweight routing receipt, re-evaluate only on trigger events, and re-check claim/memory/version boundaries before final output.
+- The mandatory model-layer pre-action control plane is required for nontrivial tasks: create a lightweight routing receipt, re-evaluate only on trigger events, and re-check claim/memory/version boundaries before final output.
 - R0-R5 classification always runs internally but stays silent by default in user-facing surfaces. Expose only action-changing boundaries; `debug_receipt` is for route diagnosis or explicit full-receipt requests.
 - Receipt profiles keep runtime cost low: `compact_runtime` is used only when fields change the next action, `extended_governance` expands for public/framework/project-boundary work, and `debug_receipt` is only for route diagnosis or explicit full-receipt requests.
 - Do not wrap every tool call. Invoke correction only for a current candidate whose surface and profile can be mechanically identified.
@@ -38,10 +38,14 @@ Design boundaries:
 - Static knowledge retrieval is index-first: read `_STATIC_KNOWLEDGE_INDEX.md` before opening a project manual page, and treat static notes as `source_tag: static_knowledge` / `belief_status: source_prior` until checked.
 - `behavior_correction_gate.py` returns a task-local receipt; `behavior_correction_hook.py` may return one verified `allow + updatedInput` rewrite for an accepted deterministic profile.
 - Ambiguity, verifier failure, unsupported host protocol, registry failure, or no match leaves the event unchanged. Correction never grants permission, denies, freezes, stores approval state, writes memory, or mutates policy.
-- Most gates remain advisory structured decisions that the host model interprets under its governing instructions and native security boundary.
+- Helper gates may return structured decision receipts rather than host denial
+  payloads. For protected high-risk actions, however, the governing model must
+  stop before tool execution until exact human authorization exists. This is a
+  model-layer pre-action gate; independent host execution blocking remains a
+  separate, adapter-specific capability.
 - Machine-local project roots should be loaded from `embedded_harness_policy.local.json` or `CBH_PROJECT_LANES_FILE`, not committed into the public runtime policy.
 
-Mandatory advisory control plane:
+Mandatory model-layer pre-action control plane:
 
 ```text
 routing receipt
@@ -50,6 +54,11 @@ routing receipt
 -> final claim/memory/version boundary check
 -> optional nonblocking correction when a verified recurrence profile matches
 ```
+
+Authorization is bound to one concrete event, one scope, and one use. It is
+consumed by the approved operation and cannot be replayed or expanded. Human
+authorization accepts the disclosed risk for that exact operation; it does not
+certify safety or make CBH responsible for the operation's consequences.
 
 Receipt fields: task type, target surface, audience, project lane, risk level, semantic ambiguity, module need, memory need, memory mode, memory lane, memory source hints, action bindings, record intent, external need, claim risk, projectization decision, conversation memory decision, link intent, receipt profile, and required gates. Runtime adapters can expose `compact_runtime` by default and expand only for governance or debug cases.
 

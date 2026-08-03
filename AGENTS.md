@@ -31,7 +31,7 @@ Classify file actions before editing: modify means changing content in an existi
 
 When the user refers to prior context, an event, or a decision that is not present in the active conversation and the agent does not remember it, do not answer from guesswork. First perform a bounded meta-first memory lookup in the relevant lane or event index. If no local memory record is found, state that the local memory lookup found no relevant record, then use the external-evidence route only when the claim needs public or current evidence. Keep the answer unverified when both local and external evidence are insufficient.
 
-## Mandatory Advisory Control Plane
+## Mandatory Model-Layer Pre-Action Control Plane
 
 For every nontrivial task, run this control plane as a required chain. It is mandatory, but it should not wrap every tool call by default:
 
@@ -42,6 +42,26 @@ routing receipt
 -> final claim/memory/version boundary check
 -> optional nonblocking behavior correction for verified recurrence profiles
 ```
+
+For a protected high-risk action, this control plane is a mandatory pre-action
+state transition gate, not a suggestion. Without exact current human
+authorization, stop before forming or calling the executable tool action and
+report the method, exact targets, scope, impact, irreversibility or recovery
+path, and explicit non-targets. Do not continue merely because the host lacks a
+deny-capable hook.
+
+Authorization is valid for one concrete event, one declared scope, and one
+use. Consume it on that operation. A later, repeated, expanded, or materially
+changed risky action requires a new stop and a new authorization decision.
+Authorization means the human operator accepts the disclosed decision risk for
+that exact operation; it does not make the action safe, extend CBH coverage, or
+make CBH responsible for the consequences. The agent remains responsible for
+staying inside the authorized scope and reporting the observed postcondition.
+
+Keep the enforcement layers explicit: the rule above is a model-layer
+pre-action stop. A host-enforced execution stop may additionally exist only
+where a tested hook, proxy, permission system, sandbox, or operating-system
+boundary independently rejects the action.
 
 Routing receipt fields: task type, target surface, audience, active lane, risk level, semantic ambiguity, module need, skill lifecycle profile, feedback loop profile, first principles profile, memory need, memory mode, memory lane, memory source hints, action bindings, record intent, external need, claim risk, projectization decision, conversation memory decision, link intent, receipt profile, and required gates.
 
@@ -228,7 +248,7 @@ python <HARNESS_ROOT>\behavior_correction_gate.py --list-profiles
 python <HARNESS_ROOT>\behavior_correction_hook.py < pretool-event.json
 ```
 
-Bash equivalents for the advisory core gates live under `<HARNESS_ROOT>/bash` and require `jq`. The correction hook never denies, freezes, stores approval state, writes memory, mutates policy, or creates authority. R5 confirmation and execution remain governed by the active instructions and the host's native security boundary.
+Bash equivalents for the decision-layer core gates live under `<HARNESS_ROOT>/bash` and require `jq`. The correction hook never denies, freezes, stores approval state, writes memory, mutates policy, or creates authority. That narrow hook boundary does not weaken the mandatory model-layer pre-action stop. R5 authorization and execution remain governed by the active instructions, with independent execution-time enforcement provided only by verified host-native boundaries.
 
 ## Mandatory Search And Learning Decision Matrix
 

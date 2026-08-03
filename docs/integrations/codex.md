@@ -16,7 +16,7 @@ workspace instruction
 -> model-owned verification and final answer
 ```
 
-Run the advisory controls directly when needed:
+Run the model-facing decision controls directly when needed:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File <HARNESS_ROOT>\harness_intake_router.ps1 `

@@ -64,6 +64,26 @@ This is compatible with the framework's current `pass` / `blocked` behavior:
 - `require_approval` maps to `blocked` until the current concrete action is confirmed;
 - `deny` maps to a hard block on the covered path.
 
+## Authorization Scope And Responsibility Boundary
+
+`require_approval` is a model-layer pre-action stop even when the adapter has no
+deny-capable hook. The governed model must not form or call the executable
+action until it receives exact current authorization.
+
+Authorization must be bound to:
+
+- one concrete event;
+- one declared target and scope;
+- one use;
+- the risks and recovery boundary disclosed before approval.
+
+The authorized operation consumes that authorization. A later, repeated,
+expanded, or materially changed risky operation requires a new
+`require_approval` decision. Human authorization accepts the disclosed
+decision risk for the exact operation; it does not certify the operation as
+safe or make CBH responsible for its consequences. The runtime must still
+constrain execution to the approved scope and return a postcondition receipt.
+
 ## Required Receipts
 
 The contract should not force full receipts for every ordinary task. Use the existing profile model:

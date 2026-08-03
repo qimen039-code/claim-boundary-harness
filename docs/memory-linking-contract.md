@@ -227,4 +227,7 @@ conversation_link_required
 -> block with conversation_link_decision_required
 ```
 
-If the host has no pre-tool or pre-action interception point, this requirement degrades to advisory. Do not claim hard enforcement for runtimes that can bypass the gate.
+If the host has no pre-tool or pre-action interception point, the model-layer
+requirement still stops the governed agent before a protected tool call, but
+independent host execution denial is unavailable. Do not claim host hard
+enforcement for runtimes that can bypass the model-layer gate.

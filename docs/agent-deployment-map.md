@@ -45,7 +45,7 @@ read this map
 | `harness_external_research_gate.ps1` | external-evidence route receipt | external/current fact routing |
 | `harness_claim_schema_verifier.ps1` | claim/evidence-boundary receipt | PowerShell claim validation |
 
-The Bash directory is a trigger/router reference for advisory core gates and
+The Bash directory is a trigger/router reference for model-facing decision gates and
 requires `bash` plus `jq`. It does not implement the Python
 `cbh.external_retrieval_receipt.v1` planner. Deploy it only when that target
 shell is real and tested.
@@ -125,7 +125,9 @@ runtime does not activate capabilities.
 4. Map the root instruction entry and compiled policy.
 5. Initialize project/memory roots and lane state from the published templates
    through a deployment-local overlay.
-6. Keep prompt routing advisory unless a real host loop consumes its actions.
+6. Treat prompt routing as a model-layer pre-action contract when the model
+   consumes it; do not claim independent host execution enforcement unless a
+   real host loop consumes and honors its actions.
 7. Enable correction only if the host accepts the declared updated-input
    protocol without bypassing native permission checks.
 8. Run the compiler check, validator, doctor, profile tests, and one real

@@ -2,7 +2,11 @@
 
 Use this guide when adapting Claim Boundary Harness into an agent runtime.
 
-The WorkBuddy case shows the core deployment risk: copying the harness files is not the same as wiring the harness into the execution path. If the agent runtime does not call the gate before the protected action, the harness remains advisory for that action.
+The WorkBuddy case shows the core deployment risk: copying the harness files is
+not the same as loading the model-layer pre-action contract or wiring an
+independent host gate into the execution path. If the model does not load the
+contract, the model-layer stop is inactive; if the runtime does not call a gate
+before the protected action, host-enforced denial is inactive.
 
 This document is intentionally version-neutral. Agent clients change hook names, config locations, environment variables, and tool schemas. Treat every product-specific integration as unverified until it passes the local acceptance tests below.
 
@@ -28,12 +32,13 @@ These records are not meant to expand every turn. Use them during adapter setup,
 
 CBH v1.1 no longer bundles a deny/permit/wrapper/Stop chain. In the table and
 failure catalog below, any physical blocking or denial is a host-native
-security capability, not a CBH behavior-correction feature.
+security capability, not a CBH behavior-correction feature. This does not
+remove the mandatory model-layer stop before an unauthorized protected action.
 
 | Level | What is wired | What it can enforce |
 | --- | --- | --- |
-| L0 instruction only | Root instructions such as `AGENTS.md`, `CLAUDE.md`, or workspace rules | Soft behavior contract only. Useful but not a hard stop. |
-| L1 advisory control plane | Intake router, memory/search/claim gates called by the agent or user | Structured decisions and receipts. Hard only if the caller obeys them. |
+| L0 instruction only | Root instructions such as `AGENTS.md`, `CLAUDE.md`, or workspace rules | Model-layer behavior contract. Protected actions stop before execution when the model loads and follows it; no independent host denial is claimed. |
+| L1 model-layer pre-action control plane | Intake router, memory/search/claim gates called by the agent or user | Structured decisions plus a mandatory stop before unauthorized protected actions. Still not an independent host execution blocker. |
 | L2 optional behavior correction | Verified current-candidate rewrite hook | Can rewrite one mechanically matched input; no match or failure is a no-op. |
 | L3 tool proxy / in-process middleware | All protected tool execution goes through one policy function or proxy | Stronger runtime enforcement for covered tools. Bypass paths still matter. |
 | L4 sandbox/runtime enforcement | The host runtime or sandbox owns the policy check before execution | Physical blocking for covered execution paths. Requires host/runtime support. |
@@ -45,10 +50,10 @@ Most adopters should aim for L1 plus an optional, verified L2 correction path. D
 | Runtime family | Typical integration surface | Main deployment risk | Practical solution |
 | --- | --- | --- | --- |
 | Instruction-file agents | Workspace rule files, project docs, memory files | The file is present but not loaded by the agent | Ask the agent to report the routing receipt on a test task, and keep a visible root instruction entry. |
-| CLI agents with hooks | Pre-prompt, pre-tool, post-tool, stop hooks | Hook exists but is not on the actual execution path | Use CBH for advisory routing/correction; if the host exposes a native denial hook, verify that host-native denial before relying on it. |
+| CLI agents with hooks | Pre-prompt, pre-tool, post-tool, stop hooks | Hook exists but is not on the actual execution path | Use CBH for model-layer routing and pre-action stopping; if the host exposes a native denial hook, verify that host-native denial before relying on it. |
 | IDE or desktop agents | IDE extension settings, tool executor pipeline, output gate | UI actions, background tasks, or built-in tools bypass the wrapper | Identify every tool execution surface and mark unhooked surfaces as advisory. |
-| Custom orchestrators | Python/Node middleware, tool registry, function dispatcher | Policy is called after execution or its result is ignored | Keep CBH advisory, or put an adopter-owned host-native enforcement function before dispatch when physical blocking is independently required. |
-| Hosted or SaaS agents | Limited settings, system prompts, external tools | No local pre-tool hook is available | Treat the harness as advisory, or move protected actions behind an external proxy you control. |
+| Custom orchestrators | Python/Node middleware, tool registry, function dispatcher | Policy is called after execution or its result is ignored | Keep the model-layer pre-action stop and put an adopter-owned host-native enforcement function before dispatch when independent physical blocking is required. |
+| Hosted or SaaS agents | Limited settings, system prompts, external tools | No local pre-tool hook is available | Use the model-layer pre-action stop and describe host execution denial as unavailable, or move protected actions behind an external proxy you control. |
 | Terminal-only assistants | Shell aliases, wrapper scripts, project instructions | Users or tools can call the raw shell directly | Use wrappers for high-risk commands and state clearly that raw shell paths bypass enforcement. |
 
 ## Common Deployment Failures And Fixes
@@ -163,8 +168,8 @@ Solution path:
 
 1. Add a prompt-stage hook that stores `session_id`, `cwd`, original task text, and compact receipt.
 2. During pre-tool checks, reload the stored task by session id.
-3. Pass both the compact risk override and the original task text into the advisory router, and separately into any adopter-owned host-native enforcer if one exists.
-4. If the host has no prompt-stage event, keep the route advisory and state the limitation.
+3. Pass both the compact risk override and the original task text into the model-facing decision router, and separately into any adopter-owned host-native enforcer if one exists.
+4. If the host has no prompt-stage event, state that automatic route injection is unavailable; direct model-layer loading may still provide the pre-action stop.
 
 Acceptance check:
 
@@ -446,12 +451,17 @@ Solution path:
 1. Treat `docs/integrations/claude-code.md` as a reference mapping until local checks pass.
 2. Ask the local agent to run the instruction-load, allowed-action, blocked-action, and bypass tests from this guide.
 3. Record the actual client version, instruction entry, hook schema, denial behavior, wrapper path, and bypass surfaces in a compatibility manifest.
-4. If no hard pre-action surface exists, keep the harness as a mandatory advisory control plane and state that limitation before strong claims.
+4. If no host-enforced pre-action surface exists, keep the mandatory
+   model-layer pre-action stop, and state that independent execution-time
+   blocking is unavailable before making stronger enforcement claims.
 
 Acceptance check:
 
 ```text
-The installed Claude Code client loads the intended instruction entry, routes a mixed-risk task, and blocks a disposable high-risk action before execution. Otherwise the Claude Code path remains advisory for that environment.
+The installed Claude Code client loads the intended instruction entry, routes a
+mixed-risk task, and stops a disposable high-risk action before execution.
+Report model-layer stopping and host-enforced denial separately; if either path
+fails, mark that specific layer unavailable for the environment.
 ```
 
 ## Agent-Facing Troubleshooting Runbook
@@ -497,7 +507,7 @@ Run the intake router directly with a known mixed-risk task. If the adopter also
 
 Expected:
 
-- CBH returns the expected advisory risk, gates, and confirmation need;
+- CBH returns the expected risk, gates, and mandatory pre-action confirmation need;
 - the optional correction path only rewrites a mechanically verified current input;
 - any host-native enforcement test uses the host's documented denial schema and exit behavior.
 
@@ -597,13 +607,16 @@ Inspect every action surface the agent can use:
 For each surface, classify it:
 
 ```text
-hard-gated
-advisory only
+model-layer pre-action-gated
+host hard-gated
+advisory receipt only
 not covered
 unknown, needs test
 ```
 
-Do not claim full hard enforcement while any protected action still has an untested or known bypass path.
+Do not claim full host hard enforcement while any protected action still has an
+untested or known bypass path. A verified model-layer stop may still be claimed
+at its own layer when the agent demonstrably halted before action formation.
 
 ### 7. Check Memory, Search, And Final-Claim Stages Separately
 
@@ -679,5 +692,7 @@ Public deployment docs should describe reusable setup patterns and templates, no
 When a product-specific behavior has not been tested on the adopter's exact version, say so. Use wording such as:
 
 ```text
-This adapter was tested as a local decision layer. Hard enforcement depends on your agent runtime honoring the pre-tool hook or wrapper result.
+This adapter was tested as a local decision layer. Protected high-risk actions
+use a mandatory model-layer pre-action stop. Independent host hard enforcement
+depends on your agent runtime honoring the pre-tool hook or wrapper result.
 ```

@@ -137,7 +137,7 @@ Expected route:
 
 The same proxy may pass after explicit human confirmation, but the confirmation should come from the user or adopting runtime policy, not from the agent silently setting a flag.
 
-## Example 12: Advisory Control Plane Without Tool Wrapping
+## Example 12: Model-Layer Pre-Action Control Plane Without Tool Wrapping
 
 Input:
 

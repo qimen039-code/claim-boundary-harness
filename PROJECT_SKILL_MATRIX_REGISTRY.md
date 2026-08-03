@@ -7,7 +7,7 @@ A compact index that routes the agent to project-specific skill matrix routers. 
 ```text
 root AGENTS.md
 -> embedded harness intake router
--> mandatory advisory control plane
+-> mandatory model-layer pre-action control plane
 -> this registry
 -> project router or project AGENTS
 -> memory meta summary, category index, and matching capsule only when needed
@@ -26,9 +26,16 @@ meta summary / _META_INDEX / router manifest
 
 Do not open deep memory files, all project notes, or all incident payloads before the meta/index layer has routed the request. If a project is still flat, treat its top-level index as the temporary meta layer and record that the project memory layout should be upgraded.
 
-## Mandatory Advisory Control Plane
+## Mandatory Model-Layer Pre-Action Control Plane
 
 Nontrivial tasks must run the control plane before loading project-specific context, during execution when trigger events appear, and before final output. It should not wrap every tool call by default.
+
+Protected high-risk actions are different from ordinary tool calls: once the
+route identifies one, the model must stop before forming or calling the
+executable action until exact human authorization exists. Authorization is
+one-event, one-scope, and one-use; a later or materially changed risky action
+requires a fresh stop. This model-layer stop remains mandatory even when the
+host has no independent deny-capable tool hook.
 
 Required decisions:
 

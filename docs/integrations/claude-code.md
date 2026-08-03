@@ -17,7 +17,7 @@ Use source-grounded external research for current public facts.
 Keep CBH behavior correction nonblocking and separate from authorization.
 ```
 
-The advisory Bash router requires `jq`:
+The model-facing Bash decision router requires `jq`:
 
 ```bash
 bash <HARNESS_ROOT>/bash/harness_intake_router.sh \

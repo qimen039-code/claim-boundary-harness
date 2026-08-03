@@ -6,7 +6,13 @@ This project uses `vMAJOR.MINOR.PATCH` version labels.
 
 ## Unreleased
 
-No unreleased changes.
+- Corrected the public enforcement model: protected high-risk actions are
+  mandatory model-layer pre-action stops until exact human authorization,
+  while host-enforced execution blocking is claimed only for verified hook,
+  proxy, permission, or sandbox paths.
+- Documented one-event, one-scope, one-use authorization and the operator risk
+  boundary for an explicitly authorized dangerous operation without changing
+  the package version.
 
 ## v1.2.1 - 2026-08-03
 

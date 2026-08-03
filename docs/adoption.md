@@ -115,11 +115,18 @@ When routing selects external research, the model agent—not a CBH background
 worker—calls the available source tools and records citations or a source
 ledger before making current or strong claims.
 
-Also make the advisory control plane mandatory:
+Also make the model-layer pre-action control plane mandatory:
 
 1. Create a lightweight routing receipt for nontrivial work: task type, target surface, audience, lane, risk, semantic ambiguity, module need, skill lifecycle profile, feedback loop profile, memory need, memory mode, memory lane, record intent, external need, claim risk, projectization decision, conversation memory decision, link intent, receipt profile, and required gates.
 2. Re-evaluate only after trigger events: new evidence, missing files, tool errors, scope changes, user corrections, cross-project terminology, currentness/version claims, GitHub/open-source mechanism intake, risk/cost escalation, strong claims, R5 actions, or memory writes.
 3. Final-check claim scope, memory scope, version metadata, and unresolved verification debt.
+
+4. When a protected high-risk action is identified, stop before forming or
+   calling the executable tool action. Resume only after exact human
+   authorization for one concrete event, one declared scope, and one use. A
+   later or materially changed risky action requires a new authorization. The
+   operator accepts the disclosed risk for the authorized operation; CBH does
+   not certify it as safe or assume responsibility for its consequences.
 
 When a self-check finds memory pollution, target pollution, dirty-tree debt, or
 technical debt, route `debt_hygiene_gate`: group issues, clean the must-fix set,
@@ -165,7 +172,11 @@ values from `embedded_harness_policy.json`. Source-backed claims such as
 validated, verified, stable, or proven requires an evidence boundary at least as
 strong as the policy's `strong_claim_evidence_boundaries`.
 
-Do not replace your normal agent launcher. Start with the advisory router and validators; enable optional correction only after the exact host protocol is verified. Keep a fallback path so a bad adapter can be disabled without losing workspace access.
+Do not replace your normal agent launcher. Start with the decision router and
+validators; enable optional correction only after the exact host protocol is
+verified. The model-layer pre-action stop does not require a deny-capable hook,
+but any claim of independent execution-time blocking does. Keep a fallback path
+so a bad adapter can be disabled without losing workspace access.
 
 Exit code contract:
 
@@ -182,7 +193,12 @@ For Bash environments, use the scripts under `skills/embedded-harness/bash`. The
 
 For hosts that own an in-process Python agent loop, `integrations/workbuddy-python-runtime` is a small reference adapter.
 It reuses the same policy file and exposes Python functions for routing, memory isolation, claim checks, and bounded action contracts.
-It is not automatically wired into WorkBuddy or any other client. Prompt routing is advisory; optional PreToolUse correction is disabled until the exact host's rewrite and permission semantics are verified. Recording or voice input must arrive as transcript text before the adapter can route it.
+It is not automatically wired into WorkBuddy or any other client. Prompt
+routing supplies model-layer decisions, including a mandatory stop before
+unauthorized protected actions; it does not independently block WorkBuddy tool
+execution. Optional PreToolUse correction is disabled until the exact host's
+rewrite and permission semantics are verified. Recording or voice input must
+arrive as transcript text before the adapter can route it.
 
 Adapter validation is local by default. Do not claim PowerShell, Bash/macOS/Linux, or WorkBuddy Python compatibility until you have run the relevant smoke checks on the target device and client version.
 

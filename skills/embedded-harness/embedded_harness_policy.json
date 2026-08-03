@@ -3217,8 +3217,9 @@
     "unresolved_block_reason": "conversation_link_decision_required"
   },
   "mandatory_advisory_control_plane": {
+    "schema_key_status": "legacy compatibility key; canonical meaning is mandatory_model_layer_pre_action_control_plane",
     "mandatory": true,
-    "purpose": "make routing, dynamic evaluation, and constitution governance continuously effective without wrapping every tool call",
+    "purpose": "make routing, dynamic evaluation, constitution governance, and the model-layer stop before unauthorized protected actions continuously effective without wrapping every ordinary tool call",
     "default_mode": "receipt_and_event_triggered_review",
     "routing_receipt_fields": [
       "task_type",
@@ -3804,7 +3805,7 @@
     "entry_scripts": [],
     "hard_block_conditions": [],
     "hard_tool_patterns": [],
-    "activation_boundary": "Direct routing, evidence, memory-isolation, and deletion-risk classification remain advisory. The only CBH Codex user hook is a stateless nonblocking behavior-correction migration at PreToolUse: it may return allow plus updatedInput for an accepted deterministic profile, and otherwise emits nothing. Its matcher covers only the native Bash tool surface; nested shell text inside functions.exec or another orchestration tool is not mechanically intercepted and requires one direct pretool gate call when a known mechanically matched recurrence is selected. There is no CBH deny hook, generic R5, permission-request, Stop, wrapper, proxy, key, TTL, state, or session-freeze chain; host trust and fresh-task invocation must be verified before claiming active rewriting.",
+    "activation_boundary": "Direct routing, evidence, memory-isolation, and deletion-risk classification are model-facing decisions. Protected high-risk actions use a mandatory model-layer pre-action stop until exact human authorization; this is not an independent host execution blocker. The only bundled CBH Codex user hook is a stateless nonblocking behavior-correction migration at PreToolUse: it may return allow plus updatedInput for an accepted deterministic profile, and otherwise emits nothing. Its matcher covers only the native Bash tool surface; nested shell text inside functions.exec or another orchestration tool is not mechanically intercepted and requires one direct pretool gate call when a known mechanically matched recurrence is selected. There is no CBH deny hook, generic R5 host interceptor, permission-request, Stop, wrapper, proxy, key, TTL, state, or session-freeze chain; host trust and fresh-task invocation must be verified before claiming active rewriting or host-enforced denial.",
     "behavior_correction_contract": {
       "enabled": true,
       "schema": "cbh.behavior_correction_contract.v1",
@@ -4105,7 +4106,7 @@
     "complete proof",
     "proven effective"
   ],
-  "gate_enforcement_boundary": "CBH registers no deny or dangerous-delete host hook. Its sole governance callback is a stateless PreToolUse behavior rewrite that can only return allow plus updatedInput after an accepted deterministic profile and exact verification; ambiguity is a no-op. A separate registry-declared SessionStart usage-widget callback has no CBH governance semantics. All other gates and the deletion-risk classifier are direct advisory checks; no wrapper, proxy, Stop, permission bridge, generic R5 interception, key, TTL, approval state, or session freeze is claimed.",
+  "gate_enforcement_boundary": "Protected high-risk actions are mandatory model-layer pre-action stops: without exact current human authorization, the governed model must stop before forming or calling the executable action. Authorization is one-event, one-declared-scope, and one-use; it is consumed by the operation and does not extend to later or materially changed risky actions. Human authorization accepts the disclosed decision risk for that exact operation; CBH does not certify safety or assume responsibility for its consequences. This model-layer gate is distinct from host-enforced execution blocking. CBH registers no general deny or dangerous-delete host hook; its bundled PreToolUse behavior callback is a stateless rewrite that can only return allow plus updatedInput after an accepted deterministic profile and exact verification, with ambiguity as a no-op. A separate registry-declared SessionStart usage-widget callback has no CBH governance semantics. No universal wrapper, proxy, Stop, permission bridge, generic R5 host interception, key, TTL, approval state, or session freeze is claimed.",
   "runtime_gate_contract": {
     "critical_boundaries": [
       "unresolved_conversation_link_decision"
