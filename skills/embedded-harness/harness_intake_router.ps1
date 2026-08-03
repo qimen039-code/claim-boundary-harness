@@ -3,7 +3,8 @@
   [string]$Cwd = (Get-Location).Path,
   [ValidateSet("diagnostic", "compact")]
   [string]$ReceiptMode = "diagnostic",
-  [string]$OutputPath = ""
+  [string]$OutputPath = "",
+  [string]$ConversationRegistryPath = ""
 )
 
 $ErrorActionPreference = "Stop"
@@ -540,11 +541,112 @@ function Find-ActiveConversationMemoryLane([string]$path) {
   return ""
 }
 
+function Find-ReferencedConversationMemoryRegistryMatch($contract, [string]$taskText, [string]$registryPathOverride = "") {
+  if (($null -eq $contract) -or ((Get-ObjectPropertyValue $contract "enabled") -ne $true)) {
+    return [pscustomobject]@{ status = "disabled"; registry_path = ""; candidates = @() }
+  }
+  $registryName = if (-not [string]::IsNullOrWhiteSpace($registryPathOverride)) {
+    $registryPathOverride
+  } else {
+    [string](Get-ObjectPropertyValue $contract "registry_path")
+  }
+  if ([string]::IsNullOrWhiteSpace($registryName)) {
+    return [pscustomobject]@{ status = "missing_registry_path"; registry_path = ""; candidates = @() }
+  }
+  $registryPath = if ([System.IO.Path]::IsPathRooted($registryName)) {
+    Normalize-PathText $registryName
+  } else {
+    Normalize-PathText (Join-Path $PSScriptRoot $registryName)
+  }
+  if (-not (Test-Path -LiteralPath $registryPath -PathType Leaf)) {
+    return [pscustomobject]@{ status = "registry_not_found"; registry_path = $registryPath; candidates = @() }
+  }
+  try {
+    $registry = Get-Content -LiteralPath $registryPath -Raw -Encoding UTF8 | ConvertFrom-Json
+  } catch {
+    return [pscustomobject]@{ status = "registry_unreadable"; registry_path = $registryPath; candidates = @() }
+  }
+  $expectedSchema = [string](Get-ObjectPropertyValue $contract "registry_schema")
+  if ((-not [string]::IsNullOrWhiteSpace($expectedSchema)) -and
+      ([string](Get-ObjectPropertyValue $registry "schema") -ne $expectedSchema)) {
+    return [pscustomobject]@{ status = "registry_schema_mismatch"; registry_path = $registryPath; candidates = @() }
+  }
+  $allowedStates = @(ConvertTo-Array (Get-ObjectPropertyValue $contract "candidate_states") | ForEach-Object { ([string]$_).ToUpperInvariant() })
+  $registryRoot = Split-Path -Parent $registryPath
+  $matches = @()
+  foreach ($entry in (ConvertTo-Array (Get-ObjectPropertyValue $registry "entries"))) {
+    $state = ([string](Get-ObjectPropertyValue $entry "state")).ToUpperInvariant()
+    if (($allowedStates.Count -gt 0) -and ($allowedStates -notcontains $state)) { continue }
+    if ((Get-ObjectPropertyValue $entry "chain_head") -eq $false) { continue }
+    foreach ($pathField in @("workspace_path", "root_path", "meta_path", "ledger_root_path", "ledger_index_path")) {
+      $entryPath = [string](Get-ObjectPropertyValue $entry $pathField)
+      if ([string]::IsNullOrWhiteSpace($entryPath)) { continue }
+      if (-not [System.IO.Path]::IsPathRooted($entryPath)) {
+        $entryPath = Join-Path $registryRoot $entryPath
+      }
+      Set-ObjectProperty $entry $pathField (Normalize-PathText $entryPath)
+    }
+    $rootPath = [string](Get-ObjectPropertyValue $entry "root_path")
+    $metaPath = [string](Get-ObjectPropertyValue $entry "meta_path")
+    $ledgerIndexPath = [string](Get-ObjectPropertyValue $entry "ledger_index_path")
+    if ((-not (Test-Path -LiteralPath $rootPath -PathType Container)) -or
+        (-not (Test-Path -LiteralPath $metaPath -PathType Leaf)) -or
+        (-not (Test-Path -LiteralPath $ledgerIndexPath -PathType Leaf))) { continue }
+    $terms = @()
+    foreach ($field in @("aliases", "retrieval_terms", "semantic_anchors")) {
+      $terms += @(ConvertTo-Array (Get-ObjectPropertyValue $entry $field))
+    }
+    $terms += @(
+      [string](Get-ObjectPropertyValue $entry "title"),
+      [string](Get-ObjectPropertyValue $entry "memory_id")
+    )
+    $matchedTerms = @()
+    foreach ($termValue in @($terms | Select-Object -Unique)) {
+      $term = [string]$termValue
+      if ($term.Trim().Length -lt 2) { continue }
+      if ($taskText.IndexOf($term, [System.StringComparison]::OrdinalIgnoreCase) -ge 0) {
+        $matchedTerms += $term
+      }
+    }
+    if ($matchedTerms.Count -eq 0) { continue }
+    $matches += [pscustomobject]@{
+      score = $matchedTerms.Count
+      updated_at = [string](Get-ObjectPropertyValue $entry "updated_at")
+      matched_terms = @($matchedTerms)
+      entry = $entry
+    }
+  }
+  if ($matches.Count -eq 0) {
+    return [pscustomobject]@{ status = "no_match"; registry_path = $registryPath; candidates = @() }
+  }
+  $ordered = @($matches | Sort-Object @{Expression="score";Descending=$true}, @{Expression="updated_at";Descending=$true})
+  $topScore = [int]$ordered[0].score
+  $top = @($ordered | Where-Object { [int]$_.score -eq $topScore })
+  if ($top.Count -ne 1) {
+    $candidateLimit = [int](Get-ObjectPropertyValue $contract "max_candidates")
+    return [pscustomobject]@{
+      status = "ambiguous"
+      registry_path = $registryPath
+      candidates = @($top | Select-Object -First $candidateLimit)
+    }
+  }
+  return [pscustomobject]@{
+    status = "resolved"
+    registry_path = $registryPath
+    matched_terms = @($top[0].matched_terms)
+    entry = $top[0].entry
+    candidates = @($top)
+  }
+}
+
 Import-LocalProjectLaneOverlay
 
 $projectLane = Get-ProjectLane $Cwd
 $activeConversationMemoryLanePath = Find-ActiveConversationMemoryLane $Cwd
 $hasActiveConversationMemoryLane = -not [string]::IsNullOrWhiteSpace($activeConversationMemoryLanePath)
+$referencedConversationMemoryContract = Get-ObjectPropertyValue $policy.router_decision_contract "referenced_conversation_memory_contract"
+$referencedConversationRegistryMatch = [pscustomobject]@{ status = "not_evaluated"; registry_path = ""; candidates = @() }
+$hasResolvedReferencedConversation = $false
 $risk = "R0"
 $approval = @()
 $requiredGates = @("microkernel")
@@ -793,6 +895,19 @@ if ($null -ne $issuePreventionGates) {
     }
   }
 }
+$requiredReferenceGate = [string](Get-ObjectPropertyValue $referencedConversationMemoryContract "required_gate")
+if ((-not $hasActiveConversationMemoryLane) -and
+    (-not [string]::IsNullOrWhiteSpace($requiredReferenceGate)) -and
+    ($requiredGates -contains $requiredReferenceGate)) {
+  $referencedConversationRegistryMatch = Find-ReferencedConversationMemoryRegistryMatch $referencedConversationMemoryContract $TaskText $ConversationRegistryPath
+  if ($referencedConversationRegistryMatch.status -eq "resolved") {
+    $hasResolvedReferencedConversation = $true
+    $requiredGates += "conversation_link_gate"
+    $matchedRiskTriggers["referenced_conversation_registry"] = @($referencedConversationRegistryMatch.matched_terms)
+  } elseif ($referencedConversationRegistryMatch.status -eq "ambiguous") {
+    $semanticAmbiguity += "referenced_conversation_registry_ambiguous"
+  }
+}
 if ($triggeredRisks -contains "R3") {
   $semanticAmbiguity += @("governance_or_change_surface")
 }
@@ -857,6 +972,8 @@ if ($null -eq $staticKnowledgeTriggers) {
 $staticKnowledgeHits = Get-MatchedTriggers $staticKnowledgeTriggers
 if ($pairedMemoryHits.Count -gt 0) {
   $memoryNeed = "paired_err_sol"
+} elseif ($hasResolvedReferencedConversation) {
+  $memoryNeed = [string](Get-ObjectPropertyValue $referencedConversationMemoryContract "memory_need")
 } elseif (($explicitMemoryNeed) -or ($staticKnowledgeHits.Count -gt 0) -or ($feedbackLoopHits.Count -gt 0)) {
   $memoryNeed = "index_only"
 } else {
@@ -1055,6 +1172,9 @@ if ($projectLane -eq "PROJECTLESS") {
     $conversationMemoryDecision = "checkpoint_candidate"
   }
 }
+if ($hasResolvedReferencedConversation) {
+  $conversationMemoryDecision = [string](Get-ObjectPropertyValue $referencedConversationMemoryContract "conversation_memory_decision")
+}
 
 $linkIntent = "none"
 $linkContract = $policy.conversation_linking_contract
@@ -1128,6 +1248,8 @@ if ($linkIntent -ne "none") {
 $memoryLane = "none"
 if ($commonErrorHits.Count -gt 0) {
   $memoryLane = "common_error_corpus"
+} elseif ($hasResolvedReferencedConversation) {
+  $memoryLane = [string](Get-ObjectPropertyValue $referencedConversationMemoryContract "memory_lane")
 } elseif ($projectLane -ne "PROJECTLESS") {
   $memoryLane = "current_project"
 } elseif (($linkIntent -ne "none") -and $linkShouldCreateCurrentConversation) {
@@ -1212,7 +1334,7 @@ if (Test-TaskContainsAny @("command log", "tool log", "execution log", "error ou
 if (Test-TaskContainsAny @("PDF", "HTML", "README", "release", "artifact", "final output", "compiled output", "test output", "diff", "最终输出", "编译产物", "发布产物", "测试输出", "公开文档")) {
   $readSemanticBoundary += "output_truth"
 }
-if (($linkIntent -ne "none") -or (Test-TaskContainsAny @("cross lane", "cross project", "merge memory", "backfill", "archive memory", "cold lane", "backup snapshot", "lane ownership", "跨 lane", "跨项目", "合并记忆", "链接记忆", "归属", "回填", "归档记忆", "备份快照", "隔离互联"))) {
+if ($hasResolvedReferencedConversation -or ($linkIntent -ne "none") -or (Test-TaskContainsAny @("cross lane", "cross project", "merge memory", "backfill", "archive memory", "cold lane", "backup snapshot", "lane ownership", "跨 lane", "跨项目", "合并记忆", "链接记忆", "归属", "回填", "归档记忆", "备份快照", "隔离互联"))) {
   $readSemanticBoundary += "cross_boundary"
 }
 if (Test-TaskContainsAny @("source validity", "source dependency", "official source", "authority", "conflict", "supersede", "retracted", "external evidence", "源证据", "来源依赖", "官方", "权威", "冲突", "覆盖旧", "失效", "撤回", "外部证据")) {
@@ -1436,6 +1558,12 @@ if ($memoryNeed -ne "none") {
     completion_evidence = "selected_record_id_and_provenance"
   }
 }
+if ($hasResolvedReferencedConversation) {
+  $actionBindings += [pscustomobject]@{
+    action = "resolve_conversation_link"
+    completion_evidence = "resolved_readonly_navigation_bundle"
+  }
+}
 if ($correctionLifecycleProfile -ne "none") {
   $actionBindings += [pscustomobject]@{
     action = "prepare_task_local_correction_bundle"
@@ -1451,6 +1579,20 @@ if (($externalNeed.Count -gt 0) -and ($externalNeed[0] -ne "none")) {
 $actionBindingIds = @($actionBindings | ForEach-Object { [string]$_.action } | Select-Object -Unique)
 
 $memorySourceHints = @()
+if (($memoryNeed -ne "none") -and $hasResolvedReferencedConversation) {
+  $referencedEntry = $referencedConversationRegistryMatch.entry
+  $memorySourceHints += [pscustomobject]@{
+    lane = "referenced_conversation"
+    memory_id = [string](Get-ObjectPropertyValue $referencedEntry "memory_id")
+    root_path = [string](Get-ObjectPropertyValue $referencedEntry "root_path")
+    meta_path = [string](Get-ObjectPropertyValue $referencedEntry "meta_path")
+    ledger_root_path = [string](Get-ObjectPropertyValue $referencedEntry "ledger_root_path")
+    ledger_index_path = [string](Get-ObjectPropertyValue $referencedEntry "ledger_index_path")
+    registry_path = [string]$referencedConversationRegistryMatch.registry_path
+    navigation_profile = "meta_state_links_ledger_one_hop"
+    isolation = "unique_active_registry_match_link_only_read"
+  }
+}
 if (($memoryNeed -ne "none") -and $hasActiveConversationMemoryLane) {
   $memorySourceHints += [pscustomobject]@{
     lane = "current_conversation"

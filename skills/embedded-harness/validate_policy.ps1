@@ -301,9 +301,7 @@ if ($null -ne $policy) {
             Add-Issue "active_conversation_memory_registry_schema_mismatch"
           }
           $entries = @(ConvertTo-Array (Get-ObjectPropertyValue $registry "entries"))
-          if ($entries.Count -eq 0) {
-            Add-Issue "active_conversation_memory_registry_empty"
-          }
+          $registryRoot = Split-Path -Parent $registryPath
           foreach ($entry in $entries) {
             foreach ($field in @("registry_id","memory_id","state","root_path","meta_path","ledger_root_path","ledger_index_path")) {
               if ([string]::IsNullOrWhiteSpace([string](Get-ObjectPropertyValue $entry $field))) {
@@ -312,6 +310,9 @@ if ($null -ne $policy) {
             }
             foreach ($field in @("root_path","meta_path","ledger_root_path","ledger_index_path")) {
               $entryPath = [string](Get-ObjectPropertyValue $entry $field)
+              if ((-not [string]::IsNullOrWhiteSpace($entryPath)) -and (-not [System.IO.Path]::IsPathRooted($entryPath))) {
+                $entryPath = Join-Path $registryRoot $entryPath
+              }
               if ((-not [string]::IsNullOrWhiteSpace($entryPath)) -and (-not (Test-Path -LiteralPath $entryPath))) {
                 Add-Issue "active_conversation_memory_registry_target_missing:$field"
               }

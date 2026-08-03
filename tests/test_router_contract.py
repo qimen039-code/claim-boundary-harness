@@ -61,22 +61,31 @@ def run_router(task: str) -> dict:
     return payload
 
 
-def run_router_with_cwd(task: str, cwd: Path, *, env: dict[str, str] | None = None) -> dict:
+def run_router_with_cwd(
+    task: str,
+    cwd: Path,
+    *,
+    env: dict[str, str] | None = None,
+    conversation_registry: Path | None = None,
+) -> dict:
     if not POWERSHELL:
         pytest.skip("PowerShell is not available on PATH")
+    args = [
+        POWERSHELL,
+        "-NoProfile",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+        "skills/embedded-harness/harness_intake_router.ps1",
+        "-TaskText",
+        task,
+        "-Cwd",
+        str(cwd),
+    ]
+    if conversation_registry is not None:
+        args.extend(["-ConversationRegistryPath", str(conversation_registry)])
     _, payload = run_json(
-        [
-            POWERSHELL,
-            "-NoProfile",
-            "-ExecutionPolicy",
-            "Bypass",
-            "-File",
-            "skills/embedded-harness/harness_intake_router.ps1",
-            "-TaskText",
-            task,
-            "-Cwd",
-            str(cwd),
-        ],
+        args,
         env=env,
     )
     return payload
@@ -1054,6 +1063,82 @@ def test_router_exposes_active_conversation_source_for_compound_memory_retrieval
     assert hints[0]["lane"] == "current_conversation"
     assert Path(hints[0]["root_path"]).resolve() == lane.resolve()
     assert contains(payload["action_binding_ids"], "retrieve_matching_memory")
+
+
+def test_router_resolves_referenced_conversation_from_controlled_registry(tmp_path: Path) -> None:
+    workspace = tmp_path / "workspace"
+    workspace.mkdir()
+    lane = tmp_path / "referenced-lane"
+    ledger = lane / "conversation-ledger"
+    ledger.mkdir(parents=True)
+    (lane / "_META_INDEX.md").write_text(
+        "# Referenced Conversation Fixture\n\nfixture_only: true\n",
+        encoding="utf-8",
+    )
+    (ledger / "_LEDGER_INDEX.md").write_text(
+        "# Referenced Conversation Ledger Fixture\n\nfixture_only: true\n",
+        encoding="utf-8",
+    )
+    registry = tmp_path / "registry.json"
+    registry.write_text(
+        json.dumps(
+            {
+                "schema": "cbh.active_conversation_memory_registry.v1",
+                "updated_at": "2026-08-03T00:00:00Z",
+                "scope": "test_fixture_only",
+                "rule": "Resolve only controlled test entries.",
+                "entries": [
+                    {
+                        "registry_id": "TEST-REFERENCED-CONVERSATION",
+                        "memory_id": "CONV-PORTABILITY-FIXTURE",
+                        "memory_type": "conversation_memory",
+                        "state": "ACTIVE",
+                        "chain_head": True,
+                        "project_lane": "projectless_test_fixture",
+                        "thread_id": "TEST-REFERENCED-THREAD",
+                        "title": "Existing framework portability fixture",
+                        "summary": "Synthetic navigation metadata for router regression testing.",
+                        "updated_at": "2026-08-03T00:00:00Z",
+                        "aliases": ["our existing framework", "that framework"],
+                        "retrieval_terms": ["framework portability"],
+                        "semantic_anchors": ["agent client adaptation"],
+                        "workspace_path": "workspace",
+                        "root_path": "referenced-lane",
+                        "meta_path": "referenced-lane/_META_INDEX.md",
+                        "ledger_root_path": "referenced-lane/conversation-ledger",
+                        "ledger_index_path": "referenced-lane/conversation-ledger/_LEDGER_INDEX.md",
+                        "link_policy": "link_only_read",
+                        "source_tag": "test_fixture",
+                        "belief_status": "synthetic_fixture",
+                        "confidence": {
+                            "label": "deterministic",
+                            "basis": "Static fixture paths and explicit retrieval aliases.",
+                        },
+                    }
+                ],
+            },
+            ensure_ascii=False,
+        ),
+        encoding="utf-8",
+    )
+
+    payload = run_router_with_cwd(
+        "Use our existing framework before adapting that framework to another agent client.",
+        workspace,
+        conversation_registry=registry,
+    )
+
+    assert payload["memory_need"] == "conversation_state"
+    assert payload["memory_mode"] == "read"
+    assert payload["memory_lane"] == "referenced_conversation"
+    assert payload["conversation_memory_decision"] == "read_referenced_conversation"
+    assert payload["read_depth_profile"] == "cross_lane_link_review"
+    assert contains(payload["action_binding_ids"], "retrieve_matching_memory")
+    assert contains(payload["action_binding_ids"], "resolve_conversation_link")
+    hints = payload["memory_source_hints"]
+    assert len(hints) == 1
+    assert Path(hints[0]["registry_path"]).resolve() == registry.resolve()
+    assert Path(hints[0]["root_path"]).resolve() == lane.resolve()
 
 
 def test_router_binds_nonblocking_correction_lifecycle_for_tool_surface() -> None:

@@ -1016,6 +1016,19 @@ triggers = [
   "我们的CHB",
 ]
 
+[router_decision_contract.referenced_conversation_memory_contract]
+enabled = true
+registry_path = "active_conversation_memory_registry.json"
+registry_schema = "cbh.active_conversation_memory_registry.v1"
+required_gate = "unknown_memory_reference_gate"
+candidate_states = ["ACTIVE", "PAUSED", "CHECKPOINT_CANDIDATE"]
+memory_need = "conversation_state"
+memory_lane = "referenced_conversation"
+conversation_memory_decision = "read_referenced_conversation"
+max_candidates = 3
+match_rule = "Resolve only a unique highest-scoring active registry entry from title, aliases, retrieval terms, semantic anchors, or memory id. Ambiguous or missing candidates remain unresolved and do not open payloads."
+completion_rule = "A registry or outer-summary hit is navigation only. For a resolved referenced lane, read its meta, current state, explicit link ledger, and conversation-ledger index in one bounded read-only bundle; follow at most one explicit continuation edge, and open evidence/raw only when exact facts require it."
+
 [router_decision_contract.issue_prevention_gates.hallucination_detection_anchor_gate]
 purpose = "When judging whether an answer is hallucinated, complete, grounded, or task-satisfying, require source labels, evidence anchors, requested-output contract, or explicit unsupported/non-answer category."
 triggers = [

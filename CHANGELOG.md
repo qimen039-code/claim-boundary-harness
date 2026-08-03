@@ -8,6 +8,17 @@ This project uses `vMAJOR.MINOR.PATCH` version labels.
 
 No unreleased changes.
 
+## v1.2.1 - 2026-08-03
+
+- Completed the declared referenced-conversation registry route so a unique
+  active match can return bounded, link-only memory navigation to the host
+  model agent without loading every conversation into context.
+- Added an optional registry-path injection seam, registry-relative path
+  resolution, and an empty adopter-local registry scaffold while preserving
+  the production default registry location.
+- Added deterministic filesystem-backed regression coverage that does not
+  depend on mutable user memory or publish private conversation content.
+
 ## v1.2.0 - 2026-07-25
 
 - Added a generic task-local external retrieval planner that preserves original
