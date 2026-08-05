@@ -57,9 +57,9 @@ def test_bilingual_readme_and_local_overlay_template_are_present() -> None:
 
     assert "[中文版](./README_zh.md) | English" in readme
     assert "[English](./README.md) | 中文" in readme_zh
-    assert "Current main-branch version: `v1.2.1`." in readme
-    assert "当前 main 分支版本：`v1.2.1`。" in readme_zh
-    assert read_text("VERSION").strip() == "v1.2.1"
+    assert "Current main-branch version: `v1.2.2`." in readme
+    assert "当前 main 分支版本：`v1.2.2`。" in readme_zh
+    assert read_text("VERSION").strip() == "v1.2.2"
     assert overlay["schema"] == "cbh.project_lane_overlay.v1"
     assert policy["local_project_lane_overlay"]["default_filename"] == "embedded_harness_policy.local.json"
     assert "embedded_harness_policy.local.json" in readme
@@ -154,8 +154,8 @@ def test_citation_notice_are_visible_and_public_report_draft_is_absent() -> None
     assert "claim-boundary-harness-technical-report.md" not in readme_zh
     assert "title: \"Claim Boundary Harness: A Model-Facing Capability Harness for LLM Agent Workflows\"" in citation
     assert "qimen039-code" in citation
-    assert "version: \"1.2.1\"" in citation
-    assert "date-released: \"2026-08-03\"" in citation
+    assert "version: \"1.2.2\"" in citation
+    assert "date-released: \"2026-08-05\"" in citation
     assert "doi: \"10.5281/zenodo.21189879\"" in citation
     assert "10.5281/zenodo.21189879" in doi_badge
     assert 'role="img"' in doi_badge
@@ -166,8 +166,8 @@ def test_citation_notice_are_visible_and_public_report_draft_is_absent() -> None
     assert "## v1.0.0 - 2026-07-20" in changelog
     stale_version = "v0." + "14.0"
     assert stale_version not in changelog
-    assert manifest["harness_version"] == "v1.2.1"
-    assert "## v1.2.1 - 2026-08-03" in changelog
+    assert manifest["harness_version"] == "v1.2.2"
+    assert "## v1.2.2 - 2026-08-05" in changelog
     assert "mandatory model-layer pre-action stops" in changelog
     planner = manifest["external_retrieval_planner"]
     assert planner["receipt_schema"] == "cbh.external_retrieval_receipt.v1"
@@ -343,3 +343,59 @@ def test_skill_release_receipt_template_is_reactivation_ready() -> None:
     ]:
         assert field in receipt
     assert "SKILL.md" in receipt["resume_entry"]
+
+
+def test_external_learning_and_exposed_capability_short_circuit_are_bounded() -> None:
+    agents = read_text("AGENTS.md")
+    router = read_text("docs/router-decision-contract.md")
+    memory_writes = read_text("docs/memory-write-granularity-contract.md")
+
+    for text in (agents, router):
+        assert "resolved_current_exposure" in text
+        assert "unchanged exposure state" in text
+        assert "adapted_mechanism" in text
+        assert "local coverage" in text
+        assert "source shortcomings" in text
+
+    assert "adapted_mechanism" in memory_writes
+    assert "direct_reuse" in memory_writes
+    assert "rejected_part" in memory_writes
+    assert "full candidate route sets" in router.lower()
+    assert "route_receipt_ref" in router
+
+
+def test_portable_context_bundle_contract_is_lazy_and_indexed() -> None:
+    contract_path = ROOT / "docs/portable-context-bundle-contract.md"
+    manifest_path = ROOT / "templates/portable-context-bundle/manifest.json"
+
+    assert contract_path.is_file()
+    assert manifest_path.is_file()
+
+    contract = contract_path.read_text(encoding="utf-8")
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    for relative in (
+        "docs/portable-context-bundle-contract.md",
+        "templates/portable-context-bundle/manifest.json",
+    ):
+        assert relative in read_text("README.md")
+        assert relative in read_text("README_zh.md")
+    assert "portable-context-bundle-contract.md" in read_text("docs/architecture.md")
+
+    assert manifest["schema"] == "cbh.portable_context_bundle.v1"
+    policy = manifest["validation_policy"]
+    assert policy["trigger_events"] == [
+        "bundle_creation",
+        "bundle_import",
+        "activate_as_current_guidance",
+        "source_or_payload_hash_drift",
+        "strong_claim_use",
+    ]
+    assert policy["no_revalidation_events"] == [
+        "ordinary_index_lookup",
+        "ordinary_capsule_read",
+        "unchanged_hash_reuse",
+    ]
+    assert policy["reuse_cached_structural_validation_when_hashes_match"] is True
+    assert manifest["runtime_boundary"]["registers_host_hook"] is False
+    assert manifest["runtime_boundary"]["adds_per_task_validation"] is False
+    assert "does not create a new memory lane" in contract

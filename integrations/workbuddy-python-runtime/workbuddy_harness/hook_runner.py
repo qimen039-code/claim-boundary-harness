@@ -108,6 +108,9 @@ def _advisory_context(route: dict[str, Any]) -> str:
         "human_confirmation_need": bool(
             _route_value(route, "human_confirmation_need", False)
         ),
+        "direct_outcome_first_instruction": _route_value(
+            route, "direct_outcome_first_instruction", None
+        ),
         "agent_loop_action_ids": contract["action_ids"],
         "task_execution_owner": "host_model_agent",
         "host_blocking": False,

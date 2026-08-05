@@ -44,6 +44,11 @@ Behavior:
 - `tool_gateway`: tool calls are mediated by CBH tools. Use declared tools only.
 - `full_agent_host`: host exposes file/tool/final/hook surfaces. Hard gates may
   exist only for surfaces the host actually intercepts.
+- When a route contains `direct_outcome_first_instruction`, consume it before
+  the first substantive mutation. After the minimum necessary read, change the
+  requested surface first. Expand to protective scaffolding or systemic work
+  only under one of the instruction's declared evidence conditions, and retire
+  the action when its stated condition is met.
 
 Call a stop `model_layer_pre_action_stop` when the model halted before forming
 or calling an unauthorized protected action. Never call it

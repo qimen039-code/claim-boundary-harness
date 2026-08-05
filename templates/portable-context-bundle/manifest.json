@@ -1,0 +1,73 @@
+{
+  "schema": "cbh.portable_context_bundle.v1",
+  "bundle_id": "bundle:example-project-context",
+  "created_at": "2026-08-05T00:00:00Z",
+  "source_attribution": [],
+  "lane": {
+    "lane_id": "PROJECT_EXAMPLE",
+    "owner": "adopting_workspace",
+    "write_root": "memory-library",
+    "cross_lane_links": []
+  },
+  "contents": [
+    {
+      "path": "_META_INDEX.md",
+      "kind": "meta_index",
+      "required": true,
+      "sha256": "replace-with-lowercase-sha256-before-import"
+    }
+  ],
+  "source_refs": [],
+  "source_validity_dependencies": [],
+  "lifecycle": {
+    "state": "offline",
+    "allowed_states": [
+      "offline",
+      "registered",
+      "active",
+      "frozen_readonly",
+      "retired"
+    ],
+    "activation_criteria": [
+      "lane_owner_resolved",
+      "required_payload_hashes_match",
+      "compatibility_requirements_satisfied"
+    ]
+  },
+  "compatibility": {
+    "minimum_bundle_schema": "cbh.portable_context_bundle.v1",
+    "required_capabilities": []
+  },
+  "validation_policy": {
+    "trigger_events": [
+      "bundle_creation",
+      "bundle_import",
+      "activate_as_current_guidance",
+      "source_or_payload_hash_drift",
+      "strong_claim_use"
+    ],
+    "no_revalidation_events": [
+      "ordinary_index_lookup",
+      "ordinary_capsule_read",
+      "unchanged_hash_reuse"
+    ],
+    "reuse_cached_structural_validation_when_hashes_match": true,
+    "semantic_revalidation_scope": "only_sources_required_for_activation_or_the_current_strong_claim"
+  },
+  "validation_cache": {
+    "manifest_sha256": null,
+    "payload_set_sha256": null,
+    "last_structural_validation": {
+      "status": "unverified",
+      "checked_at": null,
+      "validator": null
+    }
+  },
+  "runtime_boundary": {
+    "registers_host_hook": false,
+    "adds_per_task_validation": false,
+    "creates_memory_lane": false,
+    "grants_cross_lane_write_authority": false,
+    "stores_chain_of_thought": false
+  }
+}

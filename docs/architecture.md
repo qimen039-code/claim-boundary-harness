@@ -106,6 +106,14 @@ required_gates
 
 This contract keeps the decision layer stronger than a suggestion while avoiding full runtime wrapping. It tells the agent which surface is being touched, who the content is for, whether a term is ambiguous, which module to open, whether memory or external lookup is needed, and whether the final answer needs a claim schema.
 
+For bounded user-visible mutations, the conditional
+`direct_outcome_first_instruction` carries the first-mutation rule, the finite
+set of allowed expansion conditions, and the retirement condition. The router
+also emits a `direct_outcome_first` action binding. A compatible model loop
+consumes it at `before_first_substantive_mutation`: after the minimum necessary
+read, the first substantive write targets the requested surface, or the loop
+records which declared expansion condition is supported by evidence.
+
 The design borrows a few lightweight patterns: separate decision from execution, run prechecks before critical boundaries, route by metadata, reassess on trigger events, preflight likely failure modes, and keep audience/ownership explicit. These are design influences, not proof that this framework is validated in every runtime.
 
 When self-check exposes substantial memory pollution, target pollution,
@@ -232,6 +240,11 @@ and conflict rules live in
 [source-monitoring-memory-schema.md](source-monitoring-memory-schema.md), and
 lane availability states live in
 [memory-meta-index-contract.md](memory-meta-index-contract.md).
+Optional cross-workspace packaging uses
+[portable-context-bundle-contract.md](portable-context-bundle-contract.md): it
+binds existing indexes and capsules to a manifest, lane root, source refs, and
+hash-triggered validation cache without creating a new memory backend or
+per-read verifier.
 
 ## Skill Lifecycle Contract
 

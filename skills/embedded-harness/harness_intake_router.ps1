@@ -882,6 +882,39 @@ if ($feedbackLoopHits.Count -gt 0) {
   $matchedRiskTriggers["feedback_loop"] = @($feedbackLoopHits)
   $feedbackLoopProfile = "explicit_cycle"
 }
+$directOutcomeFirstInstruction = $null
+$directOutcomeFirst = Get-ObjectPropertyValue $policy.router_decision_contract "direct_outcome_first_contract"
+if (($null -ne $directOutcomeFirst) -and ([bool](Get-ObjectPropertyValue $directOutcomeFirst "enabled"))) {
+  $directSurfaceHits = Get-MatchedTriggers (Get-ObjectPropertyValue $directOutcomeFirst "surface_terms")
+  $directMutationHits = Get-MatchedTriggers (Get-ObjectPropertyValue $directOutcomeFirst "mutation_terms")
+  $directNonMutationHits = Get-MatchedTriggers (Get-ObjectPropertyValue $directOutcomeFirst "non_mutation_intent_terms")
+  $directBoundedHits = Get-MatchedTriggers (Get-ObjectPropertyValue $directOutcomeFirst "bounded_scope_terms")
+  $directSystemicHits = Get-MatchedTriggers (Get-ObjectPropertyValue $directOutcomeFirst "explicit_systemic_scope_terms")
+  $directProxyHits = Get-MatchedTriggers (Get-ObjectPropertyValue $directOutcomeFirst "proxy_artifact_terms")
+  if (($directSurfaceHits.Count -gt 0) -and
+      ($directMutationHits.Count -gt 0) -and
+      ($directNonMutationHits.Count -eq 0) -and
+      ($directSystemicHits.Count -eq 0)) {
+    $directOutcomeGate = [string](Get-ObjectPropertyValue $directOutcomeFirst "required_gate")
+    if ([string]::IsNullOrWhiteSpace($directOutcomeGate)) {
+      $directOutcomeGate = "direct_outcome_first_gate"
+    }
+    $semanticAmbiguity += @($directOutcomeGate)
+    $requiredGates += $directOutcomeGate
+    $directOutcomeHits = @(
+      @($directSurfaceHits) +
+      @($directMutationHits) +
+      @($directBoundedHits) +
+      @($directProxyHits)
+    )
+    $matchedRiskTriggers[$directOutcomeGate] = @($directOutcomeHits | Select-Object -Unique)
+    $directOutcomeFirstInstruction = [ordered]@{
+      first_mutation_rule = [string](Get-ObjectPropertyValue $directOutcomeFirst "first_mutation_rule")
+      expansion_allowed_only_if = @(ConvertTo-Array (Get-ObjectPropertyValue $directOutcomeFirst "expansion_allowed_only_if"))
+      retire_condition = [string](Get-ObjectPropertyValue $directOutcomeFirst "retire_condition")
+    }
+  }
+}
 $issuePreventionGates = Get-ObjectPropertyValue $policy.router_decision_contract "issue_prevention_gates"
 if ($null -ne $issuePreventionGates) {
   foreach ($gateEntry in $issuePreventionGates.PSObject.Properties) {
@@ -1576,6 +1609,12 @@ if (($externalNeed.Count -gt 0) -and ($externalNeed[0] -ne "none")) {
     completion_evidence = "source_ledger_or_citations"
   }
 }
+if ($null -ne $directOutcomeFirstInstruction) {
+  $actionBindings += [pscustomobject]@{
+    action = "direct_outcome_first"
+    completion_evidence = "direct_surface_mutation_or_declared_expansion_evidence"
+  }
+}
 $actionBindingIds = @($actionBindings | ForEach-Object { [string]$_.action } | Select-Object -Unique)
 
 $memorySourceHints = @()
@@ -1685,6 +1724,7 @@ $routingReceipt = [ordered]@{
   memory_lane = $memoryLane
   memory_source_hints = @($memorySourceHints)
   action_bindings = @($actionBindings)
+  direct_outcome_first_instruction = $directOutcomeFirstInstruction
   record_intent = $recordIntent
   external_need = @($externalNeed)
   claim_risk = $claimRisk
@@ -1723,6 +1763,7 @@ $compactReceipt = [ordered]@{
   memory_source_hints = @($memorySourceHints)
   action_binding_ids = @($actionBindingIds)
   action_bindings = @($actionBindings)
+  direct_outcome_first_instruction = $directOutcomeFirstInstruction
   memory_need = $memoryNeed
   conversation_memory_decision = $conversationMemoryDecision
   conversation_full_lane_triggered = [bool]$conversationFullLaneTriggered
@@ -1776,6 +1817,7 @@ $result = [ordered]@{
   memory_source_hints = @($memorySourceHints)
   action_bindings = @($actionBindings)
   action_binding_ids = @($actionBindingIds)
+  direct_outcome_first_instruction = $directOutcomeFirstInstruction
   record_intent = $recordIntent
   external_need = @($externalNeed)
   claim_risk = $claimRisk

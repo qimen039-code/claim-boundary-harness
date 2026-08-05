@@ -6,13 +6,28 @@ This project uses `vMAJOR.MINOR.PATCH` version labels.
 
 ## Unreleased
 
+No unreleased changes.
+
+## v1.2.2 - 2026-08-05
+
+- Added a policy-driven `direct_outcome_first_gate` and host action binding so
+  bounded user-visible changes target the requested surface before protective
+  scaffolding or systemic expansion; explicit evidence conditions govern any
+  expansion, with PowerShell and WorkBuddy Python regression coverage.
 - Corrected the public enforcement model: protected high-risk actions are
   mandatory model-layer pre-action stops until exact human authorization,
   while host-enforced execution blocking is claimed only for verified hook,
   proxy, permission, or sandbox paths.
 - Documented one-event, one-scope, one-use authorization and the operator risk
-  boundary for an explicitly authorized dangerous operation without changing
-  the package version.
+  boundary for an explicitly authorized dangerous operation.
+- Added external-mechanism fit rules that compare source ideas with current CBH
+  coverage and default to adapted mechanisms instead of relevance-driven
+  copying.
+- Added a current-exposure capability short-circuit so an already available,
+  action-covering tool or skill is used without repeated discovery.
+- Added a portable context-bundle contract with event-triggered validation,
+  narrow memory-path isolation, and explicit TrustGraph attribution and
+  non-adoption boundaries.
 
 ## v1.2.1 - 2026-08-03
 

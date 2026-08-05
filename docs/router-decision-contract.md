@@ -78,6 +78,46 @@ The router should compute the full decision internally, then expose the smallest
 
 This keeps Codex-style, Claude-style, WorkBuddy-style, and custom local adapters cheap while preserving the full whiteboard schema for migration, audits, and public framework work.
 
+## Capability Exposure Short-Circuit
+
+`tool_surface_need` says that a capability family is needed; it does not prove
+that discovery work is still required. The host/model must check the current
+turn's exposed skill, tool, app, and connector surface first. If one exposed
+candidate covers the requested action and its current instructions or schema
+are available, resolve the task-local state as
+`tool_discovery_status: resolved_current_exposure` and call it directly.
+
+Do not query the capability map, registry, `tool_search`, install state, or a
+host refresh against the unchanged exposure state. One discovery pass is
+appropriate only when no exposed candidate covers the action, action coverage
+is ambiguous, authentication or callability is unresolved, or the exposed call
+fails. The static intake router cannot observe host exposure by itself; its
+`not_checked` result is an input to this host-side short-circuit, not proof that
+another search must run.
+
+Full candidate route sets are not part of ordinary compact or extended
+receipts. Emit them only for debug or bounded semantic adjudication after a
+real conflict, invalid selection, or fallback. When execution evidence needs a
+route link, store one `route_receipt_ref` on the existing ledger segment or
+evidence record; do not duplicate the task as a second event chain.
+
+## External Mechanism Fit
+
+Source-grounded intake must separate relevance from adoption. Before an
+external mechanism becomes an implementation candidate, use the existing
+`global_task_context_gate` to compare the primary outcome, current architecture,
+local coverage, explicit non-goals, and acceptance tests. Record the source
+assumptions and source shortcomings, then select the smallest missing local
+delta.
+
+The default adoption mode is `adapted_mechanism`: preserve the useful mechanism
+while translating it into existing CBH concepts and improving source gaps.
+Select `direct_reuse` only when the original artifact is already usable,
+license-compatible, interface-compatible, and cheaper and safer than an
+adaptation. Otherwise classify it as rejected or deferred without creating a
+new gate, schema, runtime, or technical-debt artifact solely because the source
+is related.
+
 ## Skill Lifecycle Profile
 
 `skill_lifecycle_profile` is mandatory for skill-layer work and subordinate to
@@ -272,6 +312,30 @@ The possible route outcomes are `mechanical_verifier_path`,
 
 This gate is not for ordinary implementation, direct lookup, or local
 debugging. It is for choosing the research or evaluator path itself.
+
+## Direct Outcome First Gate
+
+`direct_outcome_first_gate` is a goal-fidelity gate for bounded user-visible
+mutations such as a local UI/UX, interaction, form, layout, or animation
+change. It is not a ban on reading context: the agent may first read the
+smallest amount needed to locate and safely edit the requested surface. After
+that read, the first substantive mutation must directly affect that surface.
+
+Creating a protective mechanism, schema, policy, framework, generalized
+abstraction, or system-wide refactor does not satisfy the gate by itself. The
+router emits a `direct_outcome_first_instruction` and a
+`direct_outcome_first` action binding at
+`before_first_substantive_mutation`. Scope may expand only when at least one
+condition has reviewable support:
+
+- the direct implementation failed;
+- acceptance objectively spans multiple surfaces;
+- safety or data integrity blocks the direct path; or
+- the user explicitly requested systemic or reusable scope.
+
+Retire the gate after the direct result passes acceptance, or after evidence
+shows that one declared expansion condition applies. Explanation-only requests
+and explicitly systemic design/refactor requests are negative controls.
 
 ## Issue Prevention Gates
 

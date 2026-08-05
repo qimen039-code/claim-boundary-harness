@@ -968,6 +968,28 @@ def test_router_combines_global_context_and_feedback_prevention() -> None:
     assert payload["feedback_loop_profile"] == "explicit_cycle"
 
 
+def test_router_direct_outcome_first_gate_requires_bounded_mutation() -> None:
+    bounded = run_router("Change this button hover color to blue.")
+    explanation = run_router("Explain how UI button hover states work.")
+    systemic = run_router("Change the entire UI architecture into a reusable design system.")
+
+    assert contains(bounded.get("required_gates"), "direct_outcome_first_gate")
+    assert contains(
+        bounded.get("matched_risk_triggers", {}).get("direct_outcome_first_gate"),
+        "button",
+    )
+    assert contains(
+        bounded.get("compact_receipt", {}).get("action_binding_ids"),
+        "direct_outcome_first",
+    )
+    assert bounded.get("direct_outcome_first_instruction", {}).get("first_mutation_rule")
+    assert len(
+        bounded.get("direct_outcome_first_instruction", {}).get("expansion_allowed_only_if", [])
+    ) == 4
+    assert not contains(explanation.get("required_gates"), "direct_outcome_first_gate")
+    assert not contains(systemic.get("required_gates"), "direct_outcome_first_gate")
+
+
 def test_router_uses_local_project_lane_overlay(tmp_path: Path) -> None:
     project = tmp_path / "EXAMPLE_PROJECT"
     memory_bank = project / "memory-bank"

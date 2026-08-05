@@ -102,6 +102,16 @@ def build_agent_loop_contract(route: dict[str, Any]) -> dict[str, Any]:
     if skill_audit != "none":
         add("skill_audit", "before_skill_change", ["skill_audit_profile"], skill_audit)
 
+    required_gates = _text_list(_route_value(route, "required_gates", []))
+    direct_outcome_first = _route_value(route, "direct_outcome_first_instruction", None)
+    if "direct_outcome_first_gate" in required_gates and isinstance(direct_outcome_first, dict):
+        add(
+            "direct_outcome_first",
+            "before_first_substantive_mutation",
+            ["required_gates", "direct_outcome_first_instruction"],
+            direct_outcome_first,
+        )
+
     return {
         "schema": SCHEMA,
         "consumer_status": "unbound_until_host_loop_calls_consumer",

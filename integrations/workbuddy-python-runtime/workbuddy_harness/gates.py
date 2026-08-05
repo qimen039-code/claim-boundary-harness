@@ -699,6 +699,49 @@ def intake_router(task_text: str = "", cwd: str | None = None, policy: dict[str,
         required_gates.append("feedback_loop_gate")
         matched_risk_triggers["feedback_loop"] = feedback_loop_hits
         feedback_loop_profile = "explicit_cycle"
+    direct_outcome_first_instruction: dict[str, Any] | None = None
+    direct_outcome_first = contract.get("direct_outcome_first_contract", {})
+    if isinstance(direct_outcome_first, dict) and direct_outcome_first.get("enabled") is True:
+        direct_surface_hits = _matching_triggers(task_text, direct_outcome_first.get("surface_terms", []))
+        direct_mutation_hits = _matching_triggers(task_text, direct_outcome_first.get("mutation_terms", []))
+        direct_non_mutation_hits = _matching_triggers(
+            task_text,
+            direct_outcome_first.get("non_mutation_intent_terms", []),
+        )
+        direct_bounded_hits = _matching_triggers(
+            task_text,
+            direct_outcome_first.get("bounded_scope_terms", []),
+        )
+        direct_systemic_hits = _matching_triggers(
+            task_text,
+            direct_outcome_first.get("explicit_systemic_scope_terms", []),
+        )
+        direct_proxy_hits = _matching_triggers(
+            task_text,
+            direct_outcome_first.get("proxy_artifact_terms", []),
+        )
+        if direct_surface_hits and direct_mutation_hits and not direct_non_mutation_hits and not direct_systemic_hits:
+            direct_outcome_gate = str(
+                direct_outcome_first.get("required_gate") or "direct_outcome_first_gate"
+            )
+            semantic_ambiguity.append(direct_outcome_gate)
+            required_gates.append(direct_outcome_gate)
+            matched_risk_triggers[direct_outcome_gate] = _unique(
+                [
+                    *direct_surface_hits,
+                    *direct_mutation_hits,
+                    *direct_bounded_hits,
+                    *direct_proxy_hits,
+                ]
+            )
+            direct_outcome_first_instruction = {
+                "first_mutation_rule": str(direct_outcome_first.get("first_mutation_rule") or ""),
+                "expansion_allowed_only_if": [
+                    str(item)
+                    for item in _as_list(direct_outcome_first.get("expansion_allowed_only_if"))
+                ],
+                "retire_condition": str(direct_outcome_first.get("retire_condition") or ""),
+            }
     issue_prevention_gates = contract.get("issue_prevention_gates", {})
     if isinstance(issue_prevention_gates, dict):
         for gate_name, gate in issue_prevention_gates.items():
@@ -1179,7 +1222,7 @@ def intake_router(task_text: str = "", cwd: str | None = None, policy: dict[str,
         module_need.append("none")
     module_need = _unique(module_need)
 
-    action_bindings: list[dict[str, str]] = []
+    action_bindings: list[dict[str, Any]] = []
     if memory_need != "none":
         action_bindings.append(
             {
@@ -1192,6 +1235,13 @@ def intake_router(task_text: str = "", cwd: str | None = None, policy: dict[str,
             {
                 "action": "perform_external_research_route",
                 "completion_evidence": "source_ledger_or_citations",
+            }
+        )
+    if direct_outcome_first_instruction is not None:
+        action_bindings.append(
+            {
+                "action": "direct_outcome_first",
+                "completion_evidence": "direct_surface_mutation_or_declared_expansion_evidence",
             }
         )
     action_binding_ids = [item["action"] for item in action_bindings]
@@ -1278,6 +1328,7 @@ def intake_router(task_text: str = "", cwd: str | None = None, policy: dict[str,
         "memory_lane": memory_lane,
         "memory_source_hints": memory_source_hints,
         "action_bindings": action_bindings,
+        "direct_outcome_first_instruction": direct_outcome_first_instruction,
         "record_intent": record_intent,
         "external_need": external_need,
         "claim_risk": claim_risk,
@@ -1313,6 +1364,7 @@ def intake_router(task_text: str = "", cwd: str | None = None, policy: dict[str,
         "memory_lane": memory_lane,
         "memory_source_hints": memory_source_hints,
         "action_binding_ids": action_binding_ids,
+        "direct_outcome_first_instruction": direct_outcome_first_instruction,
         "conversation_memory_decision": conversation_memory_decision,
         "conversation_full_lane_triggered": conversation_full_lane_triggered,
         "link_intent": link_intent,
@@ -1359,6 +1411,7 @@ def intake_router(task_text: str = "", cwd: str | None = None, policy: dict[str,
         "memory_source_hints": memory_source_hints,
         "action_bindings": action_bindings,
         "action_binding_ids": action_binding_ids,
+        "direct_outcome_first_instruction": direct_outcome_first_instruction,
         "record_intent": record_intent,
         "external_need": external_need,
         "claim_risk": claim_risk,

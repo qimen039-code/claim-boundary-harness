@@ -26,6 +26,7 @@ CBH 做的是把目标、相关记忆、可用工具、执行记录和验证依�
 | 常见问题 | CBH 怎么帮忙 | 深入了解时的名称 |
 | --- | --- | --- |
 | 长任务做着做着偏离目标，或只完成一小部分就以为全部完成 | 持续保留总目标、当前范围和最终检查 | 任务路由、事件复评、最终声明检查 |
+| 一个局部可见修改还没落地，Agent 就先搭保护层、框架、策略或全局抽象 | 最小必要读取后，第一次实质修改必须落到用户指定表面；扩大范围必须有证据或明确要求 | `direct_outcome_first_gate`、动作绑定、有界扩张条件 |
 | 新开对话或上下文快满时，重要细节丢失 | 保留简短导航，并能继续追到原始对话、日志和证据 | 对话账本、保留来源的记忆 |
 | 一个项目的历史混进另一个项目 | 默认分开保存和查找不同项目、对话、错误与归档内容 | 记忆分区（memory lane）、先看索引再下钻 |
 | 同一种执行错误反复出现 | 把已经验证的问题和解法配对保存，在相似动作前重新检查 | CE/ERR/SOL 记录、行为纠偏 |
@@ -83,7 +84,7 @@ CBH 做的是把目标、相关记忆、可用工具、执行记录和验证依�
 - 宿主不支持的能力应标记为 `checked_missing` 或 `checked_blocked`，不能静默宣称启用。
 - 客户端、Hook 协议或相关配置更新后，需要重新运行本地兼容性检查。
 
-当前 main 分支版本：`v1.2.1`。
+当前 main 分支版本：`v1.2.2`。
 最新已打 tag 的 GitHub Release：[`v1.2.1`](https://github.com/qimen039-code/claim-boundary-harness/releases/tag/v1.2.1)。
 更早的 tag 仅为历史快照，不是当前 main 分支安装、能力或兼容性依据。
 
@@ -255,6 +256,9 @@ CBH 用一套低成本结构把这些点连起来。
   这不是“模型不会幻觉”的证明。
 - **局部因果先看任务全貌**：局部修复、根因判断或窄文件修改，先读最近的目标、lane、
   状态表、文件图或工作流状态，不能把局部症状直接写成根因。
+- **局部结果先于保护性扩张**：对有界 UI/UX 或其他用户可见修改，完成最小必要读取后，
+  第一次实质修改必须直接触及用户指定表面。只有直接实现已有可复核失败证据、验收客观上
+  跨多个表面、安全或数据完整性阻断直接路径，或用户明确要求系统化/复用范围时，才扩张。
 - **清理不等于清零债务**：出现记忆污染、目标污染、脏树债或技术债堆积时，
   先清查分组，只清当前必须清理项，并把可暂存项标为 `candidate_technical_debt`。
 - **纠错沉淀**：小而可复用的问题进入 `CE-*` common-error 记录；严重、重复或高影响问题
@@ -385,6 +389,7 @@ CBH 应在每个采用者自己的本地 lane 中成长。项目专属记忆、f
 - [docs/source-monitoring-memory-schema.md](docs/source-monitoring-memory-schema.md)
 - [docs/memory-feedback-loop-trial.md](docs/memory-feedback-loop-trial.md)
 - [docs/memory-write-granularity-contract.md](docs/memory-write-granularity-contract.md)
+- [docs/portable-context-bundle-contract.md](docs/portable-context-bundle-contract.md) 与 [templates/portable-context-bundle/manifest.json](templates/portable-context-bundle/manifest.json)：带 lane 绑定与事件触发验证的可移植上下文包；普通读取不重复验证。
 - [docs/hybrid-memory-retrieval-contract.md](docs/hybrid-memory-retrieval-contract.md)
 - [docs/content-reading-contract.md](docs/content-reading-contract.md)
 - [docs/skill-lifecycle-contract.md](docs/skill-lifecycle-contract.md)

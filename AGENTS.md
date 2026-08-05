@@ -71,6 +71,13 @@ Use receipt profiles to keep runtime cost low: risk classification is always int
 
 Use the action-relevant rule: if a field will not change the next action, do not emit it in the default receipt and do not display the R0-R5 label to the user. Keep it in documentation, archive meta, debug receipt, or audit logs instead. After the first receipt, use delta receipts with changed fields only unless full debug is requested.
 
+Do not persist full candidate route sets for ordinary tasks. Keep candidates in
+`debug_receipt` or bounded semantic adjudication only when a real conflict,
+fallback, or routing diagnosis makes them action-relevant. If a later audit
+needs to connect a route decision to execution evidence, add a compact
+`route_receipt_ref` to the existing ledger segment or evidence record instead
+of creating a second route -> action -> verification -> finish event chain.
+
 Re-evaluation is required after trigger events: new evidence, missing files, tool errors, scope changes, user corrections, cross-project terminology, currentness/version claims, GitHub/open-source mechanism intake, risk/cost escalation, broad observation-scope claims, strong claims, R5 actions, or memory writes.
 
 Keep the primary goal ahead of non-blocking discoveries. Separate required
@@ -78,6 +85,16 @@ outputs and blocking findings from deferred findings before expanding scope.
 New findings may be recorded as candidates, but they should not trigger extra
 tools or edits unless they block acceptance, safety, data integrity, or the
 user's explicit goal.
+
+For a bounded user-visible mutation, apply `direct_outcome_first_gate`. After
+the minimum necessary read, the first substantive mutation must directly touch
+the user-requested surface. Do not substitute a protective mechanism, schema,
+policy, framework, generalized abstraction, or system-wide refactor for that
+result. Expand only when the direct path has failed with reviewable evidence,
+acceptance objectively spans multiple surfaces, safety or data integrity blocks
+the direct path, or the user explicitly requested reusable/systemic scope.
+Retire the gate after the direct result passes acceptance or one of those
+expansion conditions is evidenced.
 
 Verify a coherent change batch once after the required work is complete.
 Intermediate checks are reserved for syntax blockers, dependency failures,
@@ -95,7 +112,9 @@ forgotten prior term or event; `hallucination_detection_anchor_gate` when
 judging whether another answer is hallucinated, grounded, complete, or a
 non-answer; `global_task_context_gate` when a local fix, root-cause diagnosis,
 or narrow edit may depend on the outer goal, active lane, status table, file
-map, workflow state, or cross-step constraints; `public_private_surface_gate`
+map, workflow state, or cross-step constraints; `direct_outcome_first_gate`
+when a bounded user-visible mutation could be displaced by scaffolding or an
+unrequested systemic refactor; `public_private_surface_gate`
 before public-facing artifact publication or review; `self_report_log_grounding_gate` when describing prior
 checks, runs, skips, failures, or validation from logs; `root_cause_cleanup_gate`
 for incident analysis that should locate logs/diffs/hash-based causes rather
@@ -151,6 +170,17 @@ installation, check the available plugin/native-skill surface before falling
 back to shell, raw web, clone, or manual download. If the better surface needs
 login, external account access, user authorization, or changes the execution
 surface, state the candidate tool and boundary before using it.
+
+Current-turn exposure is the cheapest capability evidence. When an already
+exposed skill, tool, app, or connector covers the requested action and its
+current instructions or schema are available, treat discovery as
+`resolved_current_exposure` and use that surface directly. Do not reread the
+capability map, query a registry, run `tool_search`, inspect install state, or
+refresh the host against the unchanged exposure state. Discover once only when
+no exposed candidate covers the action, coverage is ambiguous,
+authentication/callability is unresolved, or the exposed call fails. A
+text-only router may declare `tool_surface_need`, but only the host/model can
+resolve current exposure.
 
 Active context ceiling by default:
 
@@ -272,6 +302,17 @@ Use the smallest route that can support the claim:
 
 Classify outside material as `fact`, `source_prior`, `hypothesis`, `inspiration`, `unverified_implementation_path`, or `not_applicable`. External reading can guide the work, but it is not local validation by itself.
 
+Relevance is not an adoption decision. Before promoting an external mechanism,
+reuse `global_task_context_gate` to compare it with the primary outcome,
+current architecture, local coverage, explicit non-goals, and acceptance
+tests. Identify the source assumptions, source shortcomings, and the smallest
+missing local delta. Default to `adapted_mechanism`: translate the useful
+mechanism into existing CBH concepts and improve it where the source leaves a
+gap. Use `direct_reuse` only when the original artifact is already usable,
+license-compatible, interface-compatible, and cheaper and safer than
+adaptation. Otherwise reject or defer it without creating implementation
+artifacts merely because it is related.
+
 When the router emits `perform_external_research_route`, the host model agent
 must call the available search/browser/source tools and retain citations or a
 source ledger. CBH does not run an independent crawler or background learning
@@ -305,6 +346,12 @@ writing project memory, backfilling another lane, or merging records, check task
 target, source provenance, impact surface, active lane, and explicit user
 authorization. Default to link-only cross-lane references when ownership is not
 resolved.
+
+Structural lane enforcement is limited to memory, ledger, and capsule path
+integrity. An out-of-root write may return an exact lane mismatch, but this
+must not become a general tool deny hook, approval state, session freeze, or
+restriction on unrelated work. Explicit link-only cross-lane reads remain a
+separate retrieval decision and do not authorize cross-lane writes.
 
 ## Format Layering
 

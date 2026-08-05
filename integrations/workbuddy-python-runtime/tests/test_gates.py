@@ -61,6 +61,53 @@ class AdvisoryRuntimeTests(unittest.TestCase):
                     route["risk_context_decisions"]["R3"]["promote_to_risk"],
                 )
 
+    def test_direct_outcome_first_gate_tracks_bounded_ui_mutations(self) -> None:
+        bounded = intake_router(
+            "只修改这个按钮的悬停颜色",
+            cwd=str(self.neutral_cwd),
+            policy=self.policy,
+        )
+        explanation = intake_router(
+            "解释按钮悬停状态的实现原理",
+            cwd=str(self.neutral_cwd),
+            policy=self.policy,
+        )
+        systemic = intake_router(
+            "修改整个 UI 架构并建立设计系统",
+            cwd=str(self.neutral_cwd),
+            policy=self.policy,
+        )
+
+        self.assertIn("direct_outcome_first_gate", bounded["required_gates"])
+        self.assertIn("按钮", bounded["matched_risk_triggers"]["direct_outcome_first_gate"])
+        self.assertNotIn("direct_outcome_first_gate", explanation["required_gates"])
+        self.assertNotIn("direct_outcome_first_gate", systemic["required_gates"])
+
+        loop_contract = build_agent_loop_contract(bounded)
+        self.assertIn("direct_outcome_first", loop_contract["action_ids"])
+        direct_action = next(
+            action
+            for action in loop_contract["actions"]
+            if action["action_id"] == "direct_outcome_first"
+        )
+        self.assertEqual("before_first_substantive_mutation", direct_action["stage"])
+        self.assertEqual(
+            self.policy["router_decision_contract"]["direct_outcome_first_contract"]["first_mutation_rule"],
+            direct_action["value"]["first_mutation_rule"],
+        )
+
+        hook_output = hook_runner.handle_user_prompt_event(
+            {
+                "hook_event_name": "UserPromptSubmit",
+                "cwd": str(self.neutral_cwd),
+                "prompt": "只修改这个按钮的悬停颜色",
+            },
+            policy=self.policy,
+        )
+        model_context = hook_output["hookSpecificOutput"]["additionalContext"]
+        self.assertIn('"direct_outcome_first"', model_context)
+        self.assertIn('"first_mutation_rule"', model_context)
+
     def test_user_prompt_context_keeps_model_agent_ownership(self) -> None:
         output = hook_runner.handle_user_prompt_event(
             {

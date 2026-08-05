@@ -57,6 +57,7 @@ TRACKED_PATHS: list[tuple[str, ...]] = [
     ("router_decision_contract", "causal_attribution_contract"),
     ("router_decision_contract", "causal_attribution_triggers"),
     ("router_decision_contract", "issue_prevention_gates"),
+    ("router_decision_contract", "direct_outcome_first_contract"),
     ("router_decision_contract", "conversation_memory_full_lane_triggers"),
     ("search_and_learning_decision_matrix",),
     ("runtime_enforcement", "behavior_correction_contract"),
@@ -550,6 +551,50 @@ def _normal_issue_prevention_gates(authoring: dict[str, Any]) -> dict[str, Any] 
     return normalized
 
 
+def _normal_direct_outcome_first_contract(authoring: dict[str, Any]) -> dict[str, Any] | None:
+    router = authoring.get("router_decision_contract", {})
+    if not isinstance(router, dict):
+        raise ValueError("router_decision_contract must be a table")
+    contract = router.get("direct_outcome_first_contract")
+    if contract is None:
+        return None
+    if not isinstance(contract, dict):
+        raise ValueError("direct_outcome_first_contract must be a table")
+    if contract.get("enabled") is not True:
+        raise ValueError("direct_outcome_first_contract.enabled must be true")
+    return {
+        "enabled": True,
+        "required_gate": str(contract.get("required_gate") or "direct_outcome_first_gate"),
+        "purpose": str(contract.get("purpose") or ""),
+        "surface_terms": _string_list(
+            contract.get("surface_terms"), "direct_outcome_first_contract.surface_terms"
+        ),
+        "mutation_terms": _string_list(
+            contract.get("mutation_terms"), "direct_outcome_first_contract.mutation_terms"
+        ),
+        "non_mutation_intent_terms": _string_list(
+            contract.get("non_mutation_intent_terms"),
+            "direct_outcome_first_contract.non_mutation_intent_terms",
+        ),
+        "bounded_scope_terms": _string_list(
+            contract.get("bounded_scope_terms"), "direct_outcome_first_contract.bounded_scope_terms"
+        ),
+        "explicit_systemic_scope_terms": _string_list(
+            contract.get("explicit_systemic_scope_terms"),
+            "direct_outcome_first_contract.explicit_systemic_scope_terms",
+        ),
+        "proxy_artifact_terms": _string_list(
+            contract.get("proxy_artifact_terms"), "direct_outcome_first_contract.proxy_artifact_terms"
+        ),
+        "first_mutation_rule": str(contract.get("first_mutation_rule") or ""),
+        "expansion_allowed_only_if": _string_list(
+            contract.get("expansion_allowed_only_if"),
+            "direct_outcome_first_contract.expansion_allowed_only_if",
+        ),
+        "retire_condition": str(contract.get("retire_condition") or ""),
+    }
+
+
 def _normal_search_and_learning_decision_matrix(
     authoring: dict[str, Any],
 ) -> dict[str, Any] | None:
@@ -945,6 +990,14 @@ def compile_policy(base_policy: dict[str, Any], authoring: dict[str, Any]) -> di
     issue_prevention_gates = _normal_issue_prevention_gates(authoring)
     if issue_prevention_gates is not None:
         _set_path(compiled, ("router_decision_contract", "issue_prevention_gates"), issue_prevention_gates)
+
+    direct_outcome_first = _normal_direct_outcome_first_contract(authoring)
+    if direct_outcome_first is not None:
+        _set_path(
+            compiled,
+            ("router_decision_contract", "direct_outcome_first_contract"),
+            direct_outcome_first,
+        )
 
     full_lane = _normal_full_lane(authoring)
     if full_lane is not None:

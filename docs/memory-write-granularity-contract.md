@@ -53,6 +53,15 @@ Recommended capsule types:
 | `error_solution_capsule` | A mistake and its fix should prevent recurrence. | `symptom`, `cause`, `solution`, `validation`, `prevention`, `evidence_refs`. |
 | `source_capsule` | External source or borrowed design was absorbed, rejected, or parked. | `source`, `classification`, `absorbed_part`, `rejected_part`, `risk`, `verification_path`. |
 
+For a `source_capsule`, use `adapted_mechanism` as the default adoption
+classification. `absorbed_part` should describe the mechanism translated into
+the local architecture, while `rejected_part` and `risk` preserve source
+shortcomings, incompatible assumptions, and already covered local behavior.
+Use `direct_reuse` only when the source artifact can be used as-is under a
+compatible license and interface with less cost and risk than adaptation.
+Rejected or deferred material remains source evidence; relevance alone does
+not create a new implementation, gate, schema, or technical-debt record.
+
 These capsules are retrieval anchors, not full transcripts. They must be
 specific enough to be self-contained, but they should not duplicate the full
 context backup. If a later task needs exact wording, command output, error text,

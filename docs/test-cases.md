@@ -14,6 +14,9 @@ profiles instead of relying on the model to remember prose instructions:
   or `full_design`. Systemic and persistent-risk changes require
   `first_principles_gate`; explicit design/first-principles requests use
   `full_design`; typos and simple version sync remain `none`.
+- `direct_outcome_first_gate`: bounded UI/UX and other user-visible mutation
+  requests emit a `before_first_substantive_mutation` action. Explanation-only
+  requests and explicitly systemic design/refactor scope are negative controls.
 
 Regression coverage includes Chinese and English paraphrases, non-skill and
 trivial-edit negative controls, and long distractor prompts whose decisive
@@ -63,6 +66,8 @@ remain acceptance checks for the adopting runtime.
 | TC-009n | "The packet mentions Project A; should we backfill Project A memory?" | Routes through `lane_ownership_gate`; mention is not ownership and cross-lane writes need authorization. |
 | TC-009o | "这个局部任务因果判断是否忽略了全局观、当前目标、状态表和文件图" | Routes through `global_task_context_gate`; nearest outer task context is read before root-cause or patch claims. |
 | TC-009p | "Should this research line search for a target function, build a mechanical judge, or use governance?" | Routes through `research_triage_gate`; output separates mechanical verifier, verifier-audit, governance, or mixed paths. |
+| TC-009q | "只修改这个按钮的悬停颜色" | Routes through `direct_outcome_first_gate`; the first substantive mutation targets the button surface and the receipt exposes the bounded expansion conditions. |
+| TC-009r | "解释按钮悬停状态的实现原理" / "修改整个 UI 架构并建立设计系统" | Does not route through `direct_outcome_first_gate`; explanation-only and explicit systemic scope are negative controls. |
 
 ## Claim Boundary
 

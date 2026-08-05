@@ -35,6 +35,7 @@ proxy, permission system, or sandbox.
 | Common problem | How CBH helps | Technical entry |
 | --- | --- | --- |
 | A long task drifts, or the agent treats one finished subtask as the whole goal | Keeps the task goal, current scope, and final checks connected | Task routing, event re-evaluation, final claim check |
+| A small user-visible change turns into an unrequested framework, policy, or protective layer before the result exists | Routes the first substantive mutation to the requested surface and requires evidence before scope expansion | `direct_outcome_first_gate`, action binding, bounded expansion conditions |
 | A new conversation or a nearly full context window loses important details | Keeps compact navigation records that can lead back to the original evidence | Conversation ledger, source-preserving memory |
 | One project's history leaks into another | Separates project, conversation, error, archive, and reference memory by default | Memory lanes, meta-first retrieval |
 | The same execution mistake keeps returning | Stores a verified error together with its solution and reviews it before a similar action | CE/ERR/SOL records, behavior correction |
@@ -104,7 +105,7 @@ integration reference, but not as proof of compatibility.
 - Re-run the local compatibility checks after the host client, hook protocol, or
   relevant configuration changes.
 
-Current main-branch version: `v1.2.1`.
+Current main-branch version: `v1.2.2`.
 Latest tagged GitHub release: [`v1.2.1`](https://github.com/qimen039-code/claim-boundary-harness/releases/tag/v1.2.1).
 Earlier tags remain historical snapshots, not current main-branch installation,
 capability, or compatibility guidance.
@@ -277,6 +278,11 @@ those slices into one low-cost contract:
   source shape, read the smallest useful evidence window, add a source context
   header, use middle-safe evidence layout only when routed, and report unread
   zones or verification debt.
+- **Direct outcome first:** after the minimum necessary read for a bounded
+  user-visible change, the first substantive mutation targets the requested
+  surface. Protective scaffolding and systemic refactors stay deferred unless
+  direct failure evidence, objective cross-surface acceptance, safety/data
+  integrity, or explicit user scope requires them.
 - **Causal attribution boundary:** observation-scope routing and draft-final
   review keep local observations, case examples, hypotheses, mechanism
   properties, and validated causality from being silently mixed.
@@ -619,6 +625,7 @@ The runtime rules live in `AGENTS.md` and the detailed contracts under `docs/`. 
 - **Search as a routed workflow:** current facts, explicit uncertainty, external mechanisms, and repository claims use official/authority search, GitHub inspection, general cross-check, source-grounded intake, or local validation as separate paths.
 - **Separate observation from causality:** global trends, historical comparisons, and mechanism-effect claims require observation-scope review; high-risk causal or generalizing final text is downgraded unless it is a scoped empirical record, explicit causal hypothesis, mechanism property, or validated causality.
 - **Check global task context before local causality:** local fixes and root-cause diagnoses should read the nearest outer goal, lane, status table, file map, or workflow state before treating a local symptom as the cause.
+- **Deliver the bounded outcome before expanding:** after the minimum necessary read, a routed local UI/UX or other user-visible mutation must first change the requested surface; framework, policy, schema, or reusable-system work needs explicit scope or concrete blocking evidence.
 - **Read memory meta-first:** start from `_META_INDEX`, a router manifest, or another meta layer; then open one category index; then open only the selected capsule or paired record.
 - **Keep memory lane-scoped:** project, conversation, common-error, and archive memories should not write into each other unless the user explicitly asks for a cross-lane action.
 - **Bound cleanup debt:** when memory pollution, target pollution, dirty-tree debt, or technical debt accumulates, group it, clean the must-fix set, and mark deferred items as `candidate_technical_debt`.
@@ -682,6 +689,7 @@ The package includes generic synthetic examples that show the intended record sh
 - [docs/source-monitoring-memory-schema.md](docs/source-monitoring-memory-schema.md): source tags, belief-status state, structured confidence, derived provenance, observation state, and belief-trace rules for capsules.
 - [docs/memory-feedback-loop-trial.md](docs/memory-feedback-loop-trial.md): optional memory -> prediction -> verification -> calibration fields for reusable learning records.
 - [docs/memory-write-granularity-contract.md](docs/memory-write-granularity-contract.md): context-complete memory write rules and original-language content preservation.
+- [docs/portable-context-bundle-contract.md](docs/portable-context-bundle-contract.md) and [templates/portable-context-bundle/manifest.json](templates/portable-context-bundle/manifest.json): portable capsule/index packaging with lane binding and event-driven validation rather than per-read revalidation.
 - [docs/hybrid-memory-retrieval-contract.md](docs/hybrid-memory-retrieval-contract.md): meta-first, no-dependency hybrid retrieval with optional lexical ranking boundaries.
 - [docs/content-reading-contract.md](docs/content-reading-contract.md): source-shape identification, structure-map fallback, source context headers, bounded evidence windows, and verification-debt notes.
 - [docs/skill-lifecycle-contract.md](docs/skill-lifecycle-contract.md): active-frame, TTL, release-receipt, and reactivation rules for skill contexts.

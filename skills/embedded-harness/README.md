@@ -29,6 +29,7 @@ Design boundaries:
 - If no deterministic risk rule matches, fallback review is reserved for medium-length text with fallback terms or long unclassified text. Short ordinary questions stay cheap R0 unless another rule fires.
 - `GLOBAL` memory is manual-only by default.
 - The mandatory model-layer pre-action control plane is required for nontrivial tasks: create a lightweight routing receipt, re-evaluate only on trigger events, and re-check claim/memory/version boundaries before final output.
+- `direct_outcome_first_gate` protects bounded user-visible edits from being displaced by unrequested scaffolding. After the minimum necessary read, its action binding requires the first substantive mutation to touch the requested surface; expansion needs direct failure evidence, objective cross-surface acceptance, a safety/data-integrity blocker, or explicit systemic scope.
 - R0-R5 classification always runs internally but stays silent by default in user-facing surfaces. Expose only action-changing boundaries; `debug_receipt` is for route diagnosis or explicit full-receipt requests.
 - Receipt profiles keep runtime cost low: `compact_runtime` is used only when fields change the next action, `extended_governance` expands for public/framework/project-boundary work, and `debug_receipt` is only for route diagnosis or explicit full-receipt requests.
 - Do not wrap every tool call. Invoke correction only for a current candidate whose surface and profile can be mechanically identified.
@@ -50,6 +51,7 @@ Mandatory model-layer pre-action control plane:
 ```text
 routing receipt
 -> execute the cheapest sufficient route
+-> when routed, bind the first substantive mutation to the requested surface
 -> re-evaluate only after trigger events
 -> final claim/memory/version boundary check
 -> optional nonblocking correction when a verified recurrence profile matches

@@ -50,6 +50,11 @@ def test_policy_authoring_toml_is_machine_readable() -> None:
     assert "provider" in retrieval["negative_claim_rule"].lower()
     assert "miss" in retrieval["negative_claim_rule"].lower()
     assert retrieval["currentness_evidence_rule"]
+    direct_outcome = router["direct_outcome_first_contract"]
+    assert direct_outcome["required_gate"] == "direct_outcome_first_gate"
+    assert len(direct_outcome["expansion_allowed_only_if"]) == 4
+    assert direct_outcome["first_mutation_rule"]
+    assert direct_outcome["retire_condition"]
 
 
 def test_policy_authoring_toml_matches_runtime_json() -> None:

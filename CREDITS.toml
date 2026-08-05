@@ -43,6 +43,28 @@ boundary = "source-prior design influence; Claim Boundary Harness keeps a portab
 docs_ref = "docs/influences-and-attribution.md"
 
 [[influence]]
+id = "trustgraph-ai-trustgraph"
+name = "trustgraph-ai/trustgraph"
+url = "https://github.com/trustgraph-ai/trustgraph"
+source_type = "public_github"
+used_for = [
+  "portable context packaging and explicit load-state inspiration",
+  "workspace-root structural isolation as a memory-integrity pattern",
+  "event-driven rather than per-read package validation",
+]
+not_adopted = [
+  "Apache Pulsar or distributed microservice runtime",
+  "graph or vector database requirement",
+  "GraphRAG platform",
+  "agent orchestration runtime",
+  "chain-of-thought storage",
+  "Flow Blueprint runtime",
+  "default full candidate-route recording",
+]
+boundary = "source-prior design influence; CBH adapts only the portable manifest and narrow lane-integrity ideas into its existing capsule model"
+docs_ref = "docs/influences-and-attribution.md"
+
+[[influence]]
 id = "epicsagas-epic-harness"
 name = "epicsagas/epic-harness"
 url = "https://github.com/epicsagas/epic-harness"
