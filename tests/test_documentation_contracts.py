@@ -59,6 +59,10 @@ def test_bilingual_readme_and_local_overlay_template_are_present() -> None:
     assert "[English](./README.md) | 中文" in readme_zh
     assert "Current main-branch version: `v1.2.2`." in readme
     assert "当前 main 分支版本：`v1.2.2`。" in readme_zh
+    assert "Latest tagged GitHub release: [`v1.2.2`]" in readme
+    assert "最新已打 tag 的 GitHub Release：[`v1.2.2`]" in readme_zh
+    assert "releases/latest" in readme
+    assert "releases/latest" in readme_zh
     assert read_text("VERSION").strip() == "v1.2.2"
     assert overlay["schema"] == "cbh.project_lane_overlay.v1"
     assert policy["local_project_lane_overlay"]["default_filename"] == "embedded_harness_policy.local.json"
@@ -168,6 +172,9 @@ def test_citation_notice_are_visible_and_public_report_draft_is_absent() -> None
     assert stale_version not in changelog
     assert manifest["harness_version"] == "v1.2.2"
     assert "## v1.2.2 - 2026-08-05" in changelog
+    agents = read_text("AGENTS.md")
+    assert "an explicit version update is incomplete" in agents
+    assert "GitHub `releases/latest` API agree" in agents
     assert "mandatory model-layer pre-action stops" in changelog
     planner = manifest["external_retrieval_planner"]
     assert planner["receipt_schema"] == "cbh.external_retrieval_receipt.v1"

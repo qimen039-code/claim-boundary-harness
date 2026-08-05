@@ -103,6 +103,15 @@ unchanged smoke check after every small edit.
 
 Final boundary check must verify claim scope, causal-attribution scope, memory scope, unresolved verification debt, and whether version metadata or paired ERR/SOL records need updates.
 
+For this repository, an explicit version update is incomplete until the exact
+version is synchronized across metadata, README current/latest statements,
+CHANGELOG, citation and compatibility surfaces, committed and pushed, tagged
+with the same version, and published as the latest GitHub Release. An explicit
+content-only/no-version request skips version mutation and the release chain.
+After publication, verify the default-branch `VERSION`, remote tag target, and
+GitHub `releases/latest` API agree; older tags remain historical evidence and
+must not answer current/latest lookups.
+
 Use issue-prevention gates when a task matches a known repeated failure shape:
 `exact_anchor_preservation_gate` for DOI, version, tag, hash, path,
 client-support status, deployment status, and memory-lane ids;

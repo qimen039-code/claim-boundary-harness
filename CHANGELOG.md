@@ -28,6 +28,9 @@ No unreleased changes.
 - Added a portable context-bundle contract with event-triggered validation,
   narrow memory-path isolation, and explicit TrustGraph attribution and
   non-adoption boundaries.
+- Made a requested version update complete only when default-branch metadata,
+  the same-version tag, and the latest GitHub Release agree, while keeping
+  explicit content-only updates outside the version-release chain.
 
 ## v1.2.1 - 2026-08-03
 

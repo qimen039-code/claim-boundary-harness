@@ -106,7 +106,10 @@ integration reference, but not as proof of compatibility.
   relevant configuration changes.
 
 Current main-branch version: `v1.2.2`.
-Latest tagged GitHub release: [`v1.2.1`](https://github.com/qimen039-code/claim-boundary-harness/releases/tag/v1.2.1).
+Latest tagged GitHub release: [`v1.2.2`](https://github.com/qimen039-code/claim-boundary-harness/releases/tag/v1.2.2).
+For external current-version checks, use the default-branch `VERSION` together
+with GitHub [`releases/latest`](https://github.com/qimen039-code/claim-boundary-harness/releases/latest);
+both must identify the same release.
 Earlier tags remain historical snapshots, not current main-branch installation,
 capability, or compatibility guidance.
 
