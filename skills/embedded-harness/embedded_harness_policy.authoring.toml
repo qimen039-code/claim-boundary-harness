@@ -1051,12 +1051,16 @@ triggers = [
 ]
 
 [router_decision_contract.issue_prevention_gates.global_task_context_gate]
-purpose = "Prevent local fixes or useful side findings from displacing the user-approved primary goal. Preserve upstream goals, active lane, current status, file map, cross-step constraints, stop conditions, and an explicit split between blocking findings and deferred non-blocking findings. A user correction updates the current judgment first; it does not by itself authorize global router or policy edits."
+purpose = "Prevent local fixes or useful side findings from displacing the user-approved primary goal. For complex or multi-stage work, keep each substantive stage aligned with the smallest task-relevant architecture, workflow, or evidence boundary; preserve upstream assumptions, downstream consumers, interfaces, invariants, exit evidence, stop conditions, and the split between blocking and deferred findings. Reuse unchanged mappings and remap only after a material trigger, not before every tool call. Engineering depth does not change risk or authorization. A user correction updates the current judgment first; it does not by itself authorize global router or policy edits."
 triggers = [
   "global task view",
   "global perspective",
   "system-wide view",
   "whole task context",
+  "substantive stage boundary",
+  "task-relevant system",
+  "local to global position",
+  "reuse unchanged mapping",
   "local fix caused",
   "local task causal",
   "upstream constraint",
@@ -1085,6 +1089,10 @@ triggers = [
   "系统性问题",
   "整体任务",
   "任务全貌",
+  "实质阶段",
+  "最小相关系统",
+  "局部在整体中的位置",
+  "复用未变化映射",
   "局部因果",
   "后续同类",
   "后续类似",

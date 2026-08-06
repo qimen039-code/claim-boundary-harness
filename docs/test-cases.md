@@ -65,6 +65,8 @@ remain acceptance checks for the adopting runtime.
 | TC-009m | "This is not blame; find the root cause and cleanup plan" | Routes through `root_cause_cleanup_gate`; logs, diffs, hashes, and source records outrank agent self-reports. |
 | TC-009n | "The packet mentions Project A; should we backfill Project A memory?" | Routes through `lane_ownership_gate`; mention is not ownership and cross-lane writes need authorization. |
 | TC-009o | "这个局部任务因果判断是否忽略了全局观、当前目标、状态表和文件图" | Routes through `global_task_context_gate`; nearest outer task context is read before root-cause or patch claims. |
+| TC-009oa | "复杂任务的每个实质阶段都要把局部内容放回最小相关系统中，并复用未变化的映射" | Routes through `global_task_context_gate`; substantive stages use the smallest task-relevant system map and reuse unchanged mappings. |
+| TC-009ob | "只把这个单文件中的拼写错误改正即可" | Does not route through `global_task_context_gate`; simple bounded work remains direct. |
 | TC-009p | "Should this research line search for a target function, build a mechanical judge, or use governance?" | Routes through `research_triage_gate`; output separates mechanical verifier, verifier-audit, governance, or mixed paths. |
 | TC-009q | "只修改这个按钮的悬停颜色" | Routes through `direct_outcome_first_gate`; the first substantive mutation targets the button surface and the receipt exposes the bounded expansion conditions. |
 | TC-009r | "解释按钮悬停状态的实现原理" / "修改整个 UI 架构并建立设计系统" | Does not route through `direct_outcome_first_gate`; explanation-only and explicit systemic scope are negative controls. |

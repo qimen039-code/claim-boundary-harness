@@ -591,6 +591,22 @@ ROUTER_CASES = [
         },
     },
     {
+        "id": "TC-009oa",
+        "task": "复杂任务的每个实质阶段都要把局部内容放回最小相关系统中，并复用未变化的映射",
+        "gates": ["global_task_context_gate"],
+        "expect_contains": {
+            "semantic_ambiguity": "global_task_context_gate",
+        },
+        "expect_trigger_contains": {
+            "global_task_context_gate": "实质阶段",
+        },
+    },
+    {
+        "id": "TC-009ob",
+        "task": "只把这个单文件中的拼写错误改正即可",
+        "not_gates": ["global_task_context_gate"],
+    },
+    {
         "id": "TC-009p",
         "task": "这次 router 和 policy 更新要保持环环相扣，只更新 Codex 和 WorkBuddy，不更新 Bash",
         "risk": "R4",

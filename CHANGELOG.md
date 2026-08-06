@@ -6,7 +6,12 @@ This project uses `vMAJOR.MINOR.PATCH` version labels.
 
 ## Unreleased
 
-No unreleased changes.
+- Clarified proportional engineering: simple work stays direct, while complex
+  work may use deeper staged analysis and verification without changing risk or
+  authorization boundaries.
+- Extended `global_task_context_gate` across substantive stage boundaries with
+  a smallest-task-relevant-system map, unchanged-state reuse, and event-driven
+  remapping instead of per-tool rescans.
 
 ## v1.2.2 - 2026-08-05
 

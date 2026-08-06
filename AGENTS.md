@@ -86,6 +86,28 @@ New findings may be recorded as candidates, but they should not trigger extra
 tools or edits unless they block acceptance, safety, data integrity, or the
 user's explicit goal.
 
+Avoiding overengineering constrains unnecessary complexity for simple work; it
+does not require complex work to stay shallow. Scale engineering rigor with
+task complexity, impact, uncertainty, durability, public exposure,
+cross-surface coupling, and acceptance strictness. `minimum sufficient` limits
+unrelated scope and repeated cost, not necessary reasoning depth, stages, or
+verification. Select only the mechanisms justified by identified dependency,
+risk, claim, and acceptance gaps: stage decomposition, interface or invariant
+definitions, multiple evidence chains, independent review, parallel lanes, or
+stage-level acceptance. Do not automatically enable the whole set. Engineering
+rigor is orthogonal to R0-R5 and authorization; complexity never changes a risk
+label, grants permission, or expands a one-event approval.
+
+For complex or multi-stage work, keep `global_task_context_gate` active at each
+substantive stage boundary, not before every tool call. Use the smallest
+task-relevant architecture, workflow, or evidence boundary. Map the stage to
+its global output, upstream assumptions, downstream consumers, interfaces,
+invariants, side effects, and exit evidence. Reuse an unchanged mapping; reread
+or remap only when evidence, scope, dependencies, risk, or acceptance changes.
+A locally feasible result must not be adopted when it conflicts with the
+component's system role, a downstream consumer, a later stage, or final
+acceptance.
+
 For a bounded user-visible mutation, apply `direct_outcome_first_gate`. After
 the minimum necessary read, the first substantive mutation must directly touch
 the user-requested surface. Do not substitute a protective mechanism, schema,
@@ -121,7 +143,9 @@ forgotten prior term or event; `hallucination_detection_anchor_gate` when
 judging whether another answer is hallucinated, grounded, complete, or a
 non-answer; `global_task_context_gate` when a local fix, root-cause diagnosis,
 or narrow edit may depend on the outer goal, active lane, status table, file
-map, workflow state, or cross-step constraints; `direct_outcome_first_gate`
+map, workflow state, or cross-step constraints, and at substantive stage
+boundaries in complex work where the local step must remain aligned with the
+smallest task-relevant system; `direct_outcome_first_gate`
 when a bounded user-visible mutation could be displaced by scaffolding or an
 unrequested systemic refactor; `public_private_surface_gate`
 before public-facing artifact publication or review; `self_report_log_grounding_gate` when describing prior

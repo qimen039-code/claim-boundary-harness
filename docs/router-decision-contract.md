@@ -218,6 +218,22 @@ must not load a full raw transcript by default.
 
 If the receipt is obvious from the current request, it can stay implicit. Keep R0-R5 labels internal by default. If the classification changes execution path, cost, permission, memory, external search, or claim wording, expose only that minimal boundary. If the user asks for debug or audit, expose the complete debug receipt.
 
+## Proportional Engineering
+
+Avoiding overengineering means keeping simple work direct; it does not mean
+forcing complex work through a shallow workflow. Engineering rigor scales with
+complexity, impact, uncertainty, durability, public exposure, cross-surface
+coupling, and acceptance strictness. `minimum sufficient` limits unrelated
+scope and repeated cost, not necessary reasoning depth, stages, or
+verification.
+
+Choose only the mechanisms that close an identified dependency, risk, claim,
+or acceptance gap. Stage decomposition, interface and invariant definitions,
+multiple evidence chains, independent review, parallel lanes, and stage-level
+acceptance are available mechanisms, not a mandatory bundle. Engineering rigor
+is orthogonal to R0-R5 and authorization: complexity cannot change the risk
+label, grant permission, or expand a one-event approval.
+
 ## Observation Scope And Causal Attribution
 
 `observation_scope_gate` is an input-side gate. It expands the observation
@@ -230,10 +246,19 @@ chat window. It does not decide the causal label by itself.
 `global_task_context_gate` is a task-context gate. It applies when a local fix,
 local causal diagnosis, or narrow file edit may depend on the upstream goal,
 active lane, current status table, file map, workflow state, or cross-step
-constraints. It prevents a local symptom from being explained or patched as if
-the current file or current chat turn were the whole system. This gate should
-read only the nearest outer context first; it is not permission for a full
-history scan by default.
+constraints. For complex or multi-stage work, it also remains active at each
+substantive stage boundary where a local step crosses an interface, changes
+shared state, or affects downstream acceptance.
+
+The gate uses the smallest task-relevant architecture, workflow, or evidence
+boundary. At a substantive stage boundary, map the stage to its global output,
+upstream assumptions, downstream consumers, interfaces, invariants, side
+effects, and exit evidence. Reuse an unchanged mapping; reread or remap only
+when evidence, scope, dependencies, risk, or acceptance changes. This is not a
+per-tool-call check and is not permission for a full repository, history, rule,
+or capability scan. A locally plausible result is invalid when it conflicts
+with the component's system role, a downstream consumer, a later stage, or
+final acceptance.
 
 `causal_attribution_gate` is an output-side or draft-final gate. It reviews
 high-risk assertion patterns before display:
@@ -352,7 +377,7 @@ Current generic gates:
 | `current_status_table_evidence_gate` | A current/status/latest table is built from notes, drafts, stale handoffs, or unverified memory. | Verify mutable fields, rename them as note/draft values, omit them, or show cell-level verification debt. |
 | `unknown_memory_reference_gate` | The user refers to a forgotten prior term, storage point, event, or decision. | Run bounded meta-first memory lookup before providing a named answer; report no hit if none is found. |
 | `hallucination_detection_anchor_gate` | The task asks whether an answer is hallucinated, grounded, complete, unsupported, or a non-answer. | Use source labels or requested-output contract anchors; separate unsupported, incomplete, and non-answer outcomes. |
-| `global_task_context_gate` | A local fix, local causal diagnosis, or narrow edit may depend on upstream goals, active lane, status table, file map, workflow state, or cross-step constraints. | Read the nearest outer context before diagnosing or patching; keep the result scoped and avoid turning local symptoms into root-cause claims. |
+| `global_task_context_gate` | A local fix, local causal diagnosis, or narrow edit may depend on upstream context, or a substantive stage of complex work must stay aligned with the task-relevant system. | Map the stage to the smallest relevant architecture/workflow/evidence boundary; preserve upstream/downstream roles and invariants, reuse unchanged mappings, and remap only after a material trigger. |
 | `novel_recurrence_candidate_gate` | A new-looking failure resembles a prior failure shape but does not match a known narrow gate. | Run only a lightweight re-evaluation and mark candidate recurrence/global issue status; upgrade to global, causal, feedback, memory-write, or R5 paths only when that review justifies it. |
 | `linked_surface_sync_gate` | A router, policy, AGENTS, memory, ledger, adapter, or profile-field change may need matching updates across supported runtime surfaces. | Enumerate target supported surfaces and explicit non-target surfaces before editing; update only user-requested or active supported surfaces, and leave legacy or unnamed adapters as candidate debt. |
 | `public_private_surface_gate` | A public README, docs, release note, citation, package, or other public artifact is being prepared or reviewed. | Scan for private or local-only traces before publishing; keep public surfaces generic unless disclosure is explicitly authorized. |
