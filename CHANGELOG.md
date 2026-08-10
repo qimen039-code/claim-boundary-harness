@@ -6,12 +6,26 @@ This project uses `vMAJOR.MINOR.PATCH` version labels.
 
 ## Unreleased
 
+## v1.2.3 - 2026-08-10
+
 - Clarified proportional engineering: simple work stays direct, while complex
   work may use deeper staged analysis and verification without changing risk or
   authorization boundaries.
 - Extended `global_task_context_gate` across substantive stage boundaries with
   a smallest-task-relevant-system map, unchanged-state reuse, and event-driven
   remapping instead of per-tool rescans.
+- Added a scoped R5 confirmation action binding and explicit routing/execution
+  status fields. Permanent deletion with an exact absolute path now produces a
+  task-local pending receipt with action, target, scope, impact, recovery, and
+  non-targets, without a permit token, TTL, persistent approval state, or CBH
+  deny hook.
+- Completed the public referenced-conversation consumer with bounded read-only
+  meta, state, link, and ledger navigation, one explicit continuation hop, and
+  a guard that prevents a missing ledger root from falling back to the process
+  working directory.
+- Corrected public guidance that still described CBH as a whiteboard or implied
+  bundled permit, replay-denial, or Stop enforcement; adopter-owned host hard
+  enforcement remains distinct from the model-layer pre-action boundary.
 
 ## v1.2.2 - 2026-08-05
 

@@ -357,14 +357,13 @@ The test suite also covers the reference WorkBuddy hook runner:
 
 - `UserPromptSubmit` stores the original prompt, stays silent for ordinary low-risk context, and returns boundary context only when needed;
 - host-provided recording transcripts are extracted as prompt text while raw media remains ignored;
-- `PreToolUse` blocks a high-risk shell command with hook denial and exit code `2`;
-- `PreToolUse` blocks unresolved conversation-memory continuation or merge tasks with `conversation_link_decision_required` until the link decision is resolved;
-- `PreToolUse` allows a low-risk read-style command;
-- non-command Write/Edit content that merely mentions high-risk words does not trigger command hard blocking;
-- `Stop` / final-stage hooks block strong final validation claims when no claim schema is provided.
+- `PreToolUse` applies only an accepted, mechanically verified input correction and otherwise returns a silent no-op;
+- R5 and unresolved conversation-link signals are returned to the model/host flow as context; the reference runner does not create a CBH-owned permit, denial, or replay ledger;
+- non-command Write/Edit content that merely mentions high-risk words is not treated as an executable command;
+- no bundled `Stop` / final-answer blocker is installed; final claim boundaries remain model/host governed unless an adopter separately wires and tests such a surface.
 
 These are local adapter tests, not proof that a specific WorkBuddy installation has enabled hooks.
 
 ## Notes
 
-These tests prove only that the whiteboard scripts and reference adapter functions run and return expected routing decisions. They do not prove that an adopting agent will honor the gates. Hook, wrapper, tool-proxy, or in-process loop integration is required for stronger enforcement.
+These tests prove only that the public runtime core and reference adapter functions run and return expected routing decisions. They do not prove that an adopting agent will honor the gates. Hook, wrapper, tool-proxy, or in-process loop integration is required for stronger enforcement.

@@ -107,6 +107,41 @@ def _route_field(route: dict[str, Any], name: str, default: Any = None) -> Any:
     return route.get(name, default)
 
 
+def _route_object_list(route: dict[str, Any], name: str) -> list[dict[str, Any]]:
+    value = _route_field(route, name, [])
+    if not isinstance(value, list):
+        return []
+    return [dict(item) for item in value if isinstance(item, dict)]
+
+
+def _normalized_confirmation_request(value: Any) -> dict[str, Any] | None:
+    if not isinstance(value, dict):
+        return None
+    scalar_fields = (
+        "schema",
+        "action",
+        "target_binding",
+        "scope",
+        "impact",
+        "recovery",
+        "persistence",
+    )
+    request: dict[str, Any] = {
+        key: str(value[key])
+        for key in scalar_fields
+        if isinstance(value.get(key), str) and value[key]
+    }
+    for key in ("target", "non_targets", "required_disclosures"):
+        items = value.get(key)
+        if isinstance(items, list):
+            request[key] = [str(item) for item in items if str(item)]
+    required = {"action", "target", "scope", "impact", "recovery", "non_targets"}
+    if not required.issubset(request):
+        return None
+    request["persistence"] = "none"
+    return request
+
+
 def _path_inside(path: Path, root: Path) -> bool:
     try:
         path.resolve().relative_to(root.resolve())
@@ -280,6 +315,267 @@ def _load_source_hint(hint: dict[str, Any]) -> tuple[list[dict[str, Any]], dict[
         "status": "accepted",
         "isolation": str(hint.get("isolation") or "route_declared"),
         "source_paths": _unique(source_paths),
+    }
+
+
+def _read_navigation_document(
+    path: Path,
+    *,
+    root: Path,
+    kind: str,
+    query_terms: list[str],
+) -> tuple[dict[str, Any] | None, dict[str, Any] | None]:
+    if not _path_inside(path, root):
+        return None, {"kind": kind, "path": str(path), "reason": "path_outside_declared_root"}
+    if not path.is_file():
+        return None, {"kind": kind, "path": str(path), "reason": "file_not_found"}
+    try:
+        text = path.read_text(encoding="utf-8-sig", errors="strict")
+    except (OSError, UnicodeError):
+        return None, {"kind": kind, "path": str(path), "reason": "utf8_read_failed"}
+    if "\ufffd" in text:
+        return None, {"kind": kind, "path": str(path), "reason": "replacement_character_present"}
+    lines = text.splitlines()
+    if len(text) <= 5000:
+        excerpt = text
+        excerpt_mode = "full"
+    else:
+        selected_indexes = set(range(min(28, len(lines))))
+        normalized_terms = [term.casefold() for term in query_terms if len(term.strip()) >= 2]
+        for index, line in enumerate(lines):
+            normalized_line = line.casefold()
+            if any(term in normalized_line for term in normalized_terms):
+                selected_indexes.update(range(max(0, index - 1), min(len(lines), index + 2)))
+        excerpt_lines: list[str] = []
+        excerpt_chars = 0
+        for index in sorted(selected_indexes):
+            line = lines[index]
+            if excerpt_lines and excerpt_chars + len(line) + 1 > 4000:
+                break
+            excerpt_lines.append(line)
+            excerpt_chars += len(line) + 1
+        excerpt = "\n".join(excerpt_lines)
+        excerpt_mode = "identity_plus_query_matches"
+    return (
+        {
+            "kind": kind,
+            "path": str(path.resolve()),
+            "sha256": _sha256(path),
+            "excerpt": excerpt,
+            "excerpt_mode": excerpt_mode,
+            "source_char_count": len(text),
+            "excerpt_char_count": len(excerpt),
+            "omitted_char_count": max(0, len(text) - len(excerpt)),
+            "full_source_available_at_path": True,
+            "source_tag": "conversation_navigation",
+            "belief_status": "navigation_only",
+        },
+        None,
+    )
+
+
+def _ledger_snapshot_status(ledger_root: Path) -> dict[str, Any]:
+    sessions_path = ledger_root / "sessions.jsonl"
+    if not sessions_path.is_file():
+        return {"status": "unknown", "reason": "sessions_index_missing"}
+    try:
+        records = [
+            json.loads(line)
+            for line in sessions_path.read_text(encoding="utf-8-sig", errors="strict").splitlines()
+            if line.strip()
+        ]
+    except (OSError, UnicodeError, json.JSONDecodeError):
+        return {"status": "unknown", "reason": "sessions_index_unreadable"}
+    if not records:
+        return {"status": "unknown", "reason": "sessions_index_empty"}
+    record = records[-1]
+    raw_path = Path(str(record.get("raw_session_path") or ""))
+    recorded_size = record.get("raw_size_bytes")
+    if not raw_path.is_file() or not isinstance(recorded_size, int):
+        return {
+            "status": "unknown",
+            "reason": "raw_session_or_recorded_stat_missing",
+            "raw_session_path": str(raw_path),
+        }
+    current_size = raw_path.stat().st_size
+    return {
+        "status": "current_snapshot" if current_size == recorded_size else "stale_readonly",
+        "raw_session_path": str(raw_path.resolve()),
+        "recorded_size_bytes": recorded_size,
+        "current_size_bytes": current_size,
+        "rule": "Stale ledgers remain read-only navigation; this consumer never refreshes or writes them.",
+    }
+
+
+def _conversation_navigation_bundle(route: dict[str, Any], prompt: str) -> dict[str, Any]:
+    accepted: list[dict[str, Any]] = []
+    rejected: list[dict[str, Any]] = []
+    prompt_terms = [
+        token
+        for token in re.split(r"[^\w\u4e00-\u9fff]+", prompt)
+        if len(token) >= 3
+    ]
+    for hint in _route_object_list(route, "memory_source_hints"):
+        if str(hint.get("navigation_profile") or "") != "meta_state_links_ledger_one_hop":
+            continue
+        root = Path(str(hint.get("root_path") or ""))
+        if not root.is_dir():
+            rejected.append({"root_path": str(root), "reason": "root_not_found"})
+            continue
+        try:
+            index = json.loads(
+                (root / "index.json").read_text(encoding="utf-8-sig", errors="strict")
+            )
+        except (OSError, UnicodeError, json.JSONDecodeError):
+            rejected.append({"root_path": str(root), "reason": "lane_index_unreadable"})
+            continue
+        memory_id = str(hint.get("memory_id") or index.get("memory_id") or index.get("lane") or "")
+        documents: list[dict[str, Any]] = []
+        document_errors: list[dict[str, Any]] = []
+        current_paths = [
+            (Path(str(hint.get("meta_path") or root / "_META_INDEX.md")), "lane_meta", root),
+            (root / "conversation_state.md", "conversation_state", root),
+            (root / "memory_links.jsonl", "memory_links", root),
+        ]
+        for path, kind, declared_root in current_paths:
+            document, error = _read_navigation_document(
+                path,
+                root=declared_root,
+                kind=kind,
+                query_terms=prompt_terms,
+            )
+            if document is not None:
+                documents.append(document)
+            elif error is not None:
+                document_errors.append(error)
+
+        ledger_root_text = str(hint.get("ledger_root_path") or "")
+        if not ledger_root_text:
+            ledger_info = index.get("conversation_ledger")
+            if isinstance(ledger_info, dict):
+                ledger_root_text = str(ledger_info.get("path") or "")
+        ledger_root: Path | None = None
+        ledger_index: Path | None = None
+        ledger_snapshot: dict[str, Any] = {"status": "unknown", "reason": "ledger_root_missing"}
+        if ledger_root_text:
+            ledger_root = Path(ledger_root_text)
+            ledger_index = Path(
+                str(hint.get("ledger_index_path") or ledger_root / "_LEDGER_INDEX.md")
+            )
+            ledger_document, ledger_error = _read_navigation_document(
+                ledger_index,
+                root=ledger_root,
+                kind="ledger_index",
+                query_terms=prompt_terms,
+            )
+            if ledger_document is not None:
+                documents.append(ledger_document)
+            elif ledger_error is not None:
+                document_errors.append(ledger_error)
+            ledger_snapshot = _ledger_snapshot_status(ledger_root)
+        else:
+            document_errors.append(
+                {"kind": "ledger_index", "path": "", "reason": "ledger_root_missing"}
+            )
+
+        selected_links: list[dict[str, Any]] = []
+        links_path = root / "memory_links.jsonl"
+        if links_path.is_file():
+            try:
+                links = [
+                    json.loads(line)
+                    for line in links_path.read_text(encoding="utf-8-sig", errors="strict").splitlines()
+                    if line.strip()
+                ]
+            except (OSError, UnicodeError, json.JSONDecodeError):
+                links = []
+                document_errors.append(
+                    {"kind": "memory_links", "path": str(links_path), "reason": "link_parse_failed"}
+                )
+            candidates: list[tuple[int, dict[str, Any], str, str]] = []
+            for link in links:
+                if str(link.get("status") or "ACTIVE").upper() != "ACTIVE":
+                    continue
+                if str(link.get("link_type") or "") not in {"continuation", "reference"}:
+                    continue
+                if memory_id and str(link.get("to_memory_id") or "") == memory_id:
+                    candidates.append(
+                        (0, link, str(link.get("from_path") or ""), str(link.get("from_ledger_path") or ""))
+                    )
+                elif memory_id and str(link.get("from_memory_id") or "") == memory_id:
+                    candidates.append(
+                        (1, link, str(link.get("to_path") or ""), str(link.get("to_ledger_path") or ""))
+                    )
+            if candidates:
+                _, link, linked_root_text, linked_ledger_root_text = sorted(candidates, key=lambda item: item[0])[0]
+                selected_links.append(
+                    {
+                        "link_id": str(link.get("link_id") or ""),
+                        "link_type": str(link.get("link_type") or ""),
+                        "from_memory_id": str(link.get("from_memory_id") or ""),
+                        "to_memory_id": str(link.get("to_memory_id") or ""),
+                        "write_policy": str(link.get("write_policy") or ""),
+                        "evidence_boundary": str(link.get("evidence_boundary") or ""),
+                    }
+                )
+                linked_root = Path(linked_root_text)
+                if linked_root_text and linked_root.is_dir():
+                    document, error = _read_navigation_document(
+                        linked_root / "_META_INDEX.md",
+                        root=linked_root,
+                        kind="linked_lane_meta",
+                        query_terms=prompt_terms,
+                    )
+                    if document is not None:
+                        documents.append(document)
+                    elif error is not None:
+                        document_errors.append(error)
+                linked_ledger_root = Path(linked_ledger_root_text)
+                if linked_ledger_root_text and linked_ledger_root.is_dir():
+                    document, error = _read_navigation_document(
+                        linked_ledger_root / "_LEDGER_INDEX.md",
+                        root=linked_ledger_root,
+                        kind="linked_ledger_index",
+                        query_terms=prompt_terms,
+                    )
+                    if document is not None:
+                        documents.append(document)
+                    elif error is not None:
+                        document_errors.append(error)
+
+        accepted.append(
+            {
+                "memory_id": memory_id,
+                "root_path": str(root.resolve()),
+                "registry_path": str(hint.get("registry_path") or ""),
+                "isolation": str(hint.get("isolation") or "route_declared"),
+                "documents": documents,
+                "document_errors": document_errors,
+                "selected_links": selected_links,
+                "ledger": {
+                    "root_path": (
+                        str(ledger_root.resolve())
+                        if ledger_root is not None and ledger_root.is_dir()
+                        else str(ledger_root or "")
+                    ),
+                    "index_path": str(ledger_index or ""),
+                    "snapshot": ledger_snapshot,
+                },
+                "write_performed": False,
+                "raw_payload_opened": False,
+            }
+        )
+    if accepted:
+        status = "resolved" if not rejected and all(not item["document_errors"] for item in accepted) else "partial"
+    else:
+        status = "not_requested" if not rejected else "unresolved"
+    return {
+        "status": status,
+        "bundles": accepted,
+        "rejected": rejected,
+        "write_performed": False,
+        "raw_payload_opened": False,
+        "rule": "Read-only meta/state/link/ledger navigation; one explicit continuation hop maximum.",
     }
 
 
@@ -557,6 +853,7 @@ def build_action_consumption(
         if wants_correction
         else None
     )
+    conversation_navigation = _conversation_navigation_bundle(route, prompt)
     additional_context, context_over_soft_target, omitted = (
         _additional_context(selected, semantic_review_candidates)
         if selected or semantic_review_candidates
@@ -581,12 +878,37 @@ def build_action_consumption(
         additional_context = "\n".join(part for part in (additional_context, external_context) if part)
         context_over_soft_target = context_over_soft_target or len(additional_context) > CONTEXT_SOFT_TARGET_CHARS
 
+    for bundle in conversation_navigation.get("bundles", []):
+        for document in bundle.get("documents", []):
+            navigation_context = (
+                "Read-only conversation navigation (summary/index locates evidence; raw remains the fact source): "
+                f"kind={document['kind']} source={document['path']} sha256={document['sha256']}\n"
+                f"excerpt_mode={document['excerpt_mode']} omitted_chars={document['omitted_char_count']}\n"
+                f"{document['excerpt']}"
+            )
+            additional_context = "\n".join(
+                part for part in (additional_context, navigation_context) if part
+            )
+    context_over_soft_target = context_over_soft_target or len(additional_context) > CONTEXT_SOFT_TARGET_CHARS
+
     actions: list[dict[str, Any]] = []
+    pending_user_confirmation: dict[str, Any] | None = None
     for binding in bindings:
         if not isinstance(binding, dict) or not binding.get("action"):
             continue
         action_id = str(binding["action"])
-        if action_id == "retrieve_matching_memory":
+        if action_id == "await_scoped_user_confirmation":
+            confirmation_request = _normalized_confirmation_request(
+                binding.get("confirmation_request")
+            )
+            if confirmation_request is None:
+                action_status = "deferred_to_model_agent"
+                evidence = "semantic_confirmation_binding_required"
+            else:
+                action_status = "pending_user_confirmation"
+                evidence = confirmation_request
+                pending_user_confirmation = confirmation_request
+        elif action_id == "retrieve_matching_memory":
             if retrieval["coverage_status"] == "selected_context_ready":
                 action_status = "completed"
                 evidence: Any = [item["record_id"] for item in selected]
@@ -626,6 +948,19 @@ def build_action_consumption(
                 ],
                 "negative_evidence_boundary": external_retrieval_receipt["negative_evidence_boundary"],
             }
+        elif action_id == "resolve_conversation_link":
+            bundles = list(conversation_navigation.get("bundles") or [])
+            resolved_links = [link for bundle in bundles for link in bundle.get("selected_links", [])]
+            if conversation_navigation.get("status") in {"resolved", "partial"} and bundles:
+                action_status = "completed" if resolved_links else "ready_for_model_semantic_selection"
+                evidence = {
+                    "memory_ids": [bundle.get("memory_id") for bundle in bundles],
+                    "selected_link_ids": [link.get("link_id") for link in resolved_links],
+                    "ledger_indexes": [bundle.get("ledger", {}).get("index_path") for bundle in bundles],
+                }
+            else:
+                action_status = "deferred_to_model_agent"
+                evidence = conversation_navigation.get("status")
         else:
             action_status = "deferred_to_model_agent"
             evidence = binding.get("completion_evidence")
@@ -637,9 +972,41 @@ def build_action_consumption(
             }
         )
 
+    if pending_user_confirmation is not None:
+        confirmation_context = (
+            "高风险近动作边界：等待当前事件的一次性明确确认。"
+            f"confirmation_request={json.dumps(pending_user_confirmation, ensure_ascii=False)}。"
+            "先说明动作、精确目标、范围、影响、恢复方式和明确非目标；"
+            "本 receipt 不授予权限、不保存许可，也不得自行把确认标记为已消费。"
+        )
+        additional_context = "\n".join(
+            part for part in (additional_context, confirmation_context) if part
+        )
+        context_over_soft_target = context_over_soft_target or len(additional_context) > CONTEXT_SOFT_TARGET_CHARS
+
+    complete_statuses = {
+        "completed",
+        "not_applicable_with_reason",
+        "ready_for_model_semantic_selection",
+    }
+    unconsumed_action_ids = [
+        item["action_id"]
+        for item in actions
+        if item["status"] not in complete_statuses
+    ]
+    routing_status = str(_route_field(route, "routing_status", "classified"))
+    execution_disposition = (
+        "pending_user_confirmation"
+        if pending_user_confirmation is not None
+        else str(_route_field(route, "execution_disposition", "advisory_route_ready"))
+    )
+
     return {
         "schema": SCHEMA,
         "status": retrieval["coverage_status"],
+        "routing_status": routing_status,
+        "execution_disposition": execution_disposition,
+        "pending_user_confirmation": pending_user_confirmation,
         "execution_owner": "host_model_agent",
         "consumer_role": "bounded_context_selection_only",
         "selected_records": selected,
@@ -653,11 +1020,13 @@ def build_action_consumption(
             if key not in {"selected_records", "semantic_review_candidates"}
         },
         "actions": actions,
+        "unconsumed_action_ids": unconsumed_action_ids,
         "additional_context": additional_context,
         "context_char_count": len(additional_context),
         "context_soft_target_chars": CONTEXT_SOFT_TARGET_CHARS,
         "context_over_soft_target": context_over_soft_target,
         "omitted_context_record_ids": omitted,
+        "conversation_navigation": conversation_navigation,
         "boundary": "CBH selects compact indexed context; the model agent still interprets evidence, chooses tools, executes the task, and owns the final answer.",
     }
 
@@ -720,6 +1089,9 @@ def _compact_runtime_receipt(receipt: dict[str, Any]) -> dict[str, Any]:
         "schema": "cbh.action_consumption_receipt.compact.v1",
         "output_profile": "compact_runtime",
         "status": receipt.get("status"),
+        "routing_status": receipt.get("routing_status"),
+        "execution_disposition": receipt.get("execution_disposition"),
+        "pending_user_confirmation": receipt.get("pending_user_confirmation"),
         "execution_owner": receipt.get("execution_owner"),
         "consumer_role": receipt.get("consumer_role"),
         "selected_records": [
@@ -734,11 +1106,13 @@ def _compact_runtime_receipt(receipt: dict[str, Any]) -> dict[str, Any]:
         "external_retrieval_receipt": external,
         "retrieval": receipt.get("retrieval", {}),
         "actions": receipt.get("actions", []),
+        "unconsumed_action_ids": receipt.get("unconsumed_action_ids", []),
         "additional_context": receipt.get("additional_context", ""),
         "context_char_count": receipt.get("context_char_count", 0),
         "context_soft_target_chars": receipt.get("context_soft_target_chars"),
         "context_over_soft_target": receipt.get("context_over_soft_target", False),
         "omitted_context_record_ids": receipt.get("omitted_context_record_ids", []),
+        "conversation_navigation": receipt.get("conversation_navigation"),
         "boundary": receipt.get("boundary"),
     }
 

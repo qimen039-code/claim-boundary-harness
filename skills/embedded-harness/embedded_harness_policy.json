@@ -374,6 +374,11 @@
       "netsh",
       "visible browser read-only attach"
     ],
+    "permanent_delete_phrases": [
+      "permanently delete",
+      "delete permanently",
+      "永久删除"
+    ],
     "explicit_action_phrases": [
       "then commit and push",
       "commit and push",
@@ -643,6 +648,8 @@
     "purpose": "keep routing and dynamic evaluation strong but low-cost before opening deeper modules",
     "receipt_fields": [
       "task_type",
+      "routing_status",
+      "execution_disposition",
       "target_surface",
       "audience",
       "project_lane",
@@ -2503,6 +2510,7 @@
         "fix_path"
       ],
       "next_action_values": [
+        "await_scoped_user_confirmation",
         "retrieve_matching_memory",
         "prepare_task_local_prediction_review",
         "prepare_task_local_correction_bundle",
@@ -2525,6 +2533,7 @@
         "classify_debt_hygiene"
       ],
       "completion_evidence_values": [
+        "fresh_user_confirmation_bound_to_current_event",
         "selected_record_id",
         "task_local_prediction_review",
         "task_local_correction_bundle",
@@ -2546,6 +2555,15 @@
         "skill_audit_findings",
         "classified_debt_set"
       ],
+      "scoped_confirmation_required_fields": [
+        "action",
+        "target",
+        "scope",
+        "impact",
+        "recovery",
+        "non_targets"
+      ],
+      "authorization_persistence": "none",
       "rule": "Convert action-changing route decisions into the existing receipt. Retrieved prevention or reuse records become task-local candidate predictions, never standing constraints: review applicability, choose a candidate safe form only when relevant, observe the current-task outcome, then retire the review. The configured prediction/action counts are soft fast-path targets, never capability caps. Safety, lane, permission, claim, evidence, and correctness requirements outrank context cost. Deterministic runtime guards remain separate. Partition large transport payloads without semantic loss. A binding is complete only when coverage is sufficient or unresolved facets are explicit and its named completion evidence exists."
     },
     "reflexive_gap_contract": {

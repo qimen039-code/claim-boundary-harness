@@ -23,6 +23,7 @@ DEFAULT_POLICY = SCRIPT_DIR / "embedded_harness_policy.json"
 
 R5_CONTEXT_FIELDS = [
     "direct_action_terms",
+    "permanent_delete_phrases",
     "explicit_action_phrases",
     "explicit_action_negation_phrases",
     "context_required_candidate_terms",
@@ -297,6 +298,13 @@ def _normal_action_binding_contract(authoring: dict[str, Any]) -> dict[str, Any]
         "completion_evidence_values": _string_list(
             contract.get("completion_evidence_values"),
             "action_binding_contract.completion_evidence_values",
+        ),
+        "scoped_confirmation_required_fields": _string_list(
+            contract.get("scoped_confirmation_required_fields"),
+            "action_binding_contract.scoped_confirmation_required_fields",
+        ),
+        "authorization_persistence": str(
+            contract.get("authorization_persistence") or "none"
         ),
         "rule": str(contract.get("rule") or ""),
     }

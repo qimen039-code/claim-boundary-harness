@@ -130,6 +130,36 @@ def test_explicit_follow_up_fix_still_promotes_r3_after_review() -> None:
     assert payload["edit_operation_profile"] == "in_place_patch"
 
 
+def test_absolute_permanent_delete_requires_scoped_confirmation() -> None:
+    payload = run_router(
+        r"永久删除 'C:\cbh-fixture\obsolete\payload.bin'，仅处理这个目标，其他路径不得处理"
+    )
+
+    assert payload["risk_level"] == "R5"
+    assert payload["routing_status"] == "classified"
+    assert payload["execution_disposition"] == "pending_user_confirmation"
+    assert "await_scoped_user_confirmation" in payload["action_binding_ids"]
+    binding = next(
+        item
+        for item in payload["action_bindings"]
+        if item["action"] == "await_scoped_user_confirmation"
+    )
+    request = binding["confirmation_request"]
+    assert request["action"] == "permanent_delete"
+    assert request["target"] == [r"C:\cbh-fixture\obsolete\payload.bin"]
+    assert request["scope"] == "single_event_single_scope_once"
+    assert request["persistence"] == "none"
+
+
+def test_documented_permanent_delete_does_not_become_actionable_r5() -> None:
+    payload = run_router(
+        r"只检查‘永久删除 C:\cbh-fixture\obsolete\payload.bin’这个示例，不执行"
+    )
+
+    assert payload["risk_level"] != "R5"
+    assert "await_scoped_user_confirmation" not in payload["action_binding_ids"]
+
+
 @pytest.mark.parametrize("case", CORE_R3_CASES, ids=lambda case: case["id"])
 def test_powershell_router_matches_core_r3_intent_contract(case: dict) -> None:
     payload = run_router(case["task"])

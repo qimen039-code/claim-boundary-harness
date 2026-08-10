@@ -270,6 +270,18 @@ function Get-TermIntersection($leftTerms, $rightTerms) {
   return @($hits | Select-Object -Unique)
 }
 
+function Get-FullyQualifiedPathMentions([string]$source) {
+  $pathPattern = '(?i)(?:^|[\s"''“”‘’(])((?:[A-Z]:\\|\\\\)[^"''“”‘’\r\n,，;；)]+)'
+  $paths = @()
+  foreach ($match in [regex]::Matches($source, $pathPattern)) {
+    $candidate = [string]$match.Groups[1].Value
+    if ($candidate -match '(?i)^(?:[A-Z]:\\|\\\\[^\\]+\\[^\\]+)') {
+      $paths += $candidate
+    }
+  }
+  return @($paths | Select-Object -Unique)
+}
+
 function Get-R5ContextDecision {
   param(
     [string]$SourceText,
@@ -291,6 +303,8 @@ function Get-R5ContextDecision {
 
   $contextRules = $policy.r5_context_decision_rules
   $directActionHits = Get-SourceMatchedTerms -source $sourceText -terms $contextRules.direct_action_terms
+  $permanentDeleteHits = Get-SourceMatchedTerms -source $sourceText -terms (Get-ObjectPropertyValue $contextRules "permanent_delete_phrases")
+  $fullyQualifiedPathMentions = Get-FullyQualifiedPathMentions $sourceText
   $explicitActionPhraseHits = Get-SourceMatchedTerms -source $sourceText -terms (Get-ObjectPropertyValue $contextRules "explicit_action_phrases")
   $explicitActionNegationHits = Get-SourceMatchedTerms -source $sourceText -terms (Get-ObjectPropertyValue $contextRules "explicit_action_negation_phrases")
   $actionContextHits = Get-SourceMatchedTerms -source $sourceText -terms $contextRules.action_context_terms
@@ -307,6 +321,18 @@ function Get-R5ContextDecision {
       candidate_terms = @($candidateTerms)
       negated_terms = @($negatedTerms)
       reason = "explicit_action_phrase_detected"
+    }
+  }
+
+  if (($permanentDeleteHits.Count -gt 0) -and ($fullyQualifiedPathMentions.Count -gt 0) -and ($explicitActionNegationHits.Count -eq 0) -and ($documentationContextHits.Count -eq 0) -and ($nonActionContextHits.Count -eq 0)) {
+    return [pscustomobject]@{
+      decision = "requires_confirmation"
+      action_surface = "actionable_R5"
+      promote_to_risk = $true
+      candidate_terms = @($candidateTerms)
+      negated_terms = @($negatedTerms)
+      target_mentions = @($fullyQualifiedPathMentions)
+      reason = "permanent_absolute_path_delete"
     }
   }
 
@@ -1584,7 +1610,33 @@ if (($risk -eq "R5") -or ($classificationConfidence -eq "low")) { $moduleNeed +=
 if ($moduleNeed.Count -eq 0) { $moduleNeed += "none" }
 $moduleNeed = @($moduleNeed | Select-Object -Unique)
 
+$humanConfirmationNeed = (@($approval | Select-Object -Unique).Count -gt 0)
 $actionBindings = @()
+if ($humanConfirmationNeed) {
+  $r5ConfirmationDecision = if ($risk_context_decisions.Contains("R5")) { $risk_context_decisions["R5"] } else { $null }
+  $confirmationTargets = @()
+  if ($null -ne $r5ConfirmationDecision) {
+    $confirmationTargets = @(ConvertTo-Array (Get-ObjectPropertyValue $r5ConfirmationDecision "target_mentions"))
+  }
+  $isPermanentDelete = (($null -ne $r5ConfirmationDecision) -and ([string](Get-ObjectPropertyValue $r5ConfirmationDecision "reason") -eq "permanent_absolute_path_delete"))
+  $confirmationRequest = [ordered]@{
+    schema = "cbh.scoped_user_confirmation_request.v1"
+    action = $(if ($isPermanentDelete) { "permanent_delete" } else { "semantic_binding_required" })
+    target = @($confirmationTargets)
+    target_binding = $(if ($confirmationTargets.Count -gt 0) { "mechanical_exact" } else { "semantic_binding_required" })
+    scope = "single_event_single_scope_once"
+    impact = $(if ($isPermanentDelete) { "irreversible_disk_deletion" } else { "semantic_binding_required" })
+    recovery = $(if ($isPermanentDelete) { "external_backup_only" } else { "semantic_binding_required" })
+    non_targets = @($(if ($isPermanentDelete) { "all_other_paths" }))
+    persistence = "none"
+    required_disclosures = @("action", "target", "scope", "impact", "recovery", "non_targets")
+  }
+  $actionBindings += [pscustomobject]@{
+    action = "await_scoped_user_confirmation"
+    completion_evidence = "fresh_user_confirmation_bound_to_current_event"
+    confirmation_request = $confirmationRequest
+  }
+}
 if ($memoryNeed -ne "none") {
   $actionBindings += [pscustomobject]@{
     action = "retrieve_matching_memory"
@@ -1691,10 +1743,13 @@ if ($debugHits.Count -gt 0) {
   }
 }
 $profileReason = @($profileReason | Select-Object -Unique)
-$humanConfirmationNeed = (@($approval | Select-Object -Unique).Count -gt 0)
+$routingStatus = "classified"
+$executionDisposition = if ($humanConfirmationNeed) { "pending_user_confirmation" } else { "advisory_route_ready" }
 
 $routingReceipt = [ordered]@{
   task_type = $risk
+  routing_status = $routingStatus
+  execution_disposition = $executionDisposition
   target_surface = $targetSurface
   audience = $audience
   project_lane = $projectLane
@@ -1741,6 +1796,8 @@ $routingReceipt = [ordered]@{
 
 $compactReceipt = [ordered]@{
   task_type = $risk
+  routing_status = $routingStatus
+  execution_disposition = $executionDisposition
   risk_level = $risk
   required_gates = @($requiredGates | Select-Object -Unique)
   tool_surface_need = $toolSurfaceNeed
@@ -1782,6 +1839,8 @@ $result = [ordered]@{
   ts = (Get-Date).ToString("o")
   phase = "intake_router"
   status = "pass"
+  routing_status = $routingStatus
+  execution_disposition = $executionDisposition
   cwd = $Cwd
   routing_receipt = $routingReceipt
   compact_receipt = $compactReceipt
@@ -1847,6 +1906,8 @@ $compactResult = [ordered]@{
   schema = "cbh.routing_receipt.compact.v1"
   phase = "intake_router"
   status = "pass"
+  routing_status = $routingStatus
+  execution_disposition = $executionDisposition
   receipt_profile = $receiptProfile
   compact_receipt = $compactReceipt
 }

@@ -274,7 +274,12 @@ Projectless work can drift into a project. If repository, versioning, docs, test
 Projectless long conversations can also drift into a conversation memory lane before they become a project. Use `templates/conversation-memory/`: read `_META_INDEX.md` first, then `conversation_state.md`, `index.json`, `memory_links.jsonl`, or one matching JSONL family, then only matching records.
 Other conversations may read this lane only by explicit reference. Cross-conversation writes require explicit user instruction.
 New conversations continuing old ones create a new memory and append a link-only `continuation` link by default; explicit merges create a new merged memory and mark old memories as sealed or redirected in indexes.
-If a continuation, merge, archive, or cross-conversation update is requested, resolve the link decision before the first protected tool call; otherwise the selective runtime gate may block with `conversation_link_decision_required`.
+If a continuation, merge, archive, or cross-conversation update is requested,
+the model-layer control plane must resolve the link decision before the first
+protected tool call. An adopter-owned host surface may additionally reject the
+call with `conversation_link_decision_required` only when that deny-capable
+surface is actually wired and tested; the bundled correction hook does not
+provide this block.
 
 Optional global archives are cold indexes, not active memory. Use active project or conversation memory first. Archive by moving or copying source files/directories by default; do not regenerate old memory content as a normal archive step. Summary capsules require explicit compression, migration, de-identification, public-release, or storage-reduction intent. Source deletion is R5.
 

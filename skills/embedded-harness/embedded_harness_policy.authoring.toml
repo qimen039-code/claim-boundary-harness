@@ -103,6 +103,12 @@ direct_action_terms = [
   "visible browser read-only attach",
 ]
 
+permanent_delete_phrases = [
+  "permanently delete",
+  "delete permanently",
+  "永久删除",
+]
+
 # Phrases that explicitly ask for a concrete R5 action even when the same task
 # also mentions docs, checks, or rules.
 explicit_action_phrases = [
@@ -493,6 +499,8 @@ strong_mutation_terms = [
 [router_decision_contract]
 receipt_fields = [
   "task_type",
+  "routing_status",
+  "execution_disposition",
   "target_surface",
   "audience",
   "project_lane",
@@ -816,6 +824,7 @@ prediction_review_source_fields = [
   "fix_path",
 ]
 next_action_values = [
+  "await_scoped_user_confirmation",
   "retrieve_matching_memory",
   "prepare_task_local_prediction_review",
   "prepare_task_local_correction_bundle",
@@ -838,6 +847,7 @@ next_action_values = [
   "classify_debt_hygiene",
 ]
 completion_evidence_values = [
+  "fresh_user_confirmation_bound_to_current_event",
   "selected_record_id",
   "task_local_prediction_review",
   "task_local_correction_bundle",
@@ -859,6 +869,15 @@ completion_evidence_values = [
   "skill_audit_findings",
   "classified_debt_set",
 ]
+scoped_confirmation_required_fields = [
+  "action",
+  "target",
+  "scope",
+  "impact",
+  "recovery",
+  "non_targets",
+]
+authorization_persistence = "none"
 rule = "Convert action-changing route decisions into the existing receipt. Retrieved prevention or reuse records become task-local candidate predictions, never standing constraints: review applicability, choose a candidate safe form only when relevant, observe the current-task outcome, then retire the review. The configured prediction/action counts are soft fast-path targets, never capability caps. Safety, lane, permission, claim, evidence, and correctness requirements outrank context cost. Deterministic runtime guards remain separate. Partition large transport payloads without semantic loss. A binding is complete only when coverage is sufficient or unresolved facets are explicit and its named completion evidence exists."
 
 [router_decision_contract.correction_lifecycle_contract]

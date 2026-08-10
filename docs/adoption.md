@@ -1,6 +1,6 @@
 # Adoption Guide
 
-Use this guide to adapt the whiteboard core to your own model-agent environment.
+Use this guide to adapt the public runtime core to your own model-agent environment.
 
 CBH is an assistance layer inside the host agent loop, not a standalone task
 engine. Preserve the host model as the owner of planning, semantic decisions,
@@ -17,7 +17,8 @@ Do not add product-specific adapter files to the shared core unless you want to 
 Use two policy editing surfaces:
 
 - edit `skills/embedded-harness/embedded_harness_policy.authoring.toml` for
-  high-churn trigger, R5 context, full-lane threshold, and permit sections;
+  high-churn trigger, R5 context, full-lane threshold, and one-event
+  authorization-boundary sections;
 - keep public `skills/embedded-harness/embedded_harness_policy.json` free of
   private machine-local project roots;
 - put private project lanes and memory roots in
@@ -251,7 +252,7 @@ limited instead of silently relying on internal discussion.
 
 ## Step 5: Keep The Core Clean
 
-The whiteboard core should not contain private project content. Add project rules, real memory capsules, and solved incident records inside the adopting project only.
+The public runtime core should not contain private project content. Add project rules, real memory capsules, and solved incident records inside the adopting project only.
 
 Use the public demo records as shape examples only. They are synthetic and are not claims about your environment.
 
@@ -300,7 +301,7 @@ Each lane should have its own:
 - incident records;
 - retrieval log.
 
-Shared rules should stay in the whiteboard core. Project-specific rules should stay inside the project lane. This keeps separate projects usable across new conversations without mixing unrelated memory, progress, or failure records.
+Shared rules should stay in the public runtime core. Project-specific rules should stay inside the project lane. This keeps separate projects usable across new conversations without mixing unrelated memory, progress, or failure records.
 
 Conversation memory should stay separate from project lanes. A conversation memory lane may reference a project record, but it should not copy project payloads or write project memory unless the user explicitly asks for a project-lane update.
 
@@ -325,4 +326,4 @@ If an agent supports wrapper scripts, keep a small client-health script near the
 
 ## Non-Goals
 
-Before expanding the framework, review [non-goals.md](non-goals.md). Package-manager distribution, broad dashboards, promotion work, large comparison tables, and full test matrices are intentionally excluded from the whiteboard core.
+Before expanding the framework, review [non-goals.md](non-goals.md). Package-manager distribution, broad dashboards, promotion work, large comparison tables, and full test matrices are intentionally excluded from the public runtime core.

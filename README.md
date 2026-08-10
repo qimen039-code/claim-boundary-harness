@@ -105,8 +105,8 @@ integration reference, but not as proof of compatibility.
 - Re-run the local compatibility checks after the host client, hook protocol, or
   relevant configuration changes.
 
-Current main-branch version: `v1.2.2`.
-Latest tagged GitHub release: [`v1.2.2`](https://github.com/qimen039-code/claim-boundary-harness/releases/tag/v1.2.2).
+Current main-branch version: `v1.2.3`.
+Latest tagged GitHub release: [`v1.2.3`](https://github.com/qimen039-code/claim-boundary-harness/releases/tag/v1.2.3).
 For external current-version checks, use the default-branch `VERSION` together
 with GitHub [`releases/latest`](https://github.com/qimen039-code/claim-boundary-harness/releases/latest);
 both must identify the same release.
@@ -797,7 +797,7 @@ After any agent client update, re-check the adapter surface before relying on th
 
 ## Local Reproduction
 
-The whiteboard package was smoke-tested locally with:
+The public runtime core and reference adapters were smoke-tested locally with:
 
 - intake routing for a mixed fix plus benchmark task;
 - fallback classification for vague project work;

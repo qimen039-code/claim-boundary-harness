@@ -35,6 +35,12 @@ templates/adapter-contract/governance.contract.json
 
 ## Stage Contract
 
+The stage vocabulary below includes optional adopter-owned host integration.
+The bundled CBH core implements the model-facing route and a task-local
+`pending_user_confirmation` receipt; it does not translate legacy
+`status: pass` into execution authority and does not install a generic deny or
+Stop surface.
+
 | Stage | Purpose | Required When | Typical Output |
 | --- | --- | --- | --- |
 | `prompt_stage` | Active routing before planning | Nontrivial task, memory/search/claim decision, adapter route context | `compact_receipt` or `routing_receipt` |
@@ -57,12 +63,12 @@ require_approval
 deny
 ```
 
-This is compatible with the framework's current `pass` / `blocked` behavior:
-
-- `allow` maps to `pass`;
-- `warn` maps to non-blocking advisory output;
-- `require_approval` maps to `blocked` until the current concrete action is confirmed;
-- `deny` maps to a hard block on the covered path.
+This vocabulary applies only to an adopter-owned host surface that actually
+implements and tests those decisions. In the bundled router,
+`routing_status: classified` describes successful classification, while
+`execution_disposition: pending_user_confirmation` describes the model-facing
+pre-action boundary. Neither field grants execution authority or claims a host
+hard block.
 
 ## Authorization Scope And Responsibility Boundary
 

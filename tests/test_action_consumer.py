@@ -79,6 +79,209 @@ def test_cli_diagnostic_mode_preserves_full_receipt() -> None:
     assert "semantic_review_candidates" in payload
 
 
+def test_scoped_user_confirmation_is_pending_in_full_and_compact_receipts() -> None:
+    module = load_consumer_module()
+    confirmation_request = {
+        "schema": "cbh.scoped_user_confirmation_request.v1",
+        "action": "permanent_delete",
+        "target": [r"C:\cbh-fixture\obsolete\payload.bin"],
+        "scope": "single_event_single_scope_once",
+        "impact": "irreversible_disk_deletion",
+        "recovery": "external_backup_only",
+        "non_targets": ["all_other_paths"],
+        "persistence": "none",
+        "required_disclosures": [
+            "action",
+            "target",
+            "scope",
+            "impact",
+            "recovery",
+            "non_targets",
+        ],
+    }
+    route = {
+        "routing_status": "classified",
+        "execution_disposition": "pending_user_confirmation",
+        "risk_level": "R5",
+        "action_bindings": [
+            {
+                "action": "await_scoped_user_confirmation",
+                "completion_evidence": "fresh_user_confirmation_bound_to_current_event",
+                "confirmation_request": confirmation_request,
+                "token": "must-not-survive",
+                "ttl": 300,
+            }
+        ],
+    }
+
+    receipt = module.build_action_consumption(route, prompt="永久删除指定文件")
+    compact = module._compact_runtime_receipt(receipt)
+    action = next(
+        item
+        for item in receipt["actions"]
+        if item["action_id"] == "await_scoped_user_confirmation"
+    )
+
+    assert action["status"] == "pending_user_confirmation"
+    assert receipt["execution_disposition"] == "pending_user_confirmation"
+    assert receipt["pending_user_confirmation"] == confirmation_request
+    assert receipt["unconsumed_action_ids"] == ["await_scoped_user_confirmation"]
+    assert compact["pending_user_confirmation"] == confirmation_request
+    assert compact["execution_disposition"] == "pending_user_confirmation"
+    assert "token" not in receipt["pending_user_confirmation"]
+    assert "ttl" not in receipt["pending_user_confirmation"]
+    assert "等待当前事件的一次性明确确认" in receipt["additional_context"]
+
+
+def test_resolve_conversation_link_consumes_bounded_navigation_bundle(tmp_path: Path) -> None:
+    module = load_consumer_module()
+    current_lane = tmp_path / "current-lane"
+    linked_lane = tmp_path / "linked-lane"
+    current_ledger = tmp_path / "current-ledger"
+    linked_ledger = tmp_path / "linked-ledger"
+    for path in (current_lane, linked_lane, current_ledger, linked_ledger):
+        path.mkdir()
+
+    (current_lane / "_META_INDEX.md").write_text(
+        "# Current lane\n\n- memory_id: conversation:current\n",
+        encoding="utf-8",
+    )
+    (current_lane / "index.json").write_text(
+        json.dumps(
+            {
+                "memory_id": "conversation:current",
+                "conversation_ledger": {"path": str(current_ledger)},
+            }
+        ),
+        encoding="utf-8",
+    )
+    (current_lane / "conversation_state.md").write_text(
+        "# Conversation state\n\nContinue the CBH migration.\n",
+        encoding="utf-8",
+    )
+    (current_ledger / "_LEDGER_INDEX.md").write_text(
+        "# Current ledger\n\n- segment: current-001\n",
+        encoding="utf-8",
+    )
+    (linked_lane / "_META_INDEX.md").write_text(
+        "# Linked lane\n\n- memory_id: conversation:linked\n",
+        encoding="utf-8",
+    )
+    (linked_ledger / "_LEDGER_INDEX.md").write_text(
+        "# Linked ledger\n\n- segment: linked-001\n",
+        encoding="utf-8",
+    )
+    (current_lane / "memory_links.jsonl").write_text(
+        json.dumps(
+            {
+                "link_id": "LINK-CBH-001",
+                "status": "ACTIVE",
+                "link_type": "continuation",
+                "from_memory_id": "conversation:linked",
+                "from_path": str(linked_lane),
+                "from_ledger_path": str(linked_ledger),
+                "to_memory_id": "conversation:current",
+                "to_path": str(current_lane),
+                "to_ledger_path": str(current_ledger),
+                "write_policy": "new_memory_only",
+                "evidence_boundary": "meta_only",
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    route = {
+        "memory_need": "conversation_state",
+        "memory_lane": "referenced_conversation",
+        "memory_source_hints": [
+            {
+                "lane": "referenced_conversation",
+                "memory_id": "conversation:current",
+                "root_path": str(current_lane),
+                "meta_path": str(current_lane / "_META_INDEX.md"),
+                "ledger_root_path": str(current_ledger),
+                "ledger_index_path": str(current_ledger / "_LEDGER_INDEX.md"),
+                "navigation_profile": "meta_state_links_ledger_one_hop",
+                "isolation": "unique_active_registry_match_link_only_read",
+            }
+        ],
+        "action_bindings": [
+            {
+                "action": "resolve_conversation_link",
+                "completion_evidence": "resolved_readonly_navigation_bundle",
+            }
+        ],
+    }
+    before = sorted(str(path.relative_to(tmp_path)) for path in tmp_path.rglob("*") if path.is_file())
+
+    receipt = module.build_action_consumption(route, prompt="继续我们的 CBH 迁移")
+
+    after = sorted(str(path.relative_to(tmp_path)) for path in tmp_path.rglob("*") if path.is_file())
+    navigation = receipt["conversation_navigation"]
+    assert navigation["status"] == "resolved"
+    bundle = navigation["bundles"][0]
+    kinds = {item["kind"] for item in bundle["documents"]}
+    assert {
+        "lane_meta",
+        "conversation_state",
+        "memory_links",
+        "ledger_index",
+        "linked_lane_meta",
+        "linked_ledger_index",
+    }.issubset(kinds)
+    assert bundle["selected_links"][0]["link_id"] == "LINK-CBH-001"
+    assert bundle["write_performed"] is False
+    assert bundle["raw_payload_opened"] is False
+    action = next(item for item in receipt["actions"] if item["action_id"] == "resolve_conversation_link")
+    assert action["status"] == "completed"
+    assert "Read-only conversation navigation" in receipt["additional_context"]
+    assert before == after
+
+
+def test_missing_ledger_root_does_not_fall_back_to_process_cwd(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    module = load_consumer_module()
+    lane = tmp_path / "lane-without-ledger"
+    lane.mkdir()
+    (lane / "_META_INDEX.md").write_text("# Lane without ledger\n", encoding="utf-8")
+    (lane / "index.json").write_text(
+        json.dumps({"memory_id": "conversation:no-ledger"}),
+        encoding="utf-8",
+    )
+    (tmp_path / "_LEDGER_INDEX.md").write_text(
+        "# Must not be read through cwd fallback\n",
+        encoding="utf-8",
+    )
+    monkeypatch.chdir(tmp_path)
+    route = {
+        "memory_source_hints": [
+            {
+                "memory_id": "conversation:no-ledger",
+                "root_path": str(lane),
+                "meta_path": str(lane / "_META_INDEX.md"),
+                "navigation_profile": "meta_state_links_ledger_one_hop",
+            }
+        ],
+        "action_bindings": [
+            {
+                "action": "resolve_conversation_link",
+                "completion_evidence": "resolved_readonly_navigation_bundle",
+            }
+        ],
+    }
+
+    receipt = module.build_action_consumption(route, prompt="只读恢复当前对话导航")
+
+    bundle = receipt["conversation_navigation"]["bundles"][0]
+    kinds = {item["kind"] for item in bundle["documents"]}
+    assert "ledger_index" not in kinds
+    assert bundle["ledger"]["root_path"] == ""
+    assert bundle["ledger"]["snapshot"]["reason"] == "ledger_root_missing"
+    assert "Must not be read through cwd fallback" not in receipt["additional_context"]
+
+
 def test_cli_accepts_utf8_bom_route_file(tmp_path: Path) -> None:
     route_path = tmp_path / "large-route.json"
     route_path.write_text(
