@@ -1,0 +1,148 @@
+{
+  "schema": "cbh.nested_tool_failure_fixture.v1",
+  "cases": [
+    {
+      "id": "root_web_open_api_github",
+      "candidate": {
+        "tool_name": "web__run",
+        "arguments": {
+          "open": [
+            {
+              "ref_id": "https://api.github.com/repos/h4ckf0r0day/obscura"
+            },
+            {
+              "ref_id": "https://api.github.com/repos/browseros-ai/BrowserOS"
+            },
+            {
+              "ref_id": "https://api.github.com/repos/h4ckf0r0day/obscura/releases?per_page=10"
+            },
+            {
+              "ref_id": "https://api.github.com/repos/browseros-ai/BrowserOS/releases?per_page=10"
+            }
+          ],
+          "response_length": "long"
+        },
+        "agent_path": "/root"
+      },
+      "expected_reasons": [
+        "web_open_api_github_known_unsafe_nonretryable",
+        "broad_output_scope_review_required"
+      ]
+    },
+    {
+      "id": "child_irm_object_array_datetime",
+      "candidate": {
+        "tool_name": "shell_command",
+        "arguments": {
+          "command": "$releases = @(Invoke-RestMethod -Uri 'https://api.github.com/repos/browseros-ai/BrowserOS/releases?per_page=100'); $recent = @($releases | Where-Object { [datetime]$_.published_at -ge [datetime]'2025-08-10T00:00:00Z' })",
+          "workdir": "C:\\fixture\\user\\Documents\\Codex\\2026-08-03\\new-chat",
+          "timeout_ms": 30000
+        },
+        "agent_path": "/root/child"
+      },
+      "expected_reasons": [
+        "powershell_irm_runtime_cardinality_probe_required"
+      ]
+    },
+    {
+      "id": "child_irm_parenthesized_repeat",
+      "candidate": {
+        "tool_name": "shell_command",
+        "arguments": {
+          "command": "$releases = @(Invoke-RestMethod -Uri 'https://api.github.com/repos/browseros-ai/BrowserOS/releases?per_page=100'); $recent = @($releases | Where-Object { [datetime]($_.published_at) -ge [datetime]'2025-08-10T00:00:00Z' })",
+          "workdir": "C:\\fixture\\user\\Documents\\Codex\\2026-08-03\\new-chat",
+          "timeout_ms": 30000
+        },
+        "agent_path": "/root/child"
+      },
+      "expected_reasons": [
+        "powershell_irm_runtime_cardinality_probe_required"
+      ]
+    },
+    {
+      "id": "child_graphql_hashtable_property",
+      "candidate": {
+        "tool_name": "shell_command",
+        "arguments": {
+          "command": "@(@{owner='browseros-ai';name='BrowserOS'}) | ForEach-Object { gh api graphql -f query=$query -f owner=$_.owner -f name=$_.name }",
+          "timeout_ms": 30000
+        },
+        "agent_path": "/root/child"
+      },
+      "expected_reasons": [
+        "powershell_native_argument_property_interpolation_required"
+      ]
+    },
+    {
+      "id": "child_git_tree_variable_boundary",
+      "candidate": {
+        "tool_name": "shell_command",
+        "arguments": {
+          "command": "$branch = 'main'; gh api \"repos/browseros-ai/BrowserOS/git/trees/$branch?recursive=1\"",
+          "timeout_ms": 30000
+        },
+        "agent_path": "/root/child"
+      },
+      "expected_reasons": [
+        "powershell_uri_variable_boundary_required"
+      ]
+    },
+    {
+      "id": "child_gh_slurp_jq_incompatible",
+      "candidate": {
+        "tool_name": "shell_command",
+        "arguments": {
+          "command": "gh api --paginate 'repos/browseros-ai/BrowserOS/releases?per_page=100' --slurp --jq 'add'",
+          "timeout_ms": 30000
+        },
+        "agent_path": "/root/child"
+      },
+      "expected_reasons": [
+        "cli_option_combination_validation_required"
+      ]
+    },
+    {
+      "id": "child_web_open_api_github",
+      "candidate": {
+        "tool_name": "web__run",
+        "arguments": {
+          "open": [
+            {
+              "ref_id": "https://api.github.com/repos/browseros-ai/BrowserOS"
+            },
+            {
+              "ref_id": "https://api.github.com/repos/browseros-ai/BrowserOS/releases?per_page=100"
+            },
+            {
+              "ref_id": "https://api.github.com/repos/h4ckf0r0day/obscura"
+            },
+            {
+              "ref_id": "https://api.github.com/repos/h4ckf0r0day/obscura/releases?per_page=100"
+            }
+          ],
+          "response_length": "long"
+        },
+        "agent_path": "/root/child"
+      },
+      "expected_reasons": [
+        "web_open_api_github_known_unsafe_nonretryable",
+        "broad_output_scope_review_required"
+      ]
+    },
+    {
+      "id": "root_active_rollout_unbounded_rg",
+      "candidate": {
+        "tool_name": "shell_command",
+        "arguments": {
+          "command": "rg -n -F -e \"rg --files scripts docs config vendor tests README*\" -e \"apply_patch verification failed: Failed to find expected lines\" -e \"invalid_cli_input:Expecting value\" 'C:\\fixture\\user\\.codex\\sessions\\2026\\08\\03\\rollout-2026-08-03T16-58-48-00000000-0000-0000-0000-000000000000.jsonl'",
+          "workdir": "C:\\fixture\\tools\\codex-embedded-harness",
+          "timeout_ms": 20000
+        },
+        "agent_path": "/root"
+      },
+      "expected_reasons": [
+        "broad_output_scope_review_required"
+      ]
+    }
+  ]
+}

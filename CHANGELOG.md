@@ -6,6 +6,15 @@ This project uses `vMAJOR.MINOR.PATCH` version labels.
 
 ## Unreleased
 
+- Added an advisory typed preflight for nested shell and web calls that are not
+  visible to the native correction hook, including schema checks, bounded
+  output forwarding, and unchanged-dispatch recurrence detection.
+- Added strict bounded failure-audit helpers and self-contained regression
+  fixtures so root/child failures can be summarized without publishing local
+  session paths or treating unverified references as evidence.
+- Added an on-demand dangerous-delete classifier that reports risk and recovery
+  context without granting authorization or registering a blocking hook.
+
 ## v1.2.3 - 2026-08-10
 
 - Clarified proportional engineering: simple work stays direct, while complex

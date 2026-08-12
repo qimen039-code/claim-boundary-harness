@@ -93,6 +93,9 @@
         "skills/embedded-harness/behavior_correction_hook.py",
         "skills/embedded-harness/behavior_correction_profiles.json",
         "skills/embedded-harness/behavior_correction_source_map.md",
+        "skills/embedded-harness/nested_tool_preflight.py",
+        "skills/embedded-harness/compact_failure_audit.py",
+        "skills/embedded-harness/dangerous_delete_guard.py",
         "skills/embedded-harness/execution_feedback.py",
         "skills/embedded-harness/external_retrieval_strategy.py",
         "skills/embedded-harness/harness_action_consumer.py",
@@ -104,7 +107,7 @@
         "skills/embedded-harness/validate_policy.ps1"
       ],
       "host_blocking": false,
-      "boundary": "Direct scripts are advisory. The optional behavior hook may only return a verified current-input rewrite and never grants execution authority."
+      "boundary": "Direct scripts are advisory. The optional behavior hook may only return a verified current-input rewrite and never grants execution authority. Nested-tool preflight does not parse the surrounding JavaScript or become a host hook; failure compaction and delete classification remain caller-invoked diagnostics."
     }
   },
   "excluded_by_default": [

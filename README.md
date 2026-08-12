@@ -195,7 +195,7 @@ planning, tool use, recovery, and the final answer. This repository already cont
 - project, conversation, common-error, archive, and static-knowledge lane boundaries;
 - source-preserving memory capsules, meta-first retrieval, conversation ledgers, and link-only continuation records;
 - claim, causal-attribution, external-research, reading, feedback-loop, debt-hygiene, and skill-lifecycle contracts;
-- task-local behavior correction for the current action candidate, with deterministic rewrite only after an exact match and mechanical verification, and silent no-op otherwise;
+- task-local behavior correction for the current action candidate, including typed nested-tool preflight when the native hook cannot observe the call, with deterministic rewrite only after an exact match and mechanical verification, and silent no-op otherwise;
 - tests, smoke checks, examples, credits, and reproduction notes for the parts that can be checked automatically.
 
 The README is the public orientation layer for people and for agents doing a
@@ -221,6 +221,8 @@ Fast paths:
 | --- | --- | --- |
 | Routing and claim gates | `harness_intake_router.ps1`, `harness_claim_schema_verifier.ps1` | Tested script contracts |
 | Behavior correction | `behavior_correction_gate.py`, `behavior_correction_hook.py` | Verified current-input rewrite or silent no-op; never authorizes execution |
+| Nested-tool review | `nested_tool_preflight.py`, `compact_failure_audit.py` | Typed advisory preflight and bounded failure evidence; not a host hook |
+| Delete-risk advice | `dangerous_delete_guard.py` | On-demand risk classification without authorization or host blocking |
 | Policy and adoption checks | `compile_policy_from_toml.py`, `validate_policy.ps1`, `tools/cbh_doctor.py` | Drift and preflight checks |
 | Memory lanes and ledgers | `templates/project/memory-library/`, `templates/conversation-memory/`, `codex_session_ledger.py` | Templates and evidence indexes |
 | Model context selection | `harness_action_consumer.py`, router `memory_source_hints` | Exact indexed matches become compact, provenance-bearing agent context |

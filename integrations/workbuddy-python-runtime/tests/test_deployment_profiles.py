@@ -72,7 +72,7 @@ class DeploymentProfileTests(unittest.TestCase):
         self.assertNotIn(planner, profiles["workbuddy-hook-minimal"]["include"])
 
     def test_staged_bundle_writes_exact_receipt_without_full_repo(self) -> None:
-        temp_root = ADAPTER_ROOT / ".test-tmp"
+        temp_root = Path(tempfile.gettempdir()) / "cbh-workbuddy-tests"
         temp_root.mkdir(parents=True, exist_ok=True)
         output = Path(tempfile.mkdtemp(prefix="deployment-", dir=temp_root))
         try:
@@ -110,7 +110,7 @@ class DeploymentProfileTests(unittest.TestCase):
         )
 
     def test_staged_bundle_explicit_pretool_protocol_rewrites_real_foreach_regression(self) -> None:
-        temp_root = ADAPTER_ROOT / ".test-tmp"
+        temp_root = Path(tempfile.gettempdir()) / "cbh-workbuddy-tests"
         temp_root.mkdir(parents=True, exist_ok=True)
         output = Path(tempfile.mkdtemp(prefix="deployment-runtime-", dir=temp_root))
         try:
@@ -187,7 +187,7 @@ class DeploymentProfileTests(unittest.TestCase):
         self.assertIn('"task_execution_owner":"host_model_agent"', context)
 
     def test_workbuddy_routes_active_lane_context_to_the_model_agent_loop(self) -> None:
-        temp_root = ADAPTER_ROOT / ".test-tmp"
+        temp_root = Path(tempfile.gettempdir()) / "cbh-workbuddy-tests"
         temp_root.mkdir(parents=True, exist_ok=True)
         workspace = Path(tempfile.mkdtemp(prefix="memory-route-", dir=temp_root))
         try:

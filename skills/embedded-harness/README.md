@@ -38,6 +38,9 @@ Design boundaries:
 - `action_bindings` describe work for the host model agent. They do not make CBH an autonomous task runner and are not completion evidence until the matching model/tool path returns a receipt.
 - Static knowledge retrieval is index-first: read `_STATIC_KNOWLEDGE_INDEX.md` before opening a project manual page, and treat static notes as `source_tag: static_knowledge` / `belief_status: source_prior` until checked.
 - `behavior_correction_gate.py` returns a task-local receipt; `behavior_correction_hook.py` may return one verified `allow + updatedInput` rewrite for an accepted deterministic profile.
+- `nested_tool_preflight.py` validates an already selected nested `shell_command` or `web__run` envelope when the native hook cannot observe it. It is advisory, stateless, and does not parse the surrounding JavaScript.
+- `compact_failure_audit.py` reads bounded JSONL windows and emits strict, size-limited root/child failure summaries without treating an unverified path as bound evidence.
+- `dangerous_delete_guard.py` is an on-demand delete-risk classifier only; it never grants authorization or installs a host denial hook.
 - Ambiguity, verifier failure, unsupported host protocol, registry failure, or no match leaves the event unchanged. Correction never grants permission, denies, freezes, stores approval state, writes memory, or mutates policy.
 - Helper gates may return structured decision receipts rather than host denial
   payloads. For protected high-risk actions, however, the governing model must
@@ -113,6 +116,8 @@ Scripts:
 python .\harness_action_consumer.py --route-file ".cbh-route.json" --receipt-mode compact --prompt '<USER_TASK>'
 python .\behavior_correction_gate.py --list-profiles
 python .\behavior_correction_hook.py < pretool-event.json
+'{"tool_name":"shell_command","arguments":{"command":"Get-ChildItem","workdir":"<PROJECT_ROOT>"}}' | python .\nested_tool_preflight.py
+python .\dangerous_delete_guard.py --command 'Remove-Item -LiteralPath <EXACT_TARGET>' --cwd '<PROJECT_ROOT>'
 .\validate_policy.ps1
 .\harness_memory_isolation_gate.ps1 -ProjectLane EXAMPLE_PROJECT -RequestedPath "<PROJECT_ROOT>/.agent-memory/item.md"
 .\harness_external_research_gate.ps1 -TaskText "check latest version"

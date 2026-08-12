@@ -151,7 +151,7 @@ CBH 为 Codex 类宿主大模型 Agent 增加一层低成本、面向模型的�
 - 项目、长对话、common-error、归档和静态知识的 lane 边界；
 - source-preserving 记忆胶囊、meta-first 检索、对话账本和 link-only 接续记录；
 - claim、因果归因、外部检索、读取、反馈闭环、债务清理和 skill 生命周期契约；
-- 针对当前动作候选的任务内行为纠偏：只有精确匹配且机械验证通过时才改写，否则静默 no-op；
+- 针对当前动作候选的任务内行为纠偏，并在原生 hook 看不到调用时提供 typed nested-tool preflight；只有精确匹配且机械验证通过时才改写，否则静默 no-op；
 - 可自动检查的测试、smoke、示例、引用来源和复现记录。
 
 这个 README 是给人和“快速扫 README 的 agent”看的公开概览。真正影响 agent 执行的
@@ -178,6 +178,8 @@ CBH 为 Codex 类宿主大模型 Agent 增加一层低成本、面向模型的�
 | --- | --- | --- |
 | 路由与声明 gate | `harness_intake_router.ps1`、`harness_claim_schema_verifier.ps1` | 脚本契约和测试覆盖 |
 | 行为纠偏 | `behavior_correction_gate.py`、`behavior_correction_hook.py` | 验证后的当前输入改写或静默 no-op；不产生执行权限 |
+| 嵌套工具复核 | `nested_tool_preflight.py`、`compact_failure_audit.py` | typed advisory preflight 与有界失败证据；不是宿主 hook |
+| 删除风险提示 | `dangerous_delete_guard.py` | 按需风险分类，不产生授权或宿主阻断 |
 | 策略与适配预检 | `compile_policy_from_toml.py`、`validate_policy.ps1`、`tools/cbh_doctor.py` | 漂移和预检工具 |
 | 记忆 lane 与账本 | `templates/project/memory-library/`、`templates/conversation-memory/`、`codex_session_ledger.py` | 模板和证据索引 |
 | 模型上下文选择 | `harness_action_consumer.py`、router 的 `memory_source_hints` | 把精确索引命中转成保留来源的紧凑 Agent 上下文 |

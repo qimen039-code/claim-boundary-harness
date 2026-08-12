@@ -59,6 +59,7 @@ profile/hash/verifier chain:
 behavior_correction_gate.py
 behavior_correction_hook.py
 behavior_correction_profiles.json
+nested_tool_preflight.py
 execution_feedback.py
 python_inline_write_analysis.py
 embedded_harness_policy.json
@@ -66,8 +67,11 @@ embedded_harness_policy.json
 
 `behavior_correction_source_map.md` is provenance documentation, not a runtime
 dependency. The hook is stateless and nonblocking: one accepted, mechanically
-verified current-input rewrite or silent no-op. It does not grant permission,
-deny, freeze, write memory, or mutate policy.
+verified current-input rewrite or silent no-op. `nested_tool_preflight.py`
+provides the same task-local review for an already selected nested shell or web
+call when the native hook cannot observe that surface. It does not parse the
+surrounding JavaScript, grant permission, deny, freeze, write memory, or mutate
+policy.
 
 ### C. Host Adapter Components
 
@@ -87,6 +91,8 @@ These maintain or validate a deployment, but are not always runtime files:
 ```text
 embedded_harness_policy.authoring.toml
 compile_policy_from_toml.py
+compact_failure_audit.py
+dangerous_delete_guard.py
 validate_policy.ps1
 tools/cbh_doctor.py
 tests/
