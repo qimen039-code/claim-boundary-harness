@@ -57,6 +57,13 @@ class DangerousDeleteGuardTests(unittest.TestCase):
             with self.subTest(command=command):
                 self.assertFalse(self.classify(command)["dangerous"])
 
+    def test_cwd_is_canonicalized_before_containment_check(self) -> None:
+        cwd_alias = self.cwd / ".." / "workspace"
+        command = f"Remove-Item -LiteralPath '{self.inside}' -Force"
+        finding = classify_command(command, cwd_alias)
+        self.assertFalse(finding["dangerous"])
+        self.assertEqual([], finding["reasons"])
+
     def test_dangerous_delete_shapes_are_classified(self) -> None:
         cases = {
             f"Remove-Item -LiteralPath '{self.cwd / 'tree'}' -Recurse -Force": "recursive_delete",

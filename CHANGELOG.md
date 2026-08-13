@@ -16,6 +16,8 @@ This project uses `vMAJOR.MINOR.PATCH` version labels.
   session paths or treating unverified references as evidence.
 - Added an on-demand dangerous-delete classifier that reports risk and recovery
   context without granting authorization or registering a blocking hook.
+- Fixed Windows short-path and parent-segment aliases in delete-risk containment
+  checks by canonicalizing the working directory before target comparison.
 - Added a dormant-by-default task-continuity capsule that activates for write,
   tool-driven, long-running, multi-stage, resumed, or explicitly requested work
   while leaving ordinary short answers on the existing minimal CBH path.
