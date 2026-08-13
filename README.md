@@ -7,9 +7,11 @@
 
 ## In 30 Seconds
 
-Claim Boundary Harness (CBH) is a set of working rules, memory structures, and
-verification helpers for coding agents. It works beside the host model; it is
-not another AI, a background task runner, or a replacement for the model.
+Claim Boundary Harness (CBH) is a model-facing control loop for coding agents.
+It keeps the task goal, relevant context, execution evidence, and next action
+connected across planning, tool use, recovery, and final claims. It works beside
+the host model; it is not another AI, a background task runner, or a replacement
+for the model.
 
 In practical terms, CBH helps an agent keep the overall goal visible during a
 long task, continue with traceable context, separate unrelated projects, reuse
