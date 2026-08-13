@@ -131,8 +131,11 @@ CHANGELOG, citation and compatibility surfaces, committed and pushed, tagged
 with the same version, and published as the latest GitHub Release. An explicit
 content-only/no-version request skips version mutation and the release chain.
 After publication, verify the default-branch `VERSION`, remote tag target, and
-GitHub `releases/latest` API agree; older tags remain historical evidence and
-must not answer current/latest lookups.
+GitHub `releases/latest` API agree. Only after that verification succeeds,
+delete prior GitHub Releases and their remote release tags so the public
+repository retains only the latest release/tag. Commit history and CHANGELOG
+remain the historical record; never delete the previous public release/tag
+before the replacement is verified.
 
 Use issue-prevention gates when a task matches a known repeated failure shape:
 `exact_anchor_preservation_gate` for DOI, version, tag, hash, path,

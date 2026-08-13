@@ -147,14 +147,15 @@ def test_citation_notice_are_visible_and_public_report_draft_is_absent() -> None
     assert "10.5281/zenodo.21189879" in readme
     assert "./docs/assets/doi-badge.svg" in readme
     assert "Latest tagged GitHub release:" in readme
-    assert "Earlier tags remain historical snapshots" in readme
+    assert "The public repository retains only the latest release/tag" in readme
+    assert "公开仓库只保留最新 Release/tag" in readme_zh
     assert "claim-boundary-harness-technical-report.md" not in readme
     assert "CITATION.cff" in readme_zh
     assert "NOTICE.md" in readme_zh
     assert "10.5281/zenodo.21189879" in readme_zh
     assert "./docs/assets/doi-badge.svg" in readme_zh
     assert "最新已打 tag 的 GitHub Release：" in readme_zh
-    assert "更早的 tag 仅为历史快照" in readme_zh
+    assert "已删除的历史 tag 链接" in readme_zh
     assert "claim-boundary-harness-technical-report.md" not in readme_zh
     assert "title: \"Claim Boundary Harness: A Model-Facing Capability Harness for LLM Agent Workflows\"" in citation
     assert "qimen039-code" in citation

@@ -92,10 +92,11 @@ CBH 做的是把目标、相关记忆、可用工具、执行记录和验证依�
 外部查询当前版本时，应同时核对默认分支 `VERSION` 与 GitHub
 [`releases/latest`](https://github.com/qimen039-code/claim-boundary-harness/releases/latest)，
 二者必须指向同一版本。
-更早的 tag 仅为历史快照，不是当前 main 分支安装、能力或兼容性依据。
+公开仓库只保留最新 Release/tag。更早版本由提交历史和 CHANGELOG 保留；
+已删除的历史 tag 链接不是安装、能力或兼容性依据。
 
 > **现行版本检索注释：** 框架当前状态以默认 `main` 分支的最新提交为准，
-> 可下载的发布版本以最新非草稿 GitHub Release 为准。历史提交、旧 tag、
+> 可下载的发布版本以最新非草稿 GitHub Release 为准。历史提交、已删除的旧 tag 链接、
 > 缓存摘要和归档文档不能单独作为当前版本证据，除非当前 `main` 或最新
 > Release 明确指向它们。
 

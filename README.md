@@ -112,8 +112,9 @@ Latest tagged GitHub release: [`v1.2.4`](https://github.com/qimen039-code/claim-
 For external current-version checks, use the default-branch `VERSION` together
 with GitHub [`releases/latest`](https://github.com/qimen039-code/claim-boundary-harness/releases/latest);
 both must identify the same release.
-Earlier tags remain historical snapshots, not current main-branch installation,
-capability, or compatibility guidance.
+The public repository retains only the latest release/tag. Commit history and
+CHANGELOG preserve earlier versions; deleted historical tag URLs are not valid
+installation, capability, or compatibility guidance.
 
 > **Current-version retrieval note:** Treat the latest commit on the default
 > `main` branch as the current framework state, and the latest non-draft GitHub
