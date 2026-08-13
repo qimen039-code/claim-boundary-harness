@@ -52,6 +52,7 @@ TRACKED_PATHS: list[tuple[str, ...]] = [
     ("router_decision_contract", "harness_governance_recall_triggers"),
     ("router_decision_contract", "reflexive_gap_contract"),
     ("router_decision_contract", "action_binding_contract"),
+    ("router_decision_contract", "task_continuity_contract"),
     ("router_decision_contract", "correction_lifecycle_contract"),
     ("router_decision_contract", "explicit_record_triggers"),
     ("router_decision_contract", "conversation_lane_declaration_triggers"),
@@ -308,6 +309,89 @@ def _normal_action_binding_contract(authoring: dict[str, Any]) -> dict[str, Any]
         ),
         "rule": str(contract.get("rule") or ""),
     }
+
+
+def _normal_task_continuity_contract(
+    authoring: dict[str, Any],
+) -> dict[str, Any] | None:
+    router = authoring.get("router_decision_contract", {})
+    if not isinstance(router, dict):
+        raise ValueError("router_decision_contract must be a table")
+    contract = router.get("task_continuity_contract")
+    if contract is None:
+        return None
+    if not isinstance(contract, dict):
+        raise ValueError("task_continuity_contract must be a table")
+    if contract.get("enabled") is not True:
+        raise ValueError("task_continuity_contract.enabled must be true")
+    if contract.get("schema") != "cbh.task_continuity_contract.v1":
+        raise ValueError("task_continuity_contract.schema is unsupported")
+    lifecycle = _string_list(
+        contract.get("lifecycle_values"),
+        "task_continuity_contract.lifecycle_values",
+    )
+    if lifecycle != ["DORMANT", "ARMED", "ACTIVE", "VERIFYING", "RETIRED"]:
+        raise ValueError("task_continuity_contract.lifecycle_values mismatch")
+    decisions = _string_list(
+        contract.get("decision_values"),
+        "task_continuity_contract.decision_values",
+    )
+    if decisions != ["dormant", "arm", "continue"]:
+        raise ValueError("task_continuity_contract.decision_values mismatch")
+    if contract.get("short_answer_default") != "dormant":
+        raise ValueError("task_continuity_contract.short_answer_default must be dormant")
+    if contract.get("write_intent_requires_arm") is not True:
+        raise ValueError("task_continuity_contract.write_intent_requires_arm must be true")
+    if contract.get("state_storage") != "process_local_only":
+        raise ValueError("task_continuity_contract.state_storage must be process_local_only")
+    if contract.get("authority_granted") is not False:
+        raise ValueError("task_continuity_contract.authority_granted must be false")
+    allowed_fields = {
+        "enabled",
+        "schema",
+        "lifecycle_values",
+        "decision_values",
+        "activation_reasons",
+        "progress_status_values",
+        "short_answer_default",
+        "write_intent_requires_arm",
+        "state_storage",
+        "authority_granted",
+        "rule",
+    }
+    unknown_fields = sorted(set(contract) - allowed_fields)
+    if unknown_fields:
+        raise ValueError(f"task_continuity_contract has unknown fields: {unknown_fields}")
+    reasons = _string_list(
+        contract.get("activation_reasons"),
+        "task_continuity_contract.activation_reasons",
+    )
+    if reasons != [
+        "write_intent",
+        "tool_required",
+        "long_running_task",
+        "multi_stage_task",
+        "task_resume",
+        "open_loop",
+        "prior_failure",
+        "explicit_request",
+        "existing_active_capsule",
+    ]:
+        raise ValueError("task_continuity_contract.activation_reasons mismatch")
+    progress = _string_list(
+        contract.get("progress_status_values"),
+        "task_continuity_contract.progress_status_values",
+    )
+    if progress != ["verified", "inferred", "unknown"]:
+        raise ValueError("task_continuity_contract.progress_status_values mismatch")
+    if not str(contract.get("rule") or "").strip():
+        raise ValueError("task_continuity_contract.rule must be non-empty")
+    normalized = copy.deepcopy(contract)
+    normalized["lifecycle_values"] = lifecycle
+    normalized["decision_values"] = decisions
+    normalized["activation_reasons"] = reasons
+    normalized["progress_status_values"] = progress
+    return normalized
 
 
 def _normal_correction_lifecycle_contract(
@@ -955,6 +1039,14 @@ def compile_policy(base_policy: dict[str, Any], authoring: dict[str, Any]) -> di
             compiled,
             ("router_decision_contract", "action_binding_contract"),
             action_binding_contract,
+        )
+
+    task_continuity_contract = _normal_task_continuity_contract(authoring)
+    if task_continuity_contract is not None:
+        _set_path(
+            compiled,
+            ("router_decision_contract", "task_continuity_contract"),
+            task_continuity_contract,
         )
 
     correction_lifecycle_contract = _normal_correction_lifecycle_contract(authoring)

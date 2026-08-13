@@ -226,6 +226,65 @@ if ($null -ne $policy) {
         }
       }
     }
+    $taskContinuityContract = Get-ObjectPropertyValue $routerContract "task_continuity_contract"
+    if ($null -eq $taskContinuityContract) {
+      Add-Issue "task_continuity_contract_missing"
+    } else {
+      if ((Get-ObjectPropertyValue $taskContinuityContract "schema") -ne "cbh.task_continuity_contract.v1") {
+        Add-Issue "task_continuity_contract_schema_invalid"
+      }
+      if ((Get-ObjectPropertyValue $taskContinuityContract "short_answer_default") -ne "dormant") {
+        Add-Issue "task_continuity_short_answer_default_invalid"
+      }
+      if ((Get-ObjectPropertyValue $taskContinuityContract "write_intent_requires_arm") -ne $true) {
+        Add-Issue "task_continuity_write_arm_disabled"
+      }
+      if ((Get-ObjectPropertyValue $taskContinuityContract "state_storage") -ne "process_local_only") {
+        Add-Issue "task_continuity_storage_invalid"
+      }
+      if ((Get-ObjectPropertyValue $taskContinuityContract "authority_granted") -ne $false) {
+        Add-Issue "task_continuity_authority_invalid"
+      }
+      foreach ($field in @("lifecycle_values","decision_values","activation_reasons","progress_status_values")) {
+        if ((ConvertTo-Array (Get-ObjectPropertyValue $taskContinuityContract $field)).Count -eq 0) {
+          Add-Issue "task_continuity_contract_field_empty:$field"
+        }
+      }
+      $expectedContinuityValues = @{
+        lifecycle_values = @("DORMANT","ARMED","ACTIVE","VERIFYING","RETIRED")
+        decision_values = @("dormant","arm","continue")
+        activation_reasons = @("write_intent","tool_required","long_running_task","multi_stage_task","task_resume","open_loop","prior_failure","explicit_request","existing_active_capsule")
+        progress_status_values = @("verified","inferred","unknown")
+      }
+      foreach ($field in $expectedContinuityValues.Keys) {
+        $actual = @(ConvertTo-Array (Get-ObjectPropertyValue $taskContinuityContract $field))
+        $expected = @($expectedContinuityValues[$field])
+        $orderedMismatch = $actual.Count -ne $expected.Count
+        if (-not $orderedMismatch) {
+          for ($index = 0; $index -lt $expected.Count; $index++) {
+            if ([string]$actual[$index] -ne [string]$expected[$index]) {
+              $orderedMismatch = $true
+              break
+            }
+          }
+        }
+        if ($orderedMismatch) {
+          Add-Issue "task_continuity_contract_values_invalid:$field"
+        }
+      }
+    }
+    if (-not ((ConvertTo-Array (Get-ObjectPropertyValue $routerContract "receipt_fields")) -contains "task_continuity_decision")) {
+      Add-Issue "task_continuity_receipt_field_missing"
+    }
+    if (-not ((ConvertTo-Array (Get-ObjectPropertyValue $routerContract "module_need_values")) -contains "task_continuity")) {
+      Add-Issue "task_continuity_module_value_missing"
+    }
+    if (-not ((ConvertTo-Array (Get-ObjectPropertyValue $actionBindingContract "next_action_values")) -contains "prepare_task_continuity_capsule")) {
+      Add-Issue "task_continuity_action_binding_missing"
+    }
+    if (-not ((ConvertTo-Array (Get-ObjectPropertyValue $actionBindingContract "completion_evidence_values")) -contains "task_continuity_capsule_or_dormant_receipt")) {
+      Add-Issue "task_continuity_completion_evidence_missing"
+    }
     $reflexiveGapContract = Get-ObjectPropertyValue $routerContract "reflexive_gap_contract"
     if ($null -eq $reflexiveGapContract) {
       Add-Issue "reflexive_gap_contract_missing"

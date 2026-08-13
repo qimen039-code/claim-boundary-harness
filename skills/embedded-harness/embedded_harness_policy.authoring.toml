@@ -13,6 +13,7 @@ compiled_sections = [
   "router_decision_contract.harness_governance_recall_triggers",
   "router_decision_contract.reflexive_gap_contract",
   "router_decision_contract.action_binding_contract",
+  "router_decision_contract.task_continuity_contract",
   "router_decision_contract.correction_lifecycle_contract",
   "router_decision_contract.explicit_record_triggers",
   "router_decision_contract.conversation_lane_declaration_triggers",
@@ -519,6 +520,7 @@ receipt_fields = [
   "prediction_review_profile",
   "prediction_review_budget",
   "correction_lifecycle_profile",
+  "task_continuity_decision",
   "action_bindings",
   "memory_need",
   "hybrid_retrieval_profile",
@@ -828,6 +830,7 @@ next_action_values = [
   "retrieve_matching_memory",
   "prepare_task_local_prediction_review",
   "prepare_task_local_correction_bundle",
+  "prepare_task_continuity_capsule",
   "verify_and_calibrate_feedback",
   "perform_external_research_route",
   "discover_preferred_tool_surface",
@@ -851,6 +854,7 @@ completion_evidence_values = [
   "selected_record_id",
   "task_local_prediction_review",
   "task_local_correction_bundle",
+  "task_continuity_capsule_or_dormant_receipt",
   "verified_postcondition_or_calibration",
   "source_ledger_or_citations",
   "checked_available_missing_or_blocked",
@@ -879,6 +883,29 @@ scoped_confirmation_required_fields = [
 ]
 authorization_persistence = "none"
 rule = "Convert action-changing route decisions into the existing receipt. Retrieved prevention or reuse records become task-local candidate predictions, never standing constraints: review applicability, choose a candidate safe form only when relevant, observe the current-task outcome, then retire the review. The configured prediction/action counts are soft fast-path targets, never capability caps. Safety, lane, permission, claim, evidence, and correctness requirements outrank context cost. Deterministic runtime guards remain separate. Partition large transport payloads without semantic loss. A binding is complete only when coverage is sufficient or unresolved facets are explicit and its named completion evidence exists."
+
+[router_decision_contract.task_continuity_contract]
+enabled = true
+schema = "cbh.task_continuity_contract.v1"
+lifecycle_values = ["DORMANT", "ARMED", "ACTIVE", "VERIFYING", "RETIRED"]
+decision_values = ["dormant", "arm", "continue"]
+activation_reasons = [
+  "write_intent",
+  "tool_required",
+  "long_running_task",
+  "multi_stage_task",
+  "task_resume",
+  "open_loop",
+  "prior_failure",
+  "explicit_request",
+  "existing_active_capsule",
+]
+progress_status_values = ["verified", "inferred", "unknown"]
+short_answer_default = "dormant"
+write_intent_requires_arm = true
+state_storage = "process_local_only"
+authority_granted = false
+rule = "CBH remains active. Only the task-continuity layer sleeps by default. Arm it for write, tool, long-running, multi-stage, or resumed work; keep ordinary answer-only turns dormant. Track observable objective, progress, earliest incomplete acceptance item, next action, failures, verifier state, and bounded evidence references. Do not store chain-of-thought, create permission, or create a separate task-memory file. Retire only after required postconditions are verified or unresolved work is explicitly reported."
 
 [router_decision_contract.correction_lifecycle_contract]
 enabled = true

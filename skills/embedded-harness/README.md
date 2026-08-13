@@ -17,6 +17,7 @@ root AGENTS.md microkernel
 -> static knowledge index / selected manual page, if project navigation is needed
 -> memory meta summary / category index / matching capsule, if memory is needed
 -> bounded action consumer context returned to the model agent
+-> optional dormant-by-default task continuity capsule for tool/write/long tasks
 -> optional nonblocking current-candidate correction
 -> final claim and memory boundary check
 ```
@@ -36,6 +37,7 @@ Design boundaries:
 - Memory retrieval is meta-first: read `_META_INDEX.md`, a memory summary, or a router manifest before opening category indexes or capsule payloads.
 - `memory_source_hints` bind retrieval to exact active roots. `harness_action_consumer.py` promotes exact record or anchor matches into compact model context; bounded weaker candidates are returned to the host model for semantic reranking and do not demote an exact match into mandatory manual review.
 - `action_bindings` describe work for the host model agent. They do not make CBH an autonomous task runner and are not completion evidence until the matching model/tool path returns a receipt.
+- `task_continuity.py` is a process-local continuity reducer and adaptive transport worker. It stays dormant for answer-only turns, stores no chain-of-thought or authority, and requires a verified host adapter before its context can be called automatically model-visible.
 - Static knowledge retrieval is index-first: read `_STATIC_KNOWLEDGE_INDEX.md` before opening a project manual page, and treat static notes as `source_tag: static_knowledge` / `belief_status: source_prior` until checked.
 - `behavior_correction_gate.py` returns a task-local receipt; `behavior_correction_hook.py` may return one verified `allow + updatedInput` rewrite for an accepted deterministic profile.
 - `nested_tool_preflight.py` validates an already selected nested `shell_command` or `web__run` envelope when the native hook cannot observe it. It is advisory, stateless, and does not parse the surrounding JavaScript.
@@ -65,7 +67,7 @@ consumed by the approved operation and cannot be replayed or expanded. Human
 authorization accepts the disclosed risk for that exact operation; it does not
 certify safety or make CBH responsible for the operation's consequences.
 
-Receipt fields: task type, target surface, audience, project lane, risk level, semantic ambiguity, module need, memory need, memory mode, memory lane, memory source hints, action bindings, record intent, external need, claim risk, projectization decision, conversation memory decision, link intent, receipt profile, and required gates. Runtime adapters can expose `compact_runtime` by default and expand only for governance or debug cases.
+Receipt fields: task type, target surface, audience, project lane, risk level, semantic ambiguity, module need, memory need, memory mode, memory lane, memory source hints, action bindings, task continuity decision, record intent, external need, claim risk, projectization decision, conversation memory decision, link intent, receipt profile, and required gates. Runtime adapters can expose `compact_runtime` by default and expand only for governance or debug cases.
 
 If this control plane cannot be completed, the final response must say so and must not present the result as fully verified.
 
@@ -122,6 +124,7 @@ python .\dangerous_delete_guard.py --command 'Remove-Item -LiteralPath <EXACT_TA
 .\harness_memory_isolation_gate.ps1 -ProjectLane EXAMPLE_PROJECT -RequestedPath "<PROJECT_ROOT>/.agent-memory/item.md"
 .\harness_external_research_gate.ps1 -TaskText "check latest version"
 python .\external_retrieval_strategy.py --task-text "核对 DOI 10.1145/3596512" --mode official_authority_source_search
+python .\task_continuity.py --worker < task-events.jsonl
 .\harness_claim_schema_verifier.ps1 -ClaimJson '{"claim_type":"architecture_decision","source_type":"local_file","source_ref":"README.md","evidence_boundary":"whiteboard_smoke"}'
 ```
 

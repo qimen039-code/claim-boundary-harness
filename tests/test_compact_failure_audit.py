@@ -13,9 +13,53 @@ if str(HARNESS) not in sys.path:
     sys.path.insert(0, str(HARNESS))
 
 from compact_failure_audit import compact_failure_rows, read_jsonl_window
+from task_continuity import plan_transport
 
 
 class CompactFailureAuditTests(unittest.TestCase):
+    def test_failure_rows_support_hash_bound_continuation_when_plan_is_explicit(self) -> None:
+        events = [
+            {
+                "agent_path": "/root/child",
+                "tool": "shell_command",
+                "signature": f"{index:064x}",
+                "error_class": f"failure-{index}",
+                "side_effects": "none",
+                "recovered": True,
+            }
+            for index in range(7)
+        ]
+        plan = plan_transport(
+            None,
+            {"kind": "items", "original_items": len(events), "original_chars": 2000},
+            {"max_chars": 1800, "max_items": 2},
+        )
+        rebuilt: list[dict] = []
+        cursor = None
+        while True:
+            receipt = compact_failure_rows(
+                events,
+                max_rows=2,
+                transport_plan=plan,
+                cursor=cursor,
+            )
+            page = receipt["transport_page"]
+            rebuilt.extend(page["items"])
+            if page["next_cursor"] is None:
+                break
+            cursor = page["next_cursor"]
+
+        self.assertEqual(7, len(rebuilt))
+        self.assertEqual(
+            [f"failure-{index}" for index in range(7)],
+            [row["error_class"] for row in rebuilt],
+        )
+        canonical = json.dumps(rebuilt, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+        self.assertEqual(
+            hashlib.sha256(canonical.encode("utf-8")).hexdigest(),
+            page["full_result_sha256"],
+        )
+
     def test_synthetic_fixture_hashes_match_canonical_raw_lines(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "synthetic.jsonl"

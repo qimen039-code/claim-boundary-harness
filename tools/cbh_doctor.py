@@ -44,6 +44,7 @@ REQUIRED_FILES = [
     "skills/embedded-harness/behavior_correction_profiles.json",
     "skills/embedded-harness/nested_tool_preflight.py",
     "skills/embedded-harness/compact_failure_audit.py",
+    "skills/embedded-harness/task_continuity.py",
     "skills/embedded-harness/dangerous_delete_guard.py",
     "skills/embedded-harness/harness_intake_router.ps1",
     "skills/embedded-harness/validate_policy.ps1",
@@ -53,6 +54,7 @@ REQUIRED_FILES = [
     "tests/test_codex_session_ledger.py",
     "tests/test_nested_tool_preflight.py",
     "tests/test_compact_failure_audit.py",
+    "tests/test_task_continuity.py",
     "tests/test_dangerous_delete_guard.py",
     "tests/fixtures/nested_tool_failures.json",
     "tests/test_documentation_contracts.py",
@@ -159,6 +161,12 @@ def check_policy_shape(root: Path) -> Check:
     ]
     empty_r5 = [key for key in r5_required if not r5_rules.get(key)]
     issues = missing + [f"r5_context_decision_rules.{key}" for key in empty_r5]
+    router = policy.get("router_decision_contract", {})
+    continuity = router.get("task_continuity_contract", {}) if isinstance(router, dict) else {}
+    if continuity.get("schema") != "cbh.task_continuity_contract.v1":
+        issues.append("router_decision_contract.task_continuity_contract")
+    if "task_continuity" not in router.get("module_need_values", []):
+        issues.append("router_decision_contract.module_need_values.task_continuity")
     return Check(
         id="doctor.policy_shape",
         status="fail" if issues else "pass",

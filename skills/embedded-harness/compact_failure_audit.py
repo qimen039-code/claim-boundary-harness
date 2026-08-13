@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any
 
 from nested_tool_preflight import summarize_nested_tool_failure
+from task_continuity import page_result
 
 
 def read_jsonl_window(
@@ -57,13 +58,24 @@ def compact_failure_rows(
     events: Iterable[Mapping[str, Any]],
     *,
     max_rows: int = 100,
-) -> list[dict[str, Any]]:
+    transport_plan: Mapping[str, Any] | None = None,
+    cursor: Mapping[str, Any] | None = None,
+    max_total_rows: int = 10_000,
+) -> list[dict[str, Any]] | dict[str, Any]:
     if isinstance(max_rows, bool) or not isinstance(max_rows, int) or max_rows <= 0:
         raise ValueError("max_rows must be a positive integer")
+    if (
+        isinstance(max_total_rows, bool)
+        or not isinstance(max_total_rows, int)
+        or max_total_rows <= 0
+    ):
+        raise ValueError("max_total_rows must be a positive integer")
     rows: list[dict[str, Any]] = []
     for index, event in enumerate(events):
-        if index >= max_rows:
+        if transport_plan is None and index >= max_rows:
             raise ValueError("events exceed max_rows; increase the explicit budget")
+        if index >= max_total_rows:
+            raise ValueError("events exceed max_total_rows; split the source explicitly")
         if not isinstance(event, Mapping):
             raise ValueError("each event must be an object")
         recovered = event.get("recovered")
@@ -86,4 +98,10 @@ def compact_failure_rows(
                 recovered=recovered,
             )
         )
+    if transport_plan is not None:
+        return {
+            "schema": "cbh.compact_failure_page.v1",
+            "transport_page": page_result(rows, transport_plan, cursor),
+            "source_rows": len(rows),
+        }
     return rows

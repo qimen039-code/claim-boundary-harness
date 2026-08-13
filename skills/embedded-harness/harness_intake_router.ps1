@@ -1583,6 +1583,34 @@ if ($feedbackLoopProfile -in @("prevention_review", "explicit_cycle")) {
   $correctionLifecycleProfile = "surface_preflight"
 }
 
+$taskContinuityReasons = @()
+$continuityWriteProfiles = @(
+  "in_place_patch", "append_delta", "add_new_artifact", "section_replace",
+  "full_rewrite", "supersede_with_link", "archive_or_move",
+  "delete_record_content", "delete_from_disk"
+)
+if (($editOperationProfile -in $continuityWriteProfiles) -or ($memoryMode -in @("write", "update"))) {
+  $taskContinuityReasons += "write_intent"
+}
+if (($toolSurfaceNeed -ne "none") -or (Test-TaskContainsAny @("检查这个", "打开", "搜索", "查找", "运行", "执行", "验证", "抓取", "下载", "调用工具", "browse", "run", "execute", "verify", "fetch", "download"))) {
+  $taskContinuityReasons += "tool_required"
+}
+if (Test-TaskContainsAny @("分阶段", "多阶段", "三个阶段", "持续完成", "长程任务", "直到完成", "做完后", "统一验证", "multi-stage", "long-running", "do not stop", "continue until")) {
+  $taskContinuityReasons += "multi_stage_task"
+}
+if (Test-TaskContainsAny @("继续之前", "接续", "恢复任务", "中断", "未完成", "resume", "interrupted", "continue previous")) {
+  $taskContinuityReasons += "task_resume"
+}
+$taskContinuityReasons = @($taskContinuityReasons | Select-Object -Unique)
+$taskContinuityArmed = ($taskContinuityReasons.Count -gt 0)
+$taskContinuityDecision = [ordered]@{
+  schema = "cbh.task_continuity_decision.v1"
+  decision = $(if ($taskContinuityArmed) { "arm" } else { "dormant" })
+  reasons = @($taskContinuityReasons)
+  source_event_ids = @()
+  host_delivery = $(if ($taskContinuityArmed) { "ready" } else { "not_needed" })
+}
+
 $strongClaimTerms = Get-MatchedTriggers $policy.blocked_claim_phrases_without_schema
 if ($strongClaimTerms.Count -gt 0) {
   $claimRisk = "strong_claim_needs_schema"
@@ -1607,6 +1635,7 @@ if ($linkIntent -ne "none") { $moduleNeed += "memory_link_ledger" }
 if (($externalNeed.Count -gt 0) -and ($externalNeed[0] -ne "none")) { $moduleNeed += "external_research_gate" }
 if ($claimRisk -ne "none") { $moduleNeed += "claim_schema_verifier" }
 if (($risk -eq "R5") -or ($classificationConfidence -eq "low")) { $moduleNeed += "runtime_gate" }
+if ($taskContinuityArmed) { $moduleNeed += "task_continuity" }
 if ($moduleNeed.Count -eq 0) { $moduleNeed += "none" }
 $moduleNeed = @($moduleNeed | Select-Object -Unique)
 
@@ -1665,6 +1694,12 @@ if ($null -ne $directOutcomeFirstInstruction) {
   $actionBindings += [pscustomobject]@{
     action = "direct_outcome_first"
     completion_evidence = "direct_surface_mutation_or_declared_expansion_evidence"
+  }
+}
+if ($taskContinuityArmed) {
+  $actionBindings += [pscustomobject]@{
+    action = "prepare_task_continuity_capsule"
+    completion_evidence = "task_continuity_capsule_or_dormant_receipt"
   }
 }
 $actionBindingIds = @($actionBindings | ForEach-Object { [string]$_.action } | Select-Object -Unique)
@@ -1772,6 +1807,7 @@ $routingReceipt = [ordered]@{
   read_semantic_boundary = @($readSemanticBoundary)
   read_depth_profile = $readDepthProfile
   edit_operation_profile = $editOperationProfile
+  task_continuity_decision = $taskContinuityDecision
   memory_need = $memoryNeed
   hybrid_retrieval_profile = $hybridRetrievalProfile
   memory_mode = $memoryMode
@@ -1813,6 +1849,7 @@ $compactReceipt = [ordered]@{
   read_semantic_boundary = @($readSemanticBoundary)
   read_depth_profile = $readDepthProfile
   edit_operation_profile = $editOperationProfile
+  task_continuity_decision = $taskContinuityDecision
   memory_mode = $memoryMode
   hybrid_retrieval_profile = $hybridRetrievalProfile
   memory_write_profile = $memoryWriteProfile
@@ -1868,6 +1905,7 @@ $result = [ordered]@{
   read_semantic_boundary = @($readSemanticBoundary)
   read_depth_profile = $readDepthProfile
   edit_operation_profile = $editOperationProfile
+  task_continuity_decision = $taskContinuityDecision
   memory_need = $memoryNeed
   hybrid_retrieval_profile = $hybridRetrievalProfile
   memory_mode = $memoryMode

@@ -15,12 +15,111 @@ from nested_tool_preflight import (
     normalize_nested_tool_result,
     preflight_nested_tool_call,
 )
+from task_continuity import plan_transport
 
 
 FIXTURE_PATH = Path(__file__).parent / "fixtures" / "nested_tool_failures.json"
 
 
 class NestedToolPreflightTests(unittest.TestCase):
+    def test_transport_plan_pages_full_text_without_legacy_prefix_loss(self) -> None:
+        original = "0123456789" * 31
+        plan = plan_transport(
+            None,
+            {"kind": "text", "original_chars": len(original), "original_items": 1},
+            {"max_chars": 29, "max_items": 10},
+        )
+        parts: list[str] = []
+        cursor = None
+        while True:
+            normalized = normalize_nested_tool_result(
+                original,
+                transport_plan=plan,
+                cursor=cursor,
+            )
+            page = normalized["transport_page"]
+            parts.append(page["content"])
+            if page["next_cursor"] is None:
+                break
+            cursor = page["next_cursor"]
+
+        self.assertEqual(original, "".join(parts))
+        self.assertEqual(normalized["source_sha256"], page["full_result_sha256"])
+        self.assertFalse(normalized["inline_payload_present"])
+
+    def test_transport_plan_pages_typed_blocks_without_inline_media(self) -> None:
+        secret = "base64-secret-payload"
+        result = {
+            "content": [
+                {"type": "text", "text": f"line-{index}"}
+                for index in range(7)
+            ]
+            + [{"type": "image", "mimeType": "image/png", "data": secret}]
+        }
+        plan = plan_transport(
+            None,
+            {"kind": "items", "original_chars": 100, "original_items": 8},
+            {"max_chars": 120, "max_items": 3},
+        )
+        items: list[dict] = []
+        cursor = None
+        while True:
+            normalized = normalize_nested_tool_result(
+                result,
+                transport_plan=plan,
+                cursor=cursor,
+            )
+            page = normalized["transport_page"]
+            items.extend(page["items"])
+            if page["next_cursor"] is None:
+                break
+            cursor = page["next_cursor"]
+
+        serialized = json.dumps(items, ensure_ascii=False)
+        self.assertEqual(8, len(items))
+        self.assertNotIn(secret, serialized)
+        self.assertTrue(items[-1]["inline_payload_omitted_from_text"])
+
+    def test_transport_cursor_is_bound_to_the_full_nested_result(self) -> None:
+        plan = plan_transport(
+            None,
+            {"kind": "text", "original_chars": 20, "original_items": 1},
+            {"max_chars": 5, "max_items": 10},
+        )
+        with self.assertRaisesRegex(ValueError, "cursor_result_hash_mismatch"):
+            normalize_nested_tool_result(
+                "different result",
+                transport_plan=plan,
+                cursor={
+                    "result_sha256": "0" * 64,
+                    "mode": "text",
+                    "next_char": 5,
+                },
+            )
+
+    def test_transport_plan_chunks_one_oversized_text_block(self) -> None:
+        original = "中文工具结果" * 300
+        result = {"content": [{"type": "text", "text": original}]}
+        plan = plan_transport(
+            None,
+            {"kind": "items", "original_chars": len(original), "original_items": 1},
+            {"max_chars": 420, "max_items": 2},
+        )
+        rebuilt: list[str] = []
+        cursor = None
+        while True:
+            normalized = normalize_nested_tool_result(
+                result,
+                transport_plan=plan,
+                cursor=cursor,
+            )
+            page = normalized["transport_page"]
+            rebuilt.extend(item["text"] for item in page["items"])
+            if page["next_cursor"] is None:
+                break
+            cursor = page["next_cursor"]
+        self.assertEqual(original, "".join(rebuilt))
+
     def test_inline_multi_runtime_commands_require_a_file_backed_carrier(self) -> None:
         for command in (
             "node --input-type=module -e \"console.log('ok')\"",

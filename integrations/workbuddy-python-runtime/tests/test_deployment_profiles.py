@@ -71,6 +71,18 @@ class DeploymentProfileTests(unittest.TestCase):
                 self.assertIn(planner, include, profile_id)
         self.assertNotIn(planner, profiles["workbuddy-hook-minimal"]["include"])
 
+    def test_task_continuity_dependency_is_closed(self) -> None:
+        profiles = json.loads(
+            (ADAPTER_ROOT / "deployment-profiles.json").read_text(encoding="utf-8")
+        )["profiles"]
+        continuity = "skills/embedded-harness/task_continuity.py"
+        consumer = "skills/embedded-harness/harness_action_consumer.py"
+        for profile_id, profile in profiles.items():
+            include = set(profile["include"])
+            if consumer in include:
+                self.assertIn(continuity, include, profile_id)
+        self.assertNotIn(continuity, profiles["workbuddy-hook-minimal"]["include"])
+
     def test_staged_bundle_writes_exact_receipt_without_full_repo(self) -> None:
         temp_root = Path(tempfile.gettempdir()) / "cbh-workbuddy-tests"
         temp_root.mkdir(parents=True, exist_ok=True)

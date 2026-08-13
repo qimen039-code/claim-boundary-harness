@@ -79,6 +79,165 @@ def test_cli_diagnostic_mode_preserves_full_receipt() -> None:
     assert "semantic_review_candidates" in payload
 
 
+def test_dormant_task_continuity_does_not_add_model_context() -> None:
+    module = load_consumer_module()
+    route = {
+        "task_continuity_decision": {
+            "schema": "cbh.task_continuity_decision.v1",
+            "decision": "dormant",
+            "reasons": [],
+            "source_event_ids": ["answer:1"],
+            "host_delivery": "not_needed",
+        },
+        "action_bindings": [],
+        "memory_mode": "none",
+    }
+
+    receipt = module.build_action_consumption(
+        route,
+        prompt="什么是检索增强生成？",
+        task_event={
+            "schema": "cbh.task_event.v1",
+            "event_id": "answer:1",
+            "type": "task_observed",
+            "objective": "什么是检索增强生成？",
+        },
+    )
+
+    assert receipt["task_continuity_decision"]["decision"] == "dormant"
+    assert receipt["task_capsule"] is None
+    assert receipt["task_capsule_context"] == ""
+    assert receipt["additional_context"] == ""
+
+
+def test_action_consumer_creates_armed_capsule_and_one_context_segment() -> None:
+    module = load_consumer_module()
+    route = {
+        "edit_operation_profile": "in_place_patch",
+        "tool_surface_need": "local_filesystem",
+        "memory_mode": "none",
+        "task_continuity_decision": {
+            "schema": "cbh.task_continuity_decision.v1",
+            "decision": "arm",
+            "reasons": ["write_intent", "tool_required"],
+            "source_event_ids": ["write:1"],
+            "host_delivery": "ready",
+        },
+        "action_bindings": [
+            {
+                "action": "prepare_task_continuity_capsule",
+                "completion_evidence": "task_continuity_capsule_or_dormant_receipt",
+            }
+        ],
+    }
+
+    receipt = module.build_action_consumption(
+        route,
+        prompt="修改 README 并验证改动",
+        task_event={
+            "schema": "cbh.task_event.v1",
+            "event_id": "write:1",
+            "type": "task_observed",
+            "objective": "修改 README 并验证改动",
+        },
+        host_limits={"max_chars": 1800, "max_items": 20},
+    )
+
+    assert receipt["task_capsule"]["lifecycle"] == "ARMED"
+    assert receipt["task_capsule_context"].count("CBH task-continuity capsule") == 1
+    assert receipt["additional_context"].count("CBH task-continuity capsule") == 1
+    action = next(item for item in receipt["actions"] if item["action_id"] == "prepare_task_continuity_capsule")
+    assert action["status"] == "completed"
+    assert action["completion_evidence"] == receipt["task_capsule"]["capsule_id"]
+
+
+def test_final_model_context_uses_hash_bound_continuation_cursor() -> None:
+    module = load_consumer_module()
+    route = {
+        "edit_operation_profile": "in_place_patch",
+        "tool_surface_need": "web",
+        "memory_mode": "none",
+        "external_need": ["general_web_cross_check"],
+        "action_bindings": [
+            {"action": "prepare_task_continuity_capsule"},
+            {"action": "perform_external_research_route"},
+        ],
+    }
+    task_event = {
+        "schema": "cbh.task_event.v1",
+        "event_id": "page:1",
+        "type": "task_observed",
+        "objective": "检索、修改并验证多个来源 " + ("evidence " * 120),
+    }
+    cursor = None
+    pages: list[str] = []
+    full_hash = None
+    while True:
+        receipt = module.build_action_consumption(
+            route,
+            prompt=str(task_event["objective"]),
+            task_event=task_event,
+            host_limits={"max_chars": 1_000, "max_items": 20},
+            transport_cursor=cursor,
+        )
+        transport = receipt["transport_receipt"]
+        pages.append(receipt["additional_context"])
+        assert len(receipt["additional_context"]) <= 1_000
+        full_hash = full_hash or transport["full_result_sha256"]
+        assert transport["full_result_sha256"] == full_hash
+        cursor = transport["next_cursor"]
+        if cursor is None:
+            break
+    rebuilt = "".join(pages)
+    assert "CBH task-continuity capsule" in rebuilt
+    assert module.hashlib.sha256(rebuilt.encode("utf-8")).hexdigest() == full_hash
+
+
+def test_same_turn_verified_capsule_retires_without_next_turn_context() -> None:
+    module = load_consumer_module()
+    initial = module.new_task_capsule(
+        {"edit_operation_profile": "in_place_patch", "tool_surface_need": "local_filesystem"},
+        {
+            "schema": "cbh.task_event.v1",
+            "event_id": "write:start",
+            "type": "task_observed",
+            "objective": "写入并回读验证",
+            "acceptance_criteria": [{"id": "write_verified", "text": "写入结果已回读验证"}],
+        },
+    )
+    active = module.apply_task_event(
+        initial,
+        {
+            "schema": "cbh.task_event.v1",
+            "event_id": "write:dispatch",
+            "type": "tool_dispatched",
+        },
+    )["capsule"]
+    route = {
+        "edit_operation_profile": "in_place_patch",
+        "tool_surface_need": "local_filesystem",
+        "action_bindings": [{"action": "prepare_task_continuity_capsule"}],
+    }
+
+    receipt = module.build_action_consumption(
+        route,
+        prompt="写入并回读验证",
+        task_capsule=active,
+        task_event={
+            "schema": "cbh.task_event.v1",
+            "event_id": "write:verified",
+            "type": "verifier_completed",
+            "acceptance_id": "write_verified",
+            "postcondition_satisfied": True,
+            "retire_if_complete": True,
+        },
+    )
+
+    assert receipt["task_capsule"]["lifecycle"] == "RETIRED"
+    assert receipt["task_capsule_context"] == ""
+    assert "CBH task-continuity capsule" not in receipt["additional_context"]
+
+
 def test_scoped_user_confirmation_is_pending_in_full_and_compact_receipts() -> None:
     module = load_consumer_module()
     confirmation_request = {

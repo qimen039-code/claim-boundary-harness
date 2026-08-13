@@ -6,6 +6,7 @@ import json
 import re
 import sys
 import unicodedata
+from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
 
@@ -17,6 +18,16 @@ if str(HARNESS_ROOT) not in sys.path:
 from behavior_correction_gate import build_behavior_correction_receipt  # noqa: E402
 from execution_feedback import CorrectionProfileRegistryError  # noqa: E402
 from external_retrieval_strategy import build_external_retrieval_receipt  # noqa: E402
+from task_continuity import (  # noqa: E402
+    apply_task_event,
+    build_dynamic_reminders,
+    build_task_capsule_context,
+    decide_task_continuity,
+    initialize_task_capsule,
+    new_task_capsule,
+    page_result,
+    plan_transport,
+)
 
 
 SCHEMA = "cbh.model_context_consumption.v1"
@@ -797,6 +808,10 @@ def build_action_consumption(
     prompt: str,
     tool_input_text: str = "",
     soft_target_records: int = SOFT_TARGET_RECORDS,
+    task_event: Mapping[str, Any] | None = None,
+    task_capsule: Mapping[str, Any] | None = None,
+    host_limits: Mapping[str, Any] | None = None,
+    transport_cursor: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     memory_need = str(_route_field(route, "memory_need", "none"))
     bindings = _route_field(route, "action_bindings", [])
@@ -853,6 +868,56 @@ def build_action_consumption(
         if wants_correction
         else None
     )
+    task_continuity_decision: dict[str, Any] | None = None
+    task_transition: dict[str, Any] | None = None
+    dynamic_reminders: list[dict[str, Any]] = []
+    current_task_capsule: dict[str, Any] | None = None
+    task_capsule_context = ""
+    task_transport_receipt: dict[str, Any] | None = None
+    if task_event is not None:
+        task_continuity_decision = decide_task_continuity(
+            route,
+            task_event,
+            task_capsule,
+        )
+        if task_capsule is None:
+            if task_continuity_decision["decision"] != "dormant":
+                current_task_capsule, task_transition = initialize_task_capsule(
+                    route, task_event
+                )
+        else:
+            task_transition = apply_task_event(task_capsule, task_event)
+            current_task_capsule = task_transition["capsule"]
+            dynamic_reminders = build_dynamic_reminders(
+                current_task_capsule,
+                task_transition,
+            )
+            if dynamic_reminders:
+                current_task_capsule = dynamic_reminders[-1]["capsule_snapshot"]
+                dynamic_reminders = [
+                    {
+                        key: value
+                        for key, value in reminder.items()
+                        if key != "capsule_snapshot"
+                    }
+                    for reminder in dynamic_reminders
+                ]
+        if current_task_capsule is not None:
+            context_receipt = build_task_capsule_context(
+                current_task_capsule,
+                dynamic_reminders,
+                host_limits=host_limits,
+            )
+            entry = context_receipt.get("entry")
+            if isinstance(entry, Mapping):
+                task_capsule_context = str(entry.get("value") or "")
+            task_transport_receipt = {
+                "delivery": context_receipt.get("delivery"),
+                "char_count": context_receipt.get("char_count"),
+                "cursor": dict(transport_cursor) if isinstance(transport_cursor, Mapping) else None,
+            }
+    elif isinstance(_route_field(route, "task_continuity_decision"), Mapping):
+        task_continuity_decision = dict(_route_field(route, "task_continuity_decision"))
     conversation_navigation = _conversation_navigation_bundle(route, prompt)
     additional_context, context_over_soft_target, omitted = (
         _additional_context(selected, semantic_review_candidates)
@@ -928,6 +993,13 @@ def build_action_consumption(
             else:
                 action_status = "completed"
                 evidence = correction_bundle.get("candidate_key")
+        elif action_id == "prepare_task_continuity_capsule":
+            if current_task_capsule is None:
+                action_status = "not_applicable_with_reason"
+                evidence = "task_continuity_dormant_or_no_task_event"
+            else:
+                action_status = "completed"
+                evidence = current_task_capsule.get("capsule_id")
         elif action_id == "perform_external_research_route":
             action_status = "deferred_to_model_agent"
             evidence = {
@@ -984,6 +1056,36 @@ def build_action_consumption(
         )
         context_over_soft_target = context_over_soft_target or len(additional_context) > CONTEXT_SOFT_TARGET_CHARS
 
+    if task_capsule_context:
+        additional_context = "\n".join(
+            part for part in (additional_context, task_capsule_context) if part
+        )
+        context_over_soft_target = context_over_soft_target or len(additional_context) > CONTEXT_SOFT_TARGET_CHARS
+
+    if isinstance(host_limits, Mapping) and additional_context:
+        transport_plan = plan_transport(
+            current_task_capsule,
+            {
+                "kind": "text",
+                "original_chars": len(additional_context),
+                "original_items": 1,
+            },
+            host_limits,
+        )
+        context_page = page_result(additional_context, transport_plan, transport_cursor)
+        additional_context = context_page["content"]
+        task_transport_receipt = {
+            "schema": context_page["schema"],
+            "delivery": "complete" if context_page["complete"] else "continuation_required",
+            "page_sha256": context_page["page_sha256"],
+            "full_result_sha256": context_page["full_result_sha256"],
+            "original_chars": context_page["original_chars"],
+            "forwarded_chars": context_page["forwarded_chars"],
+            "uncovered_chars": context_page["uncovered_chars"],
+            "next_cursor": context_page["next_cursor"],
+        }
+        context_over_soft_target = context_over_soft_target or not context_page["complete"]
+
     complete_statuses = {
         "completed",
         "not_applicable_with_reason",
@@ -1013,6 +1115,12 @@ def build_action_consumption(
         "semantic_review_candidates": semantic_review_candidates,
         "semantic_review_owner": "host_model_agent",
         "task_local_correction_bundle": correction_bundle,
+        "task_continuity_decision": task_continuity_decision,
+        "task_capsule": current_task_capsule,
+        "task_transition": task_transition,
+        "dynamic_reminders": dynamic_reminders,
+        "task_capsule_context": task_capsule_context,
+        "transport_receipt": task_transport_receipt,
         "external_retrieval_receipt": external_retrieval_receipt,
         "retrieval": {
             key: value
@@ -1085,6 +1193,41 @@ def _compact_runtime_receipt(receipt: dict[str, Any]) -> dict[str, Any]:
             )
             if key in external
         }
+    capsule = receipt.get("task_capsule")
+    if isinstance(capsule, dict):
+        capsule = {
+            key: capsule.get(key)
+            for key in (
+                "schema",
+                "capsule_id",
+                "task_key_sha256",
+                "lifecycle",
+                "progress_revision",
+                "objective",
+                "current_stage",
+                "remaining_work",
+                "next_action",
+                "next_action_reason",
+                "blocking_condition",
+                "unresolved_failures",
+                "persistence",
+            )
+        }
+    transition = receipt.get("task_transition")
+    if isinstance(transition, dict):
+        transition = {
+            key: transition.get(key)
+            for key in (
+                "schema",
+                "changed",
+                "previous_lifecycle",
+                "lifecycle",
+                "progress_delta",
+                "event_outcome",
+                "transition_reasons",
+                "event_type",
+            )
+        }
     return {
         "schema": "cbh.action_consumption_receipt.compact.v1",
         "output_profile": "compact_runtime",
@@ -1103,6 +1246,11 @@ def _compact_runtime_receipt(receipt: dict[str, Any]) -> dict[str, Any]:
         ],
         "semantic_review_owner": receipt.get("semantic_review_owner"),
         "task_local_correction_bundle": receipt.get("task_local_correction_bundle"),
+        "task_continuity_decision": receipt.get("task_continuity_decision"),
+        "task_capsule": capsule,
+        "task_transition": transition,
+        "dynamic_reminders": receipt.get("dynamic_reminders", []),
+        "transport_receipt": receipt.get("transport_receipt"),
         "external_retrieval_receipt": external,
         "retrieval": receipt.get("retrieval", {}),
         "actions": receipt.get("actions", []),

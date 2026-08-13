@@ -24,6 +24,32 @@ def test_policy_authoring_toml_is_machine_readable() -> None:
     assert payload["schema_version"] == "cbh.policy_authoring.v1"
     assert payload["compiled_sections"]
     router = payload["router_decision_contract"]
+    continuity = router["task_continuity_contract"]
+    assert continuity["schema"] == "cbh.task_continuity_contract.v1"
+    assert continuity["lifecycle_values"] == [
+        "DORMANT",
+        "ARMED",
+        "ACTIVE",
+        "VERIFYING",
+        "RETIRED",
+    ]
+    assert continuity["short_answer_default"] == "dormant"
+    assert continuity["write_intent_requires_arm"] is True
+    assert continuity["state_storage"] == "process_local_only"
+    assert continuity["authority_granted"] is False
+    assert continuity["decision_values"] == ["dormant", "arm", "continue"]
+    assert continuity["activation_reasons"] == [
+        "write_intent",
+        "tool_required",
+        "long_running_task",
+        "multi_stage_task",
+        "task_resume",
+        "open_loop",
+        "prior_failure",
+        "explicit_request",
+        "existing_active_capsule",
+    ]
+    assert continuity["progress_status_values"] == ["verified", "inferred", "unknown"]
     lifecycle = router["correction_lifecycle_contract"]
     assert lifecycle["schema"] == "cbh.correction_lifecycle_contract.v1"
     assert lifecycle["objective_order"] == [

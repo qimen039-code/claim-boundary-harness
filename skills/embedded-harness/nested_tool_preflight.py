@@ -19,6 +19,7 @@ from urllib.parse import urlsplit
 
 from behavior_correction_gate import build_behavior_correction_receipt
 from behavior_correction_hook import handle_event, powershell_parser_error_ids
+from task_continuity import page_result
 
 
 SCHEMA = "cbh.nested_tool_preflight_receipt.v1"
@@ -674,11 +675,93 @@ def _bounded_text(text: str, max_chars: int) -> dict[str, Any]:
     }
 
 
+def _chunk_transport_text_item(
+    text: str, *, source_item_index: int, max_chars: int
+) -> list[dict[str, Any]]:
+    plain = {"type": "text", "text": text}
+    if len(_canonical_json(plain)) <= max_chars:
+        return [plain]
+    digest = _sha256_text(text)
+    chunks: list[dict[str, Any]] = []
+    offset = 0
+    part = 0
+    while offset < len(text):
+        take = max(1, max_chars // 2)
+        item: dict[str, Any]
+        while True:
+            item = {
+                "type": "text",
+                "text": text[offset : offset + take],
+                "source_item_index": source_item_index,
+                "part_index": part,
+                "text_offset": offset,
+                "full_text_sha256": digest,
+            }
+            if len(_canonical_json(item)) <= max_chars or take == 1:
+                break
+            take = max(1, take // 2)
+        if len(_canonical_json(item)) > max_chars:
+            raise ValueError("text_item_metadata_exceeds_transport_char_limit")
+        chunks.append(item)
+        offset += len(item["text"])
+        part += 1
+    return chunks
+
+
+def _transport_safe_result(result: Any, *, max_chars: int) -> Any:
+    """Build the complete text-safe representation before any paging occurs."""
+
+    if isinstance(result, Mapping) and isinstance(result.get("content"), list):
+        items: list[dict[str, Any]] = []
+        for source_item_index, block in enumerate(result["content"]):
+            if not isinstance(block, Mapping):
+                items.append({"type": "unknown", "forward": "semantic_review"})
+                continue
+            block_type, type_review = _bounded_metadata(block.get("type"), 80)
+            if not block_type:
+                block_type = "unknown"
+                type_review = True
+            if block_type == "text":
+                items.extend(
+                    _chunk_transport_text_item(
+                        str(block.get("text") or ""),
+                        source_item_index=source_item_index,
+                        max_chars=max_chars,
+                    )
+                )
+                continue
+            elif block_type in {"image", "audio"}:
+                mime_type, mime_review = _bounded_metadata(block.get("mimeType"), 160)
+                item = {
+                    "type": block_type,
+                    "mimeType": mime_type,
+                    "forward": "typed_only",
+                    "inline_payload_omitted_from_text": True,
+                }
+                type_review = type_review or mime_review
+            else:
+                redacted, omitted = _redact_inline_payloads(block)
+                item = dict(redacted) if isinstance(redacted, Mapping) else {
+                    "type": block_type,
+                    "forward": "semantic_review",
+                }
+                if omitted:
+                    item["inline_payloads_omitted_from_text"] = omitted
+            if type_review:
+                item["metadata_review_required"] = True
+            items.append(item)
+        return items
+    redacted, _ = _redact_inline_payloads(result)
+    return redacted
+
+
 def normalize_nested_tool_result(
     result: Any,
     *,
     max_chars: int = 20000,
     max_items: int = 100,
+    transport_plan: Mapping[str, Any] | None = None,
+    cursor: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Normalize nested results without dropping strings or stringifying media data."""
 
@@ -691,6 +774,25 @@ def normalize_nested_tool_result(
         or max_items <= 0
     ):
         raise ValueError("result budgets must be positive integers")
+    if transport_plan is not None:
+        max_transport_chars = transport_plan.get("max_chars")
+        if (
+            isinstance(max_transport_chars, bool)
+            or not isinstance(max_transport_chars, int)
+            or max_transport_chars <= 0
+        ):
+            raise ValueError("transport plan max_chars must be a positive integer")
+        page = page_result(
+            _transport_safe_result(result, max_chars=max_transport_chars),
+            transport_plan,
+            cursor,
+        )
+        return {
+            "kind": "transport_page",
+            "transport_page": page,
+            "source_sha256": page["full_result_sha256"],
+            "inline_payload_present": False,
+        }
     if result is None:
         return {"kind": "empty", "truncated": False, "original_items": 0}
     if isinstance(result, str):

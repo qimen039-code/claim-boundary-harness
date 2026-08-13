@@ -23,6 +23,7 @@ memory_write_profile
 read_semantic_boundary
 read_depth_profile
 edit_operation_profile
+task_continuity_decision
 memory_lane
 record_intent
 external_need
@@ -54,6 +55,7 @@ Field meanings:
 | `read_semantic_boundary` | Decide what semantic evidence demand is active before selecting reading depth. |
 | `read_depth_profile` | Decide whether to use capsule-only, segment, raw context, artifact output, cross-lane, source cascade, or full-lane audit reading. |
 | `edit_operation_profile` | Decide whether a mutating task is append, local patch, section replace, new artifact, supersession, archive/move, full rewrite, in-file deletion, or filesystem deletion. |
+| `task_continuity_decision` | Keep the continuity layer dormant for answer-only work; arm it for tool, write, long-running, multi-stage, resumed, or explicitly requested work; continue an existing active capsule. CBH itself remains active. |
 | `memory_lane` | Decide whether the memory action belongs to a current project, current conversation, referenced conversation, emergent project candidate, common error corpus, self-reflection matrix, global inbox, or no lane. |
 | `record_intent` | Decide whether there is no record request, explicit user request, inferred reusable error, projectization review, conversation checkpoint, or explicit conversation memory request. |
 | `external_need` | Decide whether external lookup is unnecessary, official-source, GitHub/open-source, general cross-check, source-grounded learning, or local validation. |
@@ -77,6 +79,16 @@ The router should compute the full decision internally, then expose the smallest
 | `debug_receipt` | Router debugging, misroute analysis, or user asks for full receipt. | Full receipt plus matched/negated triggers, confidence, and profile reasons. |
 
 This keeps Codex-style, Claude-style, WorkBuddy-style, and custom local adapters cheap while preserving the full whiteboard schema for migration, audits, and public framework work.
+
+## Task Continuity Boundary
+
+`task_continuity.py` maintains process-local objective, acceptance progress,
+earliest incomplete work, next action, dynamic reminders, and hash-bound
+transport pages. It stores no chain-of-thought, grants no permission, and writes
+no task-memory file. A `host_delivery: ready` decision only means a bounded
+context entry was constructed; automatic model visibility requires a verified
+host adapter. Without that adapter the status is library-ready/host-pending,
+not an automatic continuous-memory claim.
 
 ## Capability Exposure Short-Circuit
 

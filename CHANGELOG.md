@@ -6,6 +6,8 @@ This project uses `vMAJOR.MINOR.PATCH` version labels.
 
 ## Unreleased
 
+## v1.2.4 - 2026-08-13
+
 - Added an advisory typed preflight for nested shell and web calls that are not
   visible to the native correction hook, including schema checks, bounded
   output forwarding, and unchanged-dispatch recurrence detection.
@@ -14,6 +16,18 @@ This project uses `vMAJOR.MINOR.PATCH` version labels.
   session paths or treating unverified references as evidence.
 - Added an on-demand dangerous-delete classifier that reports risk and recovery
   context without granting authorization or registering a blocking hook.
+- Added a dormant-by-default task-continuity capsule that activates for write,
+  tool-driven, long-running, multi-stage, resumed, or explicitly requested work
+  while leaving ordinary short answers on the existing minimal CBH path.
+- Added task-local progress reconciliation with verified, inferred, and unknown
+  states, earliest-incomplete next actions, deduplicated dynamic reminders, and
+  explicit retirement without persisting chain-of-thought or granting authority.
+- Added adaptive typed-result transport with host-limit precedence, content-bound
+  cursors, exact reconstruction hashes, bounded continuation pages, and safe
+  handling for text, image, audio, and resource content.
+- Connected continuity decisions to the router, action consumer, policy compiler,
+  deployment profiles, doctor, and public architecture contracts while keeping
+  host injection an adapter-owned integration boundary.
 
 ## v1.2.3 - 2026-08-10
 

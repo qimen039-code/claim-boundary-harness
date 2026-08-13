@@ -668,6 +668,7 @@
       "prediction_review_profile",
       "prediction_review_budget",
       "correction_lifecycle_profile",
+      "task_continuity_decision",
       "action_bindings",
       "memory_need",
       "hybrid_retrieval_profile",
@@ -718,7 +719,8 @@
       "external_research_gate",
       "claim_schema_verifier",
       "runtime_gate",
-      "memory_link_ledger"
+      "memory_link_ledger",
+      "task_continuity"
     ],
     "tool_surface_need_values": [
       "none",
@@ -2514,6 +2516,7 @@
         "retrieve_matching_memory",
         "prepare_task_local_prediction_review",
         "prepare_task_local_correction_bundle",
+        "prepare_task_continuity_capsule",
         "verify_and_calibrate_feedback",
         "perform_external_research_route",
         "discover_preferred_tool_surface",
@@ -2537,6 +2540,7 @@
         "selected_record_id",
         "task_local_prediction_review",
         "task_local_correction_bundle",
+        "task_continuity_capsule_or_dormant_receipt",
         "verified_postcondition_or_calibration",
         "source_ledger_or_citations",
         "checked_available_missing_or_blocked",
@@ -2922,6 +2926,43 @@
         "the user explicitly requested systemic or reusable scope"
       ],
       "retire_condition": "Retire after the direct result passes acceptance, or after evidence proves that one declared expansion condition applies."
+    },
+    "task_continuity_contract": {
+      "enabled": true,
+      "schema": "cbh.task_continuity_contract.v1",
+      "lifecycle_values": [
+        "DORMANT",
+        "ARMED",
+        "ACTIVE",
+        "VERIFYING",
+        "RETIRED"
+      ],
+      "decision_values": [
+        "dormant",
+        "arm",
+        "continue"
+      ],
+      "activation_reasons": [
+        "write_intent",
+        "tool_required",
+        "long_running_task",
+        "multi_stage_task",
+        "task_resume",
+        "open_loop",
+        "prior_failure",
+        "explicit_request",
+        "existing_active_capsule"
+      ],
+      "progress_status_values": [
+        "verified",
+        "inferred",
+        "unknown"
+      ],
+      "short_answer_default": "dormant",
+      "write_intent_requires_arm": true,
+      "state_storage": "process_local_only",
+      "authority_granted": false,
+      "rule": "CBH remains active. Only the task-continuity layer sleeps by default. Arm it for write, tool, long-running, multi-stage, or resumed work; keep ordinary answer-only turns dormant. Track observable objective, progress, earliest incomplete acceptance item, next action, failures, verifier state, and bounded evidence references. Do not store chain-of-thought, create permission, or create a separate task-memory file. Retire only after required postconditions are verified or unresolved work is explicitly reported."
     },
     "referenced_conversation_memory_contract": {
       "enabled": true,

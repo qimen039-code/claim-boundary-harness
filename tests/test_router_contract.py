@@ -130,6 +130,39 @@ def test_explicit_follow_up_fix_still_promotes_r3_after_review() -> None:
     assert payload["edit_operation_profile"] == "in_place_patch"
 
 
+def test_short_answer_only_question_keeps_task_continuity_dormant() -> None:
+    payload = run_router("什么是检索增强生成？")
+
+    decision = payload["task_continuity_decision"]
+    assert decision["decision"] == "dormant"
+    assert decision["reasons"] == []
+    assert decision["host_delivery"] == "not_needed"
+    assert "task_continuity" not in payload["module_need"]
+    assert "prepare_task_continuity_capsule" not in payload["action_binding_ids"]
+    assert payload["compact_receipt"]["task_continuity_decision"] == decision
+
+
+@pytest.mark.parametrize(
+    ("task", "reason"),
+    [
+        ("修改 README 并验证改动", "write_intent"),
+        ("打开并检查这个网页的当前内容", "tool_required"),
+        ("分三个阶段持续完成这项工作，做完后统一验证", "multi_stage_task"),
+        ("继续之前中断且尚未完成的任务", "task_resume"),
+    ],
+)
+def test_actionable_tasks_arm_task_continuity(task: str, reason: str) -> None:
+    payload = run_router(task)
+
+    decision = payload["task_continuity_decision"]
+    assert decision["decision"] == "arm"
+    assert reason in decision["reasons"]
+    assert decision["host_delivery"] == "ready"
+    assert "task_continuity" in payload["module_need"]
+    assert "prepare_task_continuity_capsule" in payload["action_binding_ids"]
+    assert payload["compact_receipt"]["task_continuity_decision"] == decision
+
+
 def test_absolute_permanent_delete_requires_scoped_confirmation() -> None:
     payload = run_router(
         r"永久删除 'C:\cbh-fixture\obsolete\payload.bin'，仅处理这个目标，其他路径不得处理"

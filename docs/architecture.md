@@ -22,6 +22,8 @@ The microkernel should stay short. Put project details elsewhere.
 - `harness_memory_isolation_gate.ps1`;
 - `harness_external_research_gate.ps1`;
 - `harness_claim_schema_verifier.ps1`;
+- `harness_action_consumer.py`;
+- `task_continuity.py`;
 - `embedded_harness_policy.json`.
 
 The intake router classifies work into R0-R5 internally and returns required gates. User-facing surfaces stay silent by default unless the classification changes execution path, cost, permission, memory, search, or claim boundaries.
@@ -36,8 +38,9 @@ The repository also includes adapter examples outside the core skill folder, suc
 The mandatory model-layer pre-action control plane sits around the router:
 
 ```text
-routing receipt
+routing receipt (including optional task_continuity_decision)
 -> intake route and cheapest sufficient gate selection
+-> optional process-local continuity capsule for qualifying tasks
 -> event-triggered re-evaluation
 -> final claim, memory, version, and verification boundary check
 -> selective hard runtime gate only for critical risks
