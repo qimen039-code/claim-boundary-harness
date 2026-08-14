@@ -6,42 +6,11 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
+. (Join-Path $PSScriptRoot "external_route_trigger_helpers.ps1")
 $policy = Get-Content -LiteralPath (Join-Path $PSScriptRoot "embedded_harness_policy.json") -Raw -Encoding UTF8 | ConvertFrom-Json
 $combined = "$TaskText`n$ClaimText"
 $matchedTriggers = @()
 $negatedTriggers = @()
-
-function ConvertTo-TriggerList($value) {
-  $items = @()
-  if ($null -eq $value) { return @() }
-  if ($value -is [System.Array]) {
-    foreach ($entry in $value) { $items += ConvertTo-TriggerList $entry }
-    return @($items)
-  }
-  if (($value -isnot [string]) -and $value.PSObject.Properties.Count -gt 0) {
-    foreach ($prop in $value.PSObject.Properties) { $items += ConvertTo-TriggerList $prop.Value }
-    return @($items)
-  }
-  return @([string]$value)
-}
-
-function Test-EnglishTrigger([string]$text) {
-  return (($text -match '^[\x20-\x7E]+$') -and ($text -match '[A-Za-z0-9]'))
-}
-
-function New-TriggerRegex([string]$text) {
-  $escaped = [regex]::Escape($text)
-  if (Test-EnglishTrigger $text) {
-    return "(?i)(?<![A-Za-z0-9_])$escaped(?![A-Za-z0-9_])"
-  }
-  return $escaped
-}
-
-function Test-NegatedMatch([string]$source, [int]$index) {
-  $start = [Math]::Max(0, $index - 48)
-  $prefix = $source.Substring($start, $index - $start)
-  return ($prefix -match "(?i)(\bdo\s+not\b|\bdon't\b|\bnever\b|\bnot\b|\bno\b)[\s\w'-]{0,36}$")
-}
 
 foreach ($trigger in (ConvertTo-TriggerList $policy.external_research_triggers)) {
   if ([string]::IsNullOrWhiteSpace($trigger)) {
@@ -49,7 +18,7 @@ foreach ($trigger in (ConvertTo-TriggerList $policy.external_research_triggers))
   }
   $regex = New-TriggerRegex ([string]$trigger)
   foreach ($hit in [regex]::Matches($combined, $regex)) {
-    if (Test-NegatedMatch -source $combined -index $hit.Index) {
+    if (Test-ExternalNegatedMatch -source $combined -index $hit.Index) {
       $negatedTriggers += [string]$trigger
     } else {
       $matchedTriggers += [string]$trigger
@@ -65,7 +34,7 @@ foreach ($trigger in (ConvertTo-TriggerList $externalRetrievalContract.explicit_
   }
   $regex = New-TriggerRegex ([string]$trigger)
   foreach ($hit in [regex]::Matches($combined, $regex)) {
-    if (Test-NegatedMatch -source $combined -index $hit.Index) {
+    if (Test-ExternalNegatedMatch -source $combined -index $hit.Index) {
       $negatedTriggers += [string]$trigger
     } else {
       $matchedTriggers += [string]$trigger
@@ -85,24 +54,9 @@ foreach ($trigger in (ConvertTo-TriggerList $externalRetrievalContract.local_onl
   }
 }
 
-if ($combined -match '\b20\d{2}[-/]\d{1,2}([-/]\d{1,2})?\b') {
-  $matchedTriggers += "date_pattern"
-}
-$versionPattern = '\b(v\d+\.\d+(\.\d+)?|(?:version|release|sdk|node|python|npm|package|plugin|model)\s*:?\s*v?\d+\.\d+(\.\d+)?)\b'
-if ($combined -match $versionPattern) {
-  $matchedTriggers += "version_pattern"
-}
-if ($combined -match 'https?://|github\.com') {
-  $matchedTriggers += "url_or_github_pattern"
-}
-$typedExternalIdentifierPattern = '(?i)\bRFC\s*-?\s*\d{3,5}\b|\bCVE-\d{4}-\d{4,}\b|\b10\.\d{4,9}/[-._;()/:A-Z0-9]+\b|\barXiv\s*:\s*\d{4}\.\d{4,5}(?:v\d+)?\b|\barXiv\s+\d{4}\.\d{4,5}(?:v\d+)?\b|\b(?:ISO(?:/IEC)?|IEC|IEEE)\s+\d+(?:[-:]\d+)*(?::\d{4})?\b|(?<![A-Za-z0-9_.-])@[A-Za-z0-9][A-Za-z0-9._-]*/[A-Za-z0-9][A-Za-z0-9._-]*|\b(?:PyPI|npm|Hugging\s*Face)\b'
-if ([regex]::IsMatch($combined, $typedExternalIdentifierPattern)) {
-  $matchedTriggers += "typed_external_identifier_pattern"
-}
-$currentnessPattern = '(?i)\bnow\b|\bcurrently\b|\bpresent\s+(?:role|office|holder)\b|\u73b0\u5728|\u73b0\u4efb|\u76ee\u524d'
-if ([regex]::IsMatch($combined, $currentnessPattern)) {
-  $matchedTriggers += "currentness_pattern"
-}
+$derivedExternalSignals = Get-DerivedExternalSignalMatchSet $combined
+$matchedTriggers += @($derivedExternalSignals.positive)
+$negatedTriggers += @($derivedExternalSignals.negated)
 
 $recommendedModes = @()
 foreach ($mode in $policy.search_and_learning_decision_matrix.search_modes.PSObject.Properties) {
@@ -113,7 +67,7 @@ foreach ($mode in $policy.search_and_learning_decision_matrix.search_modes.PSObj
     }
     $regex = New-TriggerRegex ([string]$trigger)
     foreach ($hit in [regex]::Matches($combined, $regex)) {
-      if (-not (Test-NegatedMatch -source $combined -index $hit.Index)) {
+      if (-not (Test-ExternalNegatedMatch -source $combined -index $hit.Index)) {
         $modeMatched = $true
         break
       }

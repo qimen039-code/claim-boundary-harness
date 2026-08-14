@@ -40,10 +40,16 @@ read this map
 | `skills/embedded-harness/embedded_harness_policy.json` | compiled runtime policy | every scripted or adapter deployment |
 | `harness_intake_router.ps1` | deterministic route receipt | PowerShell/Codex direct-script profile |
 | `harness_action_consumer.py` | bounded memory context, external retrieval plan, task-local correction receipt, and continuity capsule handoff | memory retrieval, external lookup, or full model-loop integration |
-| `task_continuity.py` | dormant-by-default task-local lifecycle, progress reconciliation, dynamic reminders, and hash-bound transport paging | every profile that deploys the action consumer or a continuity-aware host adapter |
+| `task_continuity.py` | dormant-by-default stable global task frame, progress reconciliation, resumable local side tasks, reuse-first reminders, and hash-bound transport paging | library dependency of every profile that deploys the action consumer; automatic host delivery is currently verified only on a separately tested host adapter |
+| `engineering_execution.py` | optional tracer-bullet, module-depth, invocation-topology, and seam-review advisory receipts | library dependency of every profile that deploys the action consumer; file inclusion alone does not prove host-loop routing or consumption |
+| `task_continuity_workfile.py` | append-only, hash-chained `.cumcwork` snapshots, source-preserving v2-to-v3 projection, and exact task restart rehydration | continuity-aware hosts that need working state across adapter/process restarts |
+| `semantic_memory.py` | append-only v3 records, rebuildable meta-first index, exact materialization, and store checks | every profile that claims future durable memory writes or v3 retrieval |
+| `memory_runtime_bridge.py` | binds selected memory IDs/evidence handles into one task working set without promoting it to durable memory | profiles that combine memory retrieval with task continuity |
+| `task_memory_checkpoint.py` | prepares a hash-bound candidate from one fully verified retired task, then synchronously appends and proves exact v3 retrieval when the caller separately promotes it | complete profiles that connect task continuity to durable project or conversation memory |
 | `external_retrieval_strategy.py` | task-local exact-anchor, source-native, per-target retrieval receipt | any profile that deploys the action consumer or external research gate |
 | `harness_memory_isolation_gate.ps1` | project-lane path receipt | PowerShell memory reads/writes |
 | `harness_external_research_gate.ps1` | external-evidence route receipt | external/current fact routing |
+| `external_route_trigger_helpers.ps1` | shared trigger and negation semantics for router and external gate | every profile that deploys either PowerShell route surface |
 | `harness_claim_schema_verifier.ps1` | claim/evidence-boundary receipt | PowerShell claim validation |
 
 The Bash directory is a trigger/router reference for model-facing decision gates and
@@ -149,6 +155,9 @@ runtime does not activate capabilities.
 | instruction active | a fresh task demonstrates that the root microkernel loaded |
 | router active | route receipt from the deployed path |
 | memory retrieval active | selected record with lane, source, and provenance returned to the model |
+| v3 memory write active | append receipt, store check, meta-first search, and exact selected-record materialization all pass in the deployment-local lane |
+| task continuity active | a fresh adapter process rehydrates the same stable global goal before adjudicating the current turn, preserves criteria/progress/reusable handles, and resumes bounded side tasks from the exact task workfile |
+| task checkpoint promotion active | a completed task produces a read-only eligible candidate; explicit promotion returns both canonical durable and immediately searchable receipts; a new task retrieves the exact record and binds it to its working set |
 | model-loop integration active | complete host-owned action-consumption receipt |
 | correction active | known historical regression rewritten, verifier passes, invariants preserved |
 | correction fallback active | no-match and forced verifier/module failure both produce silent no-op |

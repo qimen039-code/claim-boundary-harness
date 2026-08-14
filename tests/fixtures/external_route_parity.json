@@ -1,0 +1,14 @@
+{
+  "cases": [
+    {"id": "chinese_negated_search", "task": "不要搜索，只分析给定文本。", "expected": false},
+    {"id": "english_long_negation", "task": "do not use any external network sources for this audit and please search", "expected": false},
+    {"id": "positive_latest_github", "task": "请搜索 GitHub 上这个项目的最新版本", "expected": true},
+    {"id": "local_only", "task": "只做本地检查，不要联网搜索", "expected": false},
+    {"id": "provided_text_date", "task": "只分析给定文本：发布日期是 2025-01-01。", "expected": false},
+    {"id": "negated_url", "task": "不要搜索，只分析 https://example.com/page", "expected": false},
+    {"id": "bare_url", "task": "请分析 https://example.com/page", "expected": true},
+    {"id": "bare_date", "task": "核查发布日期 2025-01-01", "expected": true},
+    {"id": "currentness", "task": "核查这个项目目前的状态", "expected": true},
+    {"id": "typed_identifier", "task": "核查 CVE-2026-12345", "expected": true}
+  ]
+}

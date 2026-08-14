@@ -40,7 +40,7 @@ The mandatory model-layer pre-action control plane sits around the router:
 ```text
 routing receipt (including optional task_continuity_decision)
 -> intake route and cheapest sufficient gate selection
--> optional process-local continuity capsule for qualifying tasks
+-> optional stable global task frame plus local deltas for qualifying tasks
 -> event-triggered re-evaluation
 -> final claim, memory, version, and verification boundary check
 -> selective hard runtime gate only for critical risks

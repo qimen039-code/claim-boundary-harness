@@ -53,6 +53,7 @@ TRACKED_PATHS: list[tuple[str, ...]] = [
     ("router_decision_contract", "reflexive_gap_contract"),
     ("router_decision_contract", "action_binding_contract"),
     ("router_decision_contract", "task_continuity_contract"),
+    ("router_decision_contract", "engineering_execution_contract"),
     ("router_decision_contract", "correction_lifecycle_contract"),
     ("router_decision_contract", "explicit_record_triggers"),
     ("router_decision_contract", "conversation_lane_declaration_triggers"),
@@ -391,6 +392,75 @@ def _normal_task_continuity_contract(
     normalized["decision_values"] = decisions
     normalized["activation_reasons"] = reasons
     normalized["progress_status_values"] = progress
+    return normalized
+
+
+def _normal_engineering_execution_contract(
+    authoring: dict[str, Any],
+) -> dict[str, Any] | None:
+    router = authoring.get("router_decision_contract", {})
+    if not isinstance(router, dict):
+        raise ValueError("router_decision_contract must be a table")
+    contract = router.get("engineering_execution_contract")
+    if contract is None:
+        return None
+    if not isinstance(contract, dict):
+        raise ValueError("engineering_execution_contract must be a table")
+    allowed_fields = {
+        "enabled",
+        "schema",
+        "profile_values",
+        "profile_triggers",
+        "state_storage",
+        "authority_granted",
+        "source_refs",
+        "rule",
+    }
+    unknown_fields = sorted(set(contract) - allowed_fields)
+    if unknown_fields:
+        raise ValueError(
+            f"engineering_execution_contract has unknown fields: {unknown_fields}"
+        )
+    if contract.get("enabled") is not True:
+        raise ValueError("engineering_execution_contract.enabled must be true")
+    if contract.get("schema") != "cbh.engineering_execution_contract.v1":
+        raise ValueError("engineering_execution_contract.schema is unsupported")
+    profiles = _string_list(
+        contract.get("profile_values"),
+        "engineering_execution_contract.profile_values",
+    )
+    expected_profiles = [
+        "tracer_bullet_plan",
+        "deep_module_review",
+        "skill_invocation_topology",
+        "adapter_seam_review",
+    ]
+    if profiles != expected_profiles:
+        raise ValueError("engineering_execution_contract.profile_values mismatch")
+    triggers = contract.get("profile_triggers")
+    if not isinstance(triggers, dict) or list(triggers) != expected_profiles:
+        raise ValueError("engineering_execution_contract.profile_triggers mismatch")
+    normalized_triggers = {
+        profile: _string_list(
+            triggers.get(profile),
+            f"engineering_execution_contract.profile_triggers.{profile}",
+        )
+        for profile in expected_profiles
+    }
+    if contract.get("state_storage") != "none":
+        raise ValueError("engineering_execution_contract.state_storage must be none")
+    if contract.get("authority_granted") is not False:
+        raise ValueError("engineering_execution_contract.authority_granted must be false")
+    source_refs = _string_list(
+        contract.get("source_refs"),
+        "engineering_execution_contract.source_refs",
+    )
+    if not str(contract.get("rule") or "").strip():
+        raise ValueError("engineering_execution_contract.rule must be non-empty")
+    normalized = copy.deepcopy(contract)
+    normalized["profile_values"] = profiles
+    normalized["profile_triggers"] = normalized_triggers
+    normalized["source_refs"] = source_refs
     return normalized
 
 
@@ -1047,6 +1117,14 @@ def compile_policy(base_policy: dict[str, Any], authoring: dict[str, Any]) -> di
             compiled,
             ("router_decision_contract", "task_continuity_contract"),
             task_continuity_contract,
+        )
+
+    engineering_execution_contract = _normal_engineering_execution_contract(authoring)
+    if engineering_execution_contract is not None:
+        _set_path(
+            compiled,
+            ("router_decision_contract", "engineering_execution_contract"),
+            engineering_execution_contract,
         )
 
     correction_lifecycle_contract = _normal_correction_lifecycle_contract(authoring)

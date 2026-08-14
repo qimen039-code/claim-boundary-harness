@@ -669,6 +669,7 @@
       "prediction_review_budget",
       "correction_lifecycle_profile",
       "task_continuity_decision",
+      "engineering_execution_profiles",
       "action_bindings",
       "memory_need",
       "hybrid_retrieval_profile",
@@ -715,12 +716,15 @@
       "conversation_memory_index",
       "static_knowledge_index",
       "debt_hygiene_gate",
+      "conversation_ledger_index",
       "tool_surface_discovery",
+      "correction_lifecycle",
       "external_research_gate",
       "claim_schema_verifier",
       "runtime_gate",
       "memory_link_ledger",
-      "task_continuity"
+      "task_continuity",
+      "engineering_execution"
     ],
     "tool_surface_need_values": [
       "none",
@@ -2517,6 +2521,7 @@
         "prepare_task_local_prediction_review",
         "prepare_task_local_correction_bundle",
         "prepare_task_continuity_capsule",
+        "apply_engineering_execution_profile",
         "verify_and_calibrate_feedback",
         "perform_external_research_route",
         "discover_preferred_tool_surface",
@@ -2541,6 +2546,7 @@
         "task_local_prediction_review",
         "task_local_correction_bundle",
         "task_continuity_capsule_or_dormant_receipt",
+        "engineering_execution_profile_receipt",
         "verified_postcondition_or_calibration",
         "source_ledger_or_citations",
         "checked_available_missing_or_blocked",
@@ -2963,6 +2969,66 @@
       "state_storage": "process_local_only",
       "authority_granted": false,
       "rule": "CBH remains active. Only the task-continuity layer sleeps by default. Arm it for write, tool, long-running, multi-stage, or resumed work; keep ordinary answer-only turns dormant. Track observable objective, progress, earliest incomplete acceptance item, next action, failures, verifier state, and bounded evidence references. Do not store chain-of-thought, create permission, or create a separate task-memory file. Retire only after required postconditions are verified or unresolved work is explicitly reported."
+    },
+    "engineering_execution_contract": {
+      "enabled": true,
+      "schema": "cbh.engineering_execution_contract.v1",
+      "profile_values": [
+        "tracer_bullet_plan",
+        "deep_module_review",
+        "skill_invocation_topology",
+        "adapter_seam_review"
+      ],
+      "state_storage": "none",
+      "authority_granted": false,
+      "source_refs": [
+        "https://github.com/mattpocock/skills/tree/main/skills/engineering/codebase-design"
+      ],
+      "rule": "Activate only the matching advisory profile. Keep ordinary tasks dormant. Tracer-bullet receipts expose a vertical delivery frontier and blocking edges; deep-module probes default to reversible freeze or temporary isolation, require rollback and audit evidence, and retain deletion only as the source thought experiment; invocation topology distinguishes request origin, actual runtime invoker, orchestration owner, and authority; adapter seams remain hypothetical until two independent verified host surfaces exercise the same core contract.",
+      "profile_triggers": {
+        "tracer_bullet_plan": [
+          "tracer bullet",
+          "tracer-bullet",
+          "vertical slice",
+          "纵向 tracer",
+          "纵向切片",
+          "阻塞边图",
+          "blocking edge",
+          "expand migrate contract",
+          "扩展迁移收缩"
+        ],
+        "deep_module_review": [
+          "deep module",
+          "深模块",
+          "deletion test",
+          "删除测试",
+          "freeze test",
+          "isolation test",
+          "temporary isolation",
+          "冻结测试",
+          "临时隔离测试",
+          "thin wrapper",
+          "浅包装"
+        ],
+        "skill_invocation_topology": [
+          "invocation topology",
+          "调用拓扑",
+          "actual invoker",
+          "实际调用者",
+          "谁调用",
+          "skill invocation",
+          "技能调用"
+        ],
+        "adapter_seam_review": [
+          "real seam",
+          "真实 seam",
+          "真实接缝",
+          "adapter seam",
+          "适配器边界",
+          "第二个独立适配器",
+          "two independent adapters"
+        ]
+      }
     },
     "referenced_conversation_memory_contract": {
       "enabled": true,
@@ -3633,7 +3699,10 @@
         "在本地代码中搜索",
         "只在本地搜索",
         "不要联网",
-        "不要外部检索"
+        "不要外部检索",
+        "only analyze the provided text",
+        "analyze only the provided text",
+        "只分析给定文本"
       ],
       "generic_memory_feature_terms": [
         "memory",

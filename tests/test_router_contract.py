@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 import json
+import re
 import shutil
 import subprocess
 import sys
@@ -56,9 +57,59 @@ def run_router(task: str) -> dict:
             task,
             "-Cwd",
             str(ROOT / "path with spaces" / "project"),
+            "-ReceiptMode",
+            "diagnostic",
         ]
     )
     return payload
+
+
+@pytest.mark.parametrize(
+    ("task", "expected_profile"),
+    [
+        ("请用纵向 tracer-bullet 和阻塞边图规划这次迁移", "tracer_bullet_plan"),
+        ("对这个抽象做一次深模块删除测试", "deep_module_review"),
+        ("对这个抽象做一次临时隔离测试", "deep_module_review"),
+        ("检查这个 skill 的调用拓扑和实际调用者", "skill_invocation_topology"),
+        ("用第二个独立适配器验证这是不是一个真实 seam", "adapter_seam_review"),
+    ],
+)
+def test_router_activates_only_the_matching_engineering_profile(
+    task: str, expected_profile: str
+) -> None:
+    payload = run_router(task)
+
+    assert expected_profile in payload["engineering_execution_profiles"]
+    bindings = {item["action"] for item in payload["action_bindings"]}
+    assert "apply_engineering_execution_profile" in bindings
+    assert "engineering_execution" in payload["module_need"]
+
+
+def test_router_leaves_engineering_layer_dormant_for_short_answer() -> None:
+    payload = run_router("解释一下什么是接口")
+
+    assert payload["engineering_execution_profiles"] == []
+    assert "apply_engineering_execution_profile" not in {
+        item["action"] for item in payload["action_bindings"]
+    }
+
+
+def test_every_router_module_value_is_declared_by_policy() -> None:
+    source = (
+        ROOT / "skills" / "embedded-harness" / "harness_intake_router.ps1"
+    ).read_text(encoding="utf-8")
+    policy = json.loads(
+        (ROOT / "skills" / "embedded-harness" / "embedded_harness_policy.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    emitted = set(re.findall(r'\$moduleNeed \+= "([^"]+)"', source))
+    declared = set(policy["router_decision_contract"]["module_need_values"])
+
+    assert emitted <= declared
+    assert "engineering_execution_profiles" in policy["router_decision_contract"][
+        "receipt_fields"
+    ]
 
 
 def run_router_with_cwd(
@@ -81,6 +132,8 @@ def run_router_with_cwd(
         task,
         "-Cwd",
         str(cwd),
+        "-ReceiptMode",
+        "diagnostic",
     ]
     if conversation_registry is not None:
         args.extend(["-ConversationRegistryPath", str(conversation_registry)])
@@ -233,6 +286,53 @@ def test_bash_router_matches_core_r3_intent_contract(
         payload["risk_context_decisions"]["R3"]["promote_to_risk"]
         is case["expected_r3_promotion"]
     )
+
+
+def test_router_preserves_legacy_diagnostic_default_and_explicit_compact_is_bounded() -> None:
+    """Catches a compatibility regression for callers that omit ReceiptMode."""
+
+    if not POWERSHELL:
+        pytest.skip("PowerShell is not available on PATH")
+    args = [
+        POWERSHELL,
+        "-NoProfile",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+        "skills/embedded-harness/harness_intake_router.ps1",
+        "-TaskText",
+        "修改路由器并运行测试，持续到所有验收项通过。",
+        "-Cwd",
+        str(ROOT),
+    ]
+    completed = subprocess.run(
+        args,
+        cwd=ROOT,
+        text=True,
+        encoding="utf-8",
+        errors="strict",
+        capture_output=True,
+        check=False,
+    )
+
+    assert completed.returncode == 0, completed.stderr
+    payload = json.loads(completed.stdout)
+    assert payload["phase"] == "intake_router"
+    assert "routing_receipt" in payload
+
+    compact = subprocess.run(
+        [*args, "-ReceiptMode", "compact"],
+        cwd=ROOT,
+        text=True,
+        encoding="utf-8",
+        errors="strict",
+        capture_output=True,
+        check=False,
+    )
+    assert compact.returncode == 0, compact.stderr
+    compact_payload = json.loads(compact.stdout)
+    assert compact_payload["schema"] == "cbh.routing_receipt.compact.v1"
+    assert len(compact.stdout.encode("utf-8")) < 4_096
 
 
 def test_compact_router_output_is_bounded_and_action_consumer_ready(tmp_path: Path) -> None:
@@ -1320,6 +1420,8 @@ def test_powershell_router_rejects_sibling_project_prefix() -> None:
             "inspect project files",
             "-Cwd",
             r"C:\path\to\project-evil",
+            "-ReceiptMode",
+            "diagnostic",
         ]
     )
     assert payload["project_lane"] == "PROJECTLESS"

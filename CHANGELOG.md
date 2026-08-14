@@ -6,6 +6,27 @@ This project uses `vMAJOR.MINOR.PATCH` version labels.
 
 ## Unreleased
 
+## v1.2.5 - 2026-08-14
+
+- Reworked task continuity around one stable global goal frame. Unmatched turns
+  now require semantic relation review instead of replacing the task, bounded
+  unrelated questions can be answered without losing the global objective, and
+  an explicit return resumes the preserved task.
+- Added append-only, hash-chained task workfiles with restart rehydration,
+  source-preserving v2-to-v3 projection, progress reconciliation, reusable
+  source handles, and compact goal-bearing fallback context under host limits.
+- Added a pure-file semantic-memory store with append-only v3 records, a
+  rebuildable meta-first index, exact materialization, hash-bound legacy links,
+  and a separately authorized completed-task checkpoint promotion path.
+- Added optional advisory engineering-execution receipts for tracer-bullet
+  delivery, blocking-edge mapping, reversible module isolation, invocation
+  topology, and two-adapter seam review, with explicit source attribution.
+- Unified external-research trigger and negation semantics across the router and
+  research gate, retained the router's legacy diagnostic default, and kept the
+  compact receipt as an explicit adapter path.
+- Removed the optional WorkBuddy adapter suite from core release smoke checks;
+  core validation and publishing no longer depend on that frozen integration.
+
 ## v1.2.4 - 2026-08-13
 
 - Added an advisory typed preflight for nested shell and web calls that are not

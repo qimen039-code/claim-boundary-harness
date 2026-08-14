@@ -15,7 +15,7 @@ function Assert-Contains([string]$Name, $Collection, [string]$Expected) {
 }
 
 function Invoke-Route([string]$TaskText) {
-  return (& (Join-Path $root "harness_intake_router.ps1") -TaskText $TaskText -Cwd $routeCwd | ConvertFrom-Json)
+  return (& (Join-Path $root "harness_intake_router.ps1") -TaskText $TaskText -Cwd $routeCwd -ReceiptMode diagnostic | ConvertFrom-Json)
 }
 
 function Invoke-ExternalGate([string]$TaskText, [string]$AttemptJson = "", [string]$ClaimText = "") {

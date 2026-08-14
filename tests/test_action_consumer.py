@@ -20,6 +20,120 @@ def load_consumer_module():
     return module
 
 
+def test_engineering_profile_is_materialized_only_when_routed() -> None:
+    module = load_consumer_module()
+    route = {
+        "engineering_execution_profiles": ["tracer_bullet_plan"],
+        "action_bindings": [
+            {
+                "action": "apply_engineering_execution_profile",
+                "completion_evidence": "engineering_execution_profile_receipt",
+            }
+        ],
+        "memory_need": "none",
+    }
+    receipt = module.build_action_consumption(
+        route,
+        prompt="按 tracer-bullet 推进迁移",
+        task_event={
+            "event_id": "engineering-profile-1",
+            "type": "task_observed",
+            "objective": "按 tracer-bullet 推进迁移",
+            "plan_steps": [
+                {"id": "expand", "status": "completed", "slice_kind": "expand"},
+                {"id": "migrate", "status": "pending", "slice_kind": "migrate"},
+            ]
+        },
+    )
+
+    engineering = receipt["engineering_execution_receipt"]
+    assert engineering["profiles"] == ["tracer_bullet_plan"]
+    assert engineering["results"]["tracer_bullet_plan"]["migration_phase"] == "MIGRATE"
+    action = next(
+        item for item in receipt["actions"] if item["action_id"] == "apply_engineering_execution_profile"
+    )
+    assert action["status"] == "completed"
+    assert engineering["authority_granted"] is False
+
+
+def test_engineering_profile_adds_no_payload_when_not_routed() -> None:
+    module = load_consumer_module()
+    receipt = module.build_action_consumption(
+        {"action_bindings": [], "memory_need": "none"},
+        prompt="解释一下什么是接口",
+    )
+
+    assert receipt["engineering_execution_receipt"] is None
+
+
+def test_model_context_has_a_default_hard_page_budget() -> None:
+    module = load_consumer_module()
+    module._conversation_navigation_bundle = lambda route, prompt: {
+        "bundles": [
+            {
+                "documents": [
+                    {
+                        "kind": "synthetic",
+                        "path": "C:/fixture/large.txt",
+                        "sha256": "a" * 64,
+                        "excerpt_mode": "fixture",
+                        "omitted_char_count": 0,
+                        "excerpt": "x" * 20_000,
+                    }
+                ]
+            }
+        ]
+    }
+    receipt = module.build_action_consumption(
+        {"action_bindings": [], "memory_need": "none"},
+        prompt="检查长上下文",
+    )
+
+    assert len(receipt["additional_context"]) <= module.CONTEXT_SOFT_TARGET_CHARS
+    assert receipt["transport_receipt"]["delivery"] == "continuation_required"
+    assert receipt["transport_receipt"]["next_cursor"] is not None
+
+
+def test_active_task_continuity_control_precedes_large_navigation_context() -> None:
+    module = load_consumer_module()
+    module._conversation_navigation_bundle = lambda route, prompt: {
+        "bundles": [
+            {
+                "documents": [
+                    {
+                        "kind": "synthetic",
+                        "path": "C:/fixture/large.txt",
+                        "sha256": "a" * 64,
+                        "excerpt_mode": "fixture",
+                        "omitted_char_count": 0,
+                        "excerpt": "x" * 20_000,
+                    }
+                ]
+            }
+        ]
+    }
+    receipt = module.build_action_consumption(
+        {
+            "edit_operation_profile": "in_place_patch",
+            "tool_surface_need": "local_filesystem",
+            "memory_mode": "none",
+            "action_bindings": [{"action": "prepare_task_continuity_capsule"}],
+        },
+        prompt="修改文件并验证",
+        task_event={
+            "schema": "cbh.task_event.v1",
+            "event_id": "priority:1",
+            "type": "task_observed",
+            "objective": "修改文件并验证",
+            "acceptance_criteria": [{"id": "done", "text": "回读验证通过"}],
+        },
+    )
+
+    assert receipt["transport_receipt"]["delivery"] == "continuation_required"
+    assert "CBH task-continuity capsule" in receipt["additional_context"]
+    assert receipt["continuity_control_in_first_page"] is True
+
+
 def test_cli_accepts_large_route_from_stdin_and_emits_compact_receipt() -> None:
     route = {
         "padding": "x" * 60_000,

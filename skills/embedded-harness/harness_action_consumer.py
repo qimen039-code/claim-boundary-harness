@@ -17,7 +17,13 @@ if str(HARNESS_ROOT) not in sys.path:
 
 from behavior_correction_gate import build_behavior_correction_receipt  # noqa: E402
 from execution_feedback import CorrectionProfileRegistryError  # noqa: E402
+from engineering_execution import build_engineering_execution_receipt  # noqa: E402
 from external_retrieval_strategy import build_external_retrieval_receipt  # noqa: E402
+from semantic_memory import (  # noqa: E402
+    META_SCHEMA as SEMANTIC_MEMORY_META_SCHEMA,
+    STORE_SCHEMA as SEMANTIC_MEMORY_STORE_SCHEMA,
+    materialize_memory_record,
+)
 from task_continuity import (  # noqa: E402
     apply_task_event,
     build_dynamic_reminders,
@@ -35,6 +41,7 @@ SOFT_TARGET_RECORDS = 3
 MAX_DIRECT_RECORDS = 8
 CONTEXT_SOFT_TARGET_CHARS = 3200
 DIRECT_SCORE = 60
+MEMORY_QUERY_TYPES = {"current_state", "history_reason", "contradiction_check"}
 
 GENERIC_TERMS = {
     "agent",
@@ -82,6 +89,16 @@ DISPLAY_FIELDS = (
     "next_action",
     "error",
 )
+
+SEMANTIC_MEMORY_FAMILIES = {
+    "error": "ERR",
+    "solution": "SOL",
+    "common_error": "CE",
+    "interaction_error": "IE",
+    "semantic_anchor": "ANCHOR",
+    "major_incident": "INC",
+    "event_cluster": "CLUSTER",
+}
 
 
 def _normalize(value: str) -> str:
@@ -236,6 +253,64 @@ def _load_source_hint(hint: dict[str, Any]) -> tuple[list[dict[str, Any]], dict[
 
     candidates: list[dict[str, Any]] = []
     source_paths: list[str] = []
+    semantic_store_path = root / "store.json"
+    semantic_meta_path = root / "meta.jsonl"
+    if semantic_store_path.is_file() and semantic_meta_path.is_file():
+        try:
+            store_manifest = json.loads(
+                semantic_store_path.read_text(encoding="utf-8", errors="strict")
+            )
+            if store_manifest.get("schema") != SEMANTIC_MEMORY_STORE_SCHEMA:
+                raise ValueError("invalid_semantic_memory_store_schema")
+            with semantic_meta_path.open(
+                "r", encoding="utf-8", errors="strict", newline=""
+            ) as handle:
+                for line_no, raw_line in enumerate(handle, start=1):
+                    if raw_line.endswith("\r\n"):
+                        raise ValueError("semantic_memory_meta_crlf_not_allowed")
+                    if not raw_line.strip():
+                        continue
+                    semantic_meta = json.loads(raw_line)
+                    if (
+                        not isinstance(semantic_meta, dict)
+                        or semantic_meta.get("schema") != SEMANTIC_MEMORY_META_SCHEMA
+                    ):
+                        raise ValueError("invalid_semantic_memory_meta_schema")
+                    memory_class = str(
+                        semantic_meta.get("memory_class") or "reference"
+                    )
+                    candidate = _candidate(
+                        {
+                            "record_id": semantic_meta["record_id"],
+                            "retrieval_terms": semantic_meta.get("retrieval_terms") or [],
+                            "aliases": [semantic_meta.get("candidate_label") or ""],
+                            "summary": semantic_meta.get("summary") or "",
+                            "current_status": semantic_meta.get("current_status") or "",
+                            "source_tag": semantic_meta.get("source_tag")
+                            or "semantic_memory_meta",
+                            "belief_status": semantic_meta.get("belief_status")
+                            or "navigation_only",
+                            "query_types": semantic_meta.get("query_types") or [],
+                            "evidence_boundary": semantic_meta.get("evidence_boundary")
+                            or "navigation_only_open_selected_record_for_facts",
+                        },
+                        family=SEMANTIC_MEMORY_FAMILIES.get(memory_class, "V3"),
+                        path=semantic_meta_path,
+                        line=line_no,
+                        fallback_id=f"V3-{line_no}",
+                        navigation_only=True,
+                    )
+                    candidate["semantic_store_root"] = str(root)
+                    candidate["semantic_meta"] = semantic_meta
+                    candidates.append(candidate)
+        except (OSError, UnicodeError, json.JSONDecodeError, ValueError) as exc:
+            return [], {
+                "root_path": str(root.resolve()),
+                "status": "rejected",
+                "reason": f"invalid_semantic_memory_store:{type(exc).__name__}:{exc}",
+            }
+        source_paths.extend([str(semantic_store_path), str(semantic_meta_path)])
+
     index_path = root / "index.json"
     if index_path.is_file():
         try:
@@ -644,6 +719,54 @@ def _display_text(record: dict[str, Any]) -> str:
 
 
 def _materialize(candidate: dict[str, Any], score: int, confidence: str, reasons: list[str]) -> dict[str, Any]:
+    semantic_meta = candidate.get("semantic_meta")
+    semantic_store_root = candidate.get("semantic_store_root")
+    if (
+        confidence != "weak"
+        and isinstance(semantic_meta, dict)
+        and isinstance(semantic_store_root, str)
+        and semantic_store_root
+    ):
+        record = materialize_memory_record(Path(semantic_store_root), semantic_meta)
+        content = record.get("content") if isinstance(record.get("content"), dict) else {}
+        meta = record.get("meta") if isinstance(record.get("meta"), dict) else {}
+        status = record.get("status") if isinstance(record.get("status"), dict) else {}
+        provenance = (
+            record.get("provenance")
+            if isinstance(record.get("provenance"), dict)
+            else {}
+        )
+        payload = semantic_meta.get("payload")
+        payload = payload if isinstance(payload, dict) else {}
+        selected_text = str(
+            content.get("prevention_rule")
+            or content.get("future_reuse_rule")
+            or content.get("consumption_hint")
+            or meta.get("summary")
+            or content.get("event_summary")
+            or content.get("details")
+            or ""
+        )
+        return {
+            "record_id": record["record_id"],
+            "family": candidate["family"],
+            "path": str(Path(semantic_store_root) / "records.jsonl"),
+            "line": int(payload.get("line") or 0),
+            "sha256": record["record_sha256"],
+            "status": str(status.get("current_status") or status.get("state") or "unknown"),
+            "source_tag": provenance.get("source_tag") or "local_memory_write",
+            "belief_status": provenance.get("belief_status") or "recorded_observation",
+            "confidence": record.get("confidence")
+            or {"level": "bounded", "basis": confidence},
+            "derived_from": record.get("evidence_refs"),
+            "score": score,
+            "score_method": "field_weighted_exact_and_lexical_v1",
+            "match_confidence": confidence,
+            "selection_reasons": reasons,
+            "selected_text": selected_text,
+            "navigation_only": False,
+            "evidence_boundary": content.get("evidence_boundary"),
+        }
     raw = candidate["raw"]
     status = str(raw.get("current_status") or raw.get("status") or raw.get("lifecycle") or "unknown")
     return {
@@ -672,7 +795,10 @@ def select_memory_context(
     prompt: str,
     tool_input_text: str = "",
     soft_target_records: int = SOFT_TARGET_RECORDS,
+    query_type: str = "history_reason",
 ) -> dict[str, Any]:
+    if query_type not in MEMORY_QUERY_TYPES:
+        raise ValueError("unsupported_memory_query_type")
     hints = _route_field(route, "memory_source_hints", [])
     hints = hints if isinstance(hints, list) else []
     candidates: list[dict[str, Any]] = []
@@ -687,6 +813,13 @@ def select_memory_context(
     ranked: list[tuple[int, str, list[str], dict[str, Any]]] = []
     seen: set[tuple[str, str, int]] = set()
     for candidate in candidates:
+        declared_query_types = candidate["raw"].get("query_types")
+        if (
+            isinstance(declared_query_types, list)
+            and declared_query_types
+            and query_type not in declared_query_types
+        ):
+            continue
         key = (str(candidate["record_id"]), str(candidate["path"]), int(candidate["line"]))
         if key in seen:
             continue
@@ -722,6 +855,7 @@ def select_memory_context(
         "source_receipts": source_receipts,
         "soft_target_records": max(1, int(soft_target_records)),
         "expanded_for_direct_coverage": len(chosen) > max(1, int(soft_target_records)),
+        "query_type": query_type,
     }
 
 
@@ -807,6 +941,7 @@ def build_action_consumption(
     *,
     prompt: str,
     tool_input_text: str = "",
+    query_type: str = "history_reason",
     soft_target_records: int = SOFT_TARGET_RECORDS,
     task_event: Mapping[str, Any] | None = None,
     task_capsule: Mapping[str, Any] | None = None,
@@ -821,6 +956,20 @@ def build_action_consumption(
         for item in bindings
         if isinstance(item, dict) and item.get("action")
     }
+    engineering_profiles_value = _route_field(route, "engineering_execution_profiles", [])
+    engineering_profiles = (
+        [str(value) for value in engineering_profiles_value if str(value)]
+        if isinstance(engineering_profiles_value, list)
+        else []
+    )
+    wants_engineering_execution = (
+        "apply_engineering_execution_profile" in binding_ids and bool(engineering_profiles)
+    )
+    engineering_execution_receipt = (
+        build_engineering_execution_receipt(engineering_profiles, task_event)
+        if wants_engineering_execution
+        else None
+    )
     wants_external_retrieval = "perform_external_research_route" in binding_ids
     external_modes_value = _route_field(route, "external_need", [])
     external_modes = [
@@ -842,6 +991,7 @@ def build_action_consumption(
             prompt=prompt,
             tool_input_text=tool_input_text,
             soft_target_records=soft_target_records,
+            query_type=query_type,
         )
         if wants_retrieval
         else {
@@ -924,6 +1074,7 @@ def build_action_consumption(
         if selected or semantic_review_candidates
         else ("", False, [])
     )
+    priority_context_parts: list[str] = []
     if external_retrieval_receipt is not None:
         exact_values = [
             item["raw_text"] for item in external_retrieval_receipt["exact_anchors"]
@@ -1000,6 +1151,20 @@ def build_action_consumption(
             else:
                 action_status = "completed"
                 evidence = current_task_capsule.get("capsule_id")
+        elif action_id == "apply_engineering_execution_profile":
+            if engineering_execution_receipt is None:
+                action_status = "not_applicable_with_reason"
+                evidence = "engineering_execution_profile_not_routed"
+            else:
+                action_status = "completed"
+                evidence = {
+                    "schema": engineering_execution_receipt["schema"],
+                    "profiles": engineering_execution_receipt["profiles"],
+                    "result_schemas": {
+                        profile: result.get("schema")
+                        for profile, result in engineering_execution_receipt["results"].items()
+                    },
+                }
         elif action_id == "perform_external_research_route":
             action_status = "deferred_to_model_agent"
             evidence = {
@@ -1051,18 +1216,59 @@ def build_action_consumption(
             "先说明动作、精确目标、范围、影响、恢复方式和明确非目标；"
             "本 receipt 不授予权限、不保存许可，也不得自行把确认标记为已消费。"
         )
-        additional_context = "\n".join(
-            part for part in (additional_context, confirmation_context) if part
-        )
-        context_over_soft_target = context_over_soft_target or len(additional_context) > CONTEXT_SOFT_TARGET_CHARS
+        priority_context_parts.append(confirmation_context)
 
     if task_capsule_context:
-        additional_context = "\n".join(
-            part for part in (additional_context, task_capsule_context) if part
-        )
-        context_over_soft_target = context_over_soft_target or len(additional_context) > CONTEXT_SOFT_TARGET_CHARS
+        priority_context_parts.append(task_capsule_context)
 
-    if isinstance(host_limits, Mapping) and additional_context:
+    if engineering_execution_receipt is not None:
+        engineering_summary = {
+            "profiles": engineering_execution_receipt["profiles"],
+            "results": {
+                profile: {
+                    key: result.get(key)
+                    for key in (
+                        "status",
+                        "migration_phase",
+                        "frontier_step_ids",
+                        "graph_issues",
+                        "verdict",
+                        "missing_evidence",
+                        "runtime_invoker",
+                        "issues",
+                        "seam_status",
+                    )
+                    if result.get(key) not in (None, [], {})
+                }
+                for profile, result in engineering_execution_receipt["results"].items()
+            },
+            "authority_granted": False,
+        }
+        engineering_context = (
+            "CBH engineering execution receipt (advisory, task-local): "
+            + json.dumps(engineering_summary, ensure_ascii=False, separators=(",", ":"))
+        )
+        priority_context_parts.append(engineering_context)
+
+    if priority_context_parts:
+        additional_context = "\n".join(
+            part for part in (*priority_context_parts, additional_context) if part
+        )
+        context_over_soft_target = (
+            context_over_soft_target
+            or len(additional_context) > CONTEXT_SOFT_TARGET_CHARS
+        )
+
+    effective_host_limits = (
+        dict(host_limits)
+        if isinstance(host_limits, Mapping)
+        else {
+            "max_chars": CONTEXT_SOFT_TARGET_CHARS,
+            "max_tokens": 900,
+            "max_items": 100,
+        }
+    )
+    if additional_context:
         transport_plan = plan_transport(
             current_task_capsule,
             {
@@ -1070,7 +1276,7 @@ def build_action_consumption(
                 "original_chars": len(additional_context),
                 "original_items": 1,
             },
-            host_limits,
+            effective_host_limits,
         )
         context_page = page_result(additional_context, transport_plan, transport_cursor)
         additional_context = context_page["content"]
@@ -1085,6 +1291,10 @@ def build_action_consumption(
             "next_cursor": context_page["next_cursor"],
         }
         context_over_soft_target = context_over_soft_target or not context_page["complete"]
+
+    continuity_control_in_first_page = (
+        not task_capsule_context or task_capsule_context in additional_context
+    )
 
     complete_statuses = {
         "completed",
@@ -1116,6 +1326,7 @@ def build_action_consumption(
         "semantic_review_owner": "host_model_agent",
         "task_local_correction_bundle": correction_bundle,
         "task_continuity_decision": task_continuity_decision,
+        "engineering_execution_receipt": engineering_execution_receipt,
         "task_capsule": current_task_capsule,
         "task_transition": task_transition,
         "dynamic_reminders": dynamic_reminders,
@@ -1133,6 +1344,7 @@ def build_action_consumption(
         "context_char_count": len(additional_context),
         "context_soft_target_chars": CONTEXT_SOFT_TARGET_CHARS,
         "context_over_soft_target": context_over_soft_target,
+        "continuity_control_in_first_page": continuity_control_in_first_page,
         "omitted_context_record_ids": omitted,
         "conversation_navigation": conversation_navigation,
         "boundary": "CBH selects compact indexed context; the model agent still interprets evidence, chooses tools, executes the task, and owns the final answer.",
@@ -1247,6 +1459,7 @@ def _compact_runtime_receipt(receipt: dict[str, Any]) -> dict[str, Any]:
         "semantic_review_owner": receipt.get("semantic_review_owner"),
         "task_local_correction_bundle": receipt.get("task_local_correction_bundle"),
         "task_continuity_decision": receipt.get("task_continuity_decision"),
+        "engineering_execution_receipt": receipt.get("engineering_execution_receipt"),
         "task_capsule": capsule,
         "task_transition": transition,
         "dynamic_reminders": receipt.get("dynamic_reminders", []),
@@ -1259,6 +1472,9 @@ def _compact_runtime_receipt(receipt: dict[str, Any]) -> dict[str, Any]:
         "context_char_count": receipt.get("context_char_count", 0),
         "context_soft_target_chars": receipt.get("context_soft_target_chars"),
         "context_over_soft_target": receipt.get("context_over_soft_target", False),
+        "continuity_control_in_first_page": receipt.get(
+            "continuity_control_in_first_page", True
+        ),
         "omitted_context_record_ids": receipt.get("omitted_context_record_ids", []),
         "conversation_navigation": receipt.get("conversation_navigation"),
         "boundary": receipt.get("boundary"),
@@ -1291,12 +1507,18 @@ def main() -> int:
     parser.add_argument("--receipt-mode", choices=("compact", "diagnostic"), default="compact")
     parser.add_argument("--prompt", default="")
     parser.add_argument("--tool-input-text", default="")
+    parser.add_argument(
+        "--query-type",
+        choices=sorted(MEMORY_QUERY_TYPES),
+        default="history_reason",
+    )
     args = parser.parse_args()
     route = _load_route(args)
     result = build_action_consumption(
         route,
         prompt=args.prompt,
         tool_input_text=args.tool_input_text,
+        query_type=args.query_type,
     )
     if args.receipt_mode == "compact":
         result = _compact_runtime_receipt(result)

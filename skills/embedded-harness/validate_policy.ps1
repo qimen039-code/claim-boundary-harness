@@ -285,6 +285,52 @@ if ($null -ne $policy) {
     if (-not ((ConvertTo-Array (Get-ObjectPropertyValue $actionBindingContract "completion_evidence_values")) -contains "task_continuity_capsule_or_dormant_receipt")) {
       Add-Issue "task_continuity_completion_evidence_missing"
     }
+    $engineeringExecutionContract = Get-ObjectPropertyValue $routerContract "engineering_execution_contract"
+    if ($null -eq $engineeringExecutionContract) {
+      Add-Issue "engineering_execution_contract_missing"
+    } else {
+      if ([string](Get-ObjectPropertyValue $engineeringExecutionContract "schema") -ne "cbh.engineering_execution_contract.v1") {
+        Add-Issue "engineering_execution_contract_schema_invalid"
+      }
+      if ((Get-ObjectPropertyValue $engineeringExecutionContract "state_storage") -ne "none") {
+        Add-Issue "engineering_execution_state_storage_invalid"
+      }
+      if ((Get-ObjectPropertyValue $engineeringExecutionContract "authority_granted") -ne $false) {
+        Add-Issue "engineering_execution_authority_invalid"
+      }
+      $expectedEngineeringProfiles = @("tracer_bullet_plan","deep_module_review","skill_invocation_topology","adapter_seam_review")
+      $actualEngineeringProfiles = @(ConvertTo-Array (Get-ObjectPropertyValue $engineeringExecutionContract "profile_values"))
+      $profilesMismatch = $actualEngineeringProfiles.Count -ne $expectedEngineeringProfiles.Count
+      if (-not $profilesMismatch) {
+        for ($index = 0; $index -lt $expectedEngineeringProfiles.Count; $index++) {
+          if ([string]$actualEngineeringProfiles[$index] -ne [string]$expectedEngineeringProfiles[$index]) {
+            $profilesMismatch = $true
+            break
+          }
+        }
+      }
+      if ($profilesMismatch) {
+        Add-Issue "engineering_execution_profile_values_invalid"
+      }
+      $engineeringProfileTriggers = Get-ObjectPropertyValue $engineeringExecutionContract "profile_triggers"
+      foreach ($profile in $expectedEngineeringProfiles) {
+        if ((ConvertTo-Array (Get-ObjectPropertyValue $engineeringProfileTriggers $profile)).Count -eq 0) {
+          Add-Issue "engineering_execution_profile_triggers_missing:$profile"
+        }
+      }
+    }
+    if (-not ((ConvertTo-Array (Get-ObjectPropertyValue $routerContract "receipt_fields")) -contains "engineering_execution_profiles")) {
+      Add-Issue "engineering_execution_receipt_field_missing"
+    }
+    if (-not ((ConvertTo-Array (Get-ObjectPropertyValue $routerContract "module_need_values")) -contains "engineering_execution")) {
+      Add-Issue "engineering_execution_module_value_missing"
+    }
+    if (-not ((ConvertTo-Array (Get-ObjectPropertyValue $actionBindingContract "next_action_values")) -contains "apply_engineering_execution_profile")) {
+      Add-Issue "engineering_execution_action_binding_missing"
+    }
+    if (-not ((ConvertTo-Array (Get-ObjectPropertyValue $actionBindingContract "completion_evidence_values")) -contains "engineering_execution_profile_receipt")) {
+      Add-Issue "engineering_execution_completion_evidence_missing"
+    }
     $reflexiveGapContract = Get-ObjectPropertyValue $routerContract "reflexive_gap_contract"
     if ($null -eq $reflexiveGapContract) {
       Add-Issue "reflexive_gap_contract_missing"

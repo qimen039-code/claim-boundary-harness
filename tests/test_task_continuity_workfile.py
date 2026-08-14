@@ -1,0 +1,567 @@
+from __future__ import annotations
+
+import importlib.util
+import json
+import subprocess
+import sys
+import threading
+import time
+from pathlib import Path
+
+import pytest
+
+
+ROOT = Path(__file__).resolve().parents[1]
+HARNESS = ROOT / "skills" / "embedded-harness"
+if str(HARNESS) not in sys.path:
+    sys.path.insert(0, str(HARNESS))
+
+from task_continuity import (  # noqa: E402
+    apply_task_event,
+    new_task_capsule,
+    process_worker_request,
+)
+
+
+def load_workfile_module():
+    path = HARNESS / "task_continuity_workfile.py"
+    assert path.is_file(), "task_continuity_workfile module is not implemented"
+    spec = importlib.util.spec_from_file_location("task_continuity_workfile", path)
+    assert spec and spec.loader
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def task_event(event_id: str, event_type: str, **payload: object) -> dict[str, object]:
+    return {
+        "schema": "cbh.task_event.v1",
+        "event_id": event_id,
+        "type": event_type,
+        "observed_at": "2026-08-13T00:00:00Z",
+        "task_key": "thread-a",
+        **payload,
+    }
+
+
+def route() -> dict[str, object]:
+    return {
+        "edit_operation_profile": "in_place_patch",
+        "memory_mode": "none",
+        "tool_surface_need": "local_filesystem",
+        "action_bindings": [],
+    }
+
+
+def capsule(objective: str = "实现可靠的短期连续记忆") -> dict[str, object]:
+    return new_task_capsule(
+        route(),
+        task_event(
+            f"start:{objective}",
+            "task_observed",
+            objective=objective,
+            purpose="准确恢复当前目标与进度",
+            stop_condition="验收通过后停止",
+            acceptance_criteria=[{"id": "verified", "text": "恢复结果已验证"}],
+        ),
+    )
+
+
+def test_snapshot_commit_is_canonical_utf8_and_forms_a_strict_head_chain(tmp_path: Path) -> None:
+    workfile = load_workfile_module()
+    path = tmp_path / "任务.cumcwork"
+    first_capsule = capsule()
+    first = workfile.append_cumcwork_snapshot(
+        path,
+        first_capsule,
+        expected_head_sha256=None,
+        expected_work_revision=0,
+    )
+    second_capsule = apply_task_event(
+        first_capsule,
+        task_event(
+            "dispatch:1",
+            "tool_dispatched",
+            current_step="读取当前实现",
+        ),
+    )["capsule"]
+    second = workfile.append_cumcwork_snapshot(
+        path,
+        second_capsule,
+        expected_head_sha256=first["head_sha256"],
+        expected_work_revision=1,
+    )
+
+    raw = path.read_bytes()
+    assert not raw.startswith(b"\xef\xbb\xbf")
+    assert raw.endswith(b"\n")
+    assert b"\r\n" not in raw
+    records = [json.loads(line) for line in raw.decode("utf-8").splitlines()]
+    assert records[0]["work_revision"] == 1
+    assert records[0]["parent_head_sha256"] is None
+    assert records[1]["work_revision"] == 2
+    assert records[1]["parent_head_sha256"] == first["head_sha256"]
+    assert second["head_sha256"] == records[1]["record_sha256"]
+
+    restored = workfile.rehydrate_cumcwork(
+        path,
+        expected_host_task_key_sha256=first_capsule["host_task_key_sha256"],
+    )
+    assert restored["status"] == "clean"
+    assert restored["work_revision"] == 2
+    assert restored["head_sha256"] == second["head_sha256"]
+    assert restored["active_capsule"] == second_capsule
+    assert restored["focus"]["objective"] == "实现可靠的短期连续记忆"
+    assert restored["focus"]["current_action"]["text"] == "读取当前实现"
+
+
+def test_worker_request_performs_one_full_workfile_scan(tmp_path: Path, monkeypatch) -> None:
+    import task_continuity_workfile as workfile
+    from task_continuity import process_worker_request
+
+    scanner = getattr(workfile, "_rehydrate_cumcwork_bytes", None)
+    assert callable(scanner), "single-scan transaction reader is missing"
+    work_path = tmp_path / "one-scan.cumcwork"
+    initial_capsule = capsule("一次扫描恢复并提交任务状态")
+    workfile.append_cumcwork_snapshot(
+        work_path,
+        initial_capsule,
+        expected_head_sha256=None,
+        expected_work_revision=0,
+    )
+    calls = 0
+
+    def counting_scanner(raw: bytes, *, expected_host_task_key_sha256: str):
+        nonlocal calls
+        calls += 1
+        return scanner(
+            raw,
+            expected_host_task_key_sha256=expected_host_task_key_sha256,
+        )
+
+    monkeypatch.setattr(workfile, "_rehydrate_cumcwork_bytes", counting_scanner)
+    response = process_worker_request(
+        {
+            "op": "observe",
+            "route_receipt": route(),
+            "task_event": task_event(
+                "one-scan:continue",
+                "task_observed",
+                objective="继续",
+                intent_kind="continue_ack",
+            ),
+            "capsule": None,
+            "workfile": {"path": str(work_path)},
+        }
+    )
+
+    assert response["workfile_receipt"]["work_revision"] == 2
+    assert calls == 1
+
+
+def test_transaction_lock_preserves_compare_and_swap_chain(tmp_path: Path) -> None:
+    workfile = load_workfile_module()
+    transaction_factory = getattr(workfile, "cumcwork_transaction", None)
+    assert callable(transaction_factory), "cumcwork transaction interface is missing"
+    path = tmp_path / "locked.cumcwork"
+    first_capsule = capsule("事务 A")
+    second_capsule = capsule("事务 B")
+    scope = first_capsule["host_task_key_sha256"]
+    second_error: list[BaseException] = []
+
+    def competing_writer() -> None:
+        try:
+            workfile.append_cumcwork_snapshot(
+                path,
+                second_capsule,
+                expected_head_sha256=None,
+                expected_work_revision=0,
+            )
+        except BaseException as exc:  # captured for the parent assertion
+            second_error.append(exc)
+
+    with transaction_factory(
+        path,
+        expected_host_task_key_sha256=scope,
+    ) as transaction:
+        thread = threading.Thread(target=competing_writer)
+        thread.start()
+        time.sleep(0.05)
+        assert thread.is_alive(), "competing writer bypassed the transaction lock"
+        first = transaction.append_snapshot(
+            first_capsule,
+            expected_head_sha256=None,
+            expected_work_revision=0,
+        )
+
+    thread.join(timeout=3)
+    assert not thread.is_alive()
+    assert first["work_revision"] == 1
+    assert len(second_error) == 1
+    assert "cumcwork_stale_head" in str(second_error[0])
+    restored = workfile.rehydrate_cumcwork(
+        path,
+        expected_host_task_key_sha256=scope,
+    )
+    assert restored["work_revision"] == 1
+    assert restored["head_sha256"] == first["head_sha256"]
+
+
+def test_identical_snapshot_is_noop_and_stale_compare_and_swap_is_rejected(tmp_path: Path) -> None:
+    workfile = load_workfile_module()
+    path = tmp_path / "state.cumcwork"
+    current = capsule()
+    first = workfile.append_cumcwork_snapshot(
+        path,
+        current,
+        expected_head_sha256=None,
+        expected_work_revision=0,
+    )
+    before = path.read_bytes()
+    noop = workfile.append_cumcwork_snapshot(
+        path,
+        current,
+        expected_head_sha256=first["head_sha256"],
+        expected_work_revision=1,
+    )
+    assert noop["changed"] is False
+    assert path.read_bytes() == before
+
+    with pytest.raises(ValueError, match="cumcwork_stale_head"):
+        workfile.append_cumcwork_snapshot(
+            path,
+            apply_task_event(current, task_event("dispatch:2", "tool_dispatched"))["capsule"],
+            expected_head_sha256="0" * 64,
+            expected_work_revision=1,
+        )
+    assert path.read_bytes() == before
+
+
+def test_truncated_tail_recovers_previous_head_and_repair_is_cas_bound(tmp_path: Path) -> None:
+    workfile = load_workfile_module()
+    path = tmp_path / "tail.cumcwork"
+    first_capsule = capsule()
+    first = workfile.append_cumcwork_snapshot(
+        path,
+        first_capsule,
+        expected_head_sha256=None,
+        expected_work_revision=0,
+    )
+    second_capsule = apply_task_event(
+        first_capsule,
+        task_event("dispatch:tail", "tool_dispatched", current_step="写入第二条"),
+    )["capsule"]
+    workfile.append_cumcwork_snapshot(
+        path,
+        second_capsule,
+        expected_head_sha256=first["head_sha256"],
+        expected_work_revision=1,
+    )
+    complete = path.read_bytes()
+    second_start = complete.find(b"\n") + 1
+    path.write_bytes(complete[: second_start + 19])
+
+    restored = workfile.rehydrate_cumcwork(
+        path,
+        expected_host_task_key_sha256=first_capsule["host_task_key_sha256"],
+    )
+    assert restored["status"] == "tail_repair_required"
+    assert restored["head_sha256"] == first["head_sha256"]
+    assert restored["work_revision"] == 1
+    assert restored["active_capsule"] == first_capsule
+
+    repaired = workfile.repair_cumcwork_tail(path, repair_token=restored["repair_token"])
+    assert repaired["status"] == "clean"
+    assert path.read_bytes() == complete[:second_start]
+
+
+def test_committed_corruption_is_never_treated_as_repairable_tail(tmp_path: Path) -> None:
+    workfile = load_workfile_module()
+    path = tmp_path / "corrupt.cumcwork"
+    current = capsule()
+    workfile.append_cumcwork_snapshot(
+        path,
+        current,
+        expected_head_sha256=None,
+        expected_work_revision=0,
+    )
+    with path.open("ab") as stream:
+        stream.write(b'{"broken":true}\n')
+
+    with pytest.raises(ValueError, match="cumcwork_committed_corruption"):
+        workfile.rehydrate_cumcwork(
+            path,
+            expected_host_task_key_sha256=current["host_task_key_sha256"],
+        )
+
+
+def test_scope_mismatch_and_active_capsule_switch_are_rejected(tmp_path: Path) -> None:
+    workfile = load_workfile_module()
+    path = tmp_path / "scope.cumcwork"
+    current = capsule("任务 A")
+    first = workfile.append_cumcwork_snapshot(
+        path,
+        current,
+        expected_head_sha256=None,
+        expected_work_revision=0,
+    )
+
+    with pytest.raises(ValueError, match="cumcwork_scope_mismatch"):
+        workfile.rehydrate_cumcwork(
+            path,
+            expected_host_task_key_sha256="f" * 64,
+        )
+
+    other = capsule("任务 B")
+    with pytest.raises(ValueError, match="cumcwork_active_capsule_switch"):
+        workfile.append_cumcwork_snapshot(
+            path,
+            other,
+            expected_head_sha256=first["head_sha256"],
+            expected_work_revision=1,
+        )
+
+
+def test_persisted_snapshot_drops_raw_payload_and_cannot_grant_authority(tmp_path: Path) -> None:
+    workfile = load_workfile_module()
+    path = tmp_path / "bounded.cumcwork"
+    current = capsule()
+    current["raw_output"] = "secret-output"
+    current["authority"] = {"granted": True, "consumed": False, "source": "bad"}
+    workfile.append_cumcwork_snapshot(
+        path,
+        current,
+        expected_head_sha256=None,
+        expected_work_revision=0,
+    )
+
+    raw = path.read_text(encoding="utf-8")
+    assert "secret-output" not in raw
+    restored = workfile.rehydrate_cumcwork(
+        path,
+        expected_host_task_key_sha256=current["host_task_key_sha256"],
+    )
+    assert "raw_output" not in restored["latest_capsule"]
+    assert restored["latest_capsule"]["authority"] == {
+        "granted": False,
+        "consumed": False,
+        "source": "none",
+    }
+
+
+def test_worker_once_rehydrates_the_same_working_set_after_process_restart(tmp_path: Path) -> None:
+    load_workfile_module()
+    work_path = tmp_path / "restart.cumcwork"
+    script = HARNESS / "task_continuity.py"
+    first_request = {
+        "id": "restart:1",
+        "op": "observe",
+        "route_receipt": route(),
+        "task_event": task_event(
+            "restart:start",
+            "task_observed",
+            objective="实现并验证可恢复工作记忆",
+            intent_kind="new_task",
+        ),
+        "capsule": None,
+        "workfile": {"path": str(work_path)},
+    }
+    first_process = subprocess.run(
+        [sys.executable, "-B", str(script), "--worker-once"],
+        input=json.dumps(first_request, ensure_ascii=False),
+        text=True,
+        encoding="utf-8",
+        capture_output=True,
+        check=False,
+    )
+    assert first_process.returncode == 0, first_process.stderr
+    first = json.loads(first_process.stdout)["result"]
+    assert first["persistence"] == "local_cumcwork"
+    assert first["workfile_receipt"]["work_revision"] == 1
+    handle = first["workfile_handle"]
+    assert handle["path"] == str(work_path)
+    assert handle["host_task_key_sha256"] == first["capsule"]["host_task_key_sha256"]
+    assert first["additional_context_entries"]["workfile"]["kind"] == "untrusted"
+    assert "memory_runtime_bridge.py" in first["additional_context_entries"]["workfile"]["value"]
+
+    second_request = {
+        "id": "restart:2",
+        "op": "observe",
+        "route_receipt": route(),
+        "task_event": task_event(
+            "restart:continue",
+            "task_observed",
+            objective="继续",
+            intent_kind="continue_ack",
+        ),
+        "capsule": None,
+        "workfile": {"path": str(work_path)},
+    }
+    second_process = subprocess.run(
+        [sys.executable, "-B", str(script), "--worker-once"],
+        input=json.dumps(second_request, ensure_ascii=False),
+        text=True,
+        encoding="utf-8",
+        capture_output=True,
+        check=False,
+    )
+    assert second_process.returncode == 0, second_process.stderr
+    second = json.loads(second_process.stdout)["result"]
+    assert second["capsule"]["capsule_id"] == first["capsule"]["capsule_id"]
+    assert second["capsule"]["objective"] == "实现并验证可恢复工作记忆"
+    assert second["capsule"]["last_user_delta"]["kind"] == "continue_ack"
+    assert second["workfile_receipt"]["work_revision"] == 2
+
+
+def test_legacy_chain_projects_once_and_restores_global_goal_before_relation(tmp_path: Path) -> None:
+    workfile = load_workfile_module()
+    work_path = tmp_path / "legacy-project.cumcwork"
+    root = capsule("完成长期项目的整体目标")
+    root["state_version"] = 2
+    for key in (
+        "global_goal_anchor",
+        "active_local_delta",
+        "turn_relation",
+        "suspended_task_stack",
+        "reuse_candidates",
+        "legacy_projection",
+    ):
+        root.pop(key, None)
+    first = workfile.append_cumcwork_snapshot(
+        work_path,
+        root,
+        expected_head_sha256=None,
+        expected_work_revision=0,
+    )
+    local = capsule("不对，原需求不是局部目标而是保持长期整体目标")
+    local["state_version"] = 2
+    local["supersedes_capsule_id"] = root["capsule_id"]
+    for key in (
+        "global_goal_anchor",
+        "active_local_delta",
+        "turn_relation",
+        "suspended_task_stack",
+        "reuse_candidates",
+        "legacy_projection",
+    ):
+        local.pop(key, None)
+    workfile.append_cumcwork_snapshot(
+        work_path,
+        local,
+        expected_head_sha256=first["head_sha256"],
+        expected_work_revision=1,
+    )
+    legacy_prefix = work_path.read_bytes()
+
+    response = process_worker_request(
+        {
+            "op": "observe",
+            "route_receipt": route(),
+            "task_event": task_event(
+                "legacy:continue",
+                "task_observed",
+                objective="其他的呢",
+                intent_kind="ambiguous",
+                intent_confidence="low",
+                intent_source="fallback",
+            ),
+            "capsule": None,
+            "workfile": {"path": str(work_path)},
+        }
+    )
+
+    assert work_path.read_bytes().startswith(legacy_prefix)
+    projected = response["capsule"]
+    assert projected["state_version"] == 3
+    assert projected["global_goal_anchor"]["objective"] == "完成长期项目的整体目标"
+    assert projected["goal_deltas"] == [
+        {
+            "kind": "correction",
+            "text": "不对，原需求不是局部目标而是保持长期整体目标",
+            "source_ref": f"legacy_capsule:{local['capsule_id']}",
+        }
+    ]
+    assert projected["active_local_delta"]["turn_ref"] == "legacy:continue"
+    assert projected["legacy_projection"]["source_head_sha256"]
+    assert projected["legacy_projection"]["projected_capsule_ids"] == [
+        root["capsule_id"],
+        local["capsule_id"],
+    ]
+    assert response["workfile_receipt"]["work_revision"] == 3
+
+    before_replay = work_path.read_bytes()
+    replay = process_worker_request(
+        {
+            "op": "observe",
+            "route_receipt": route(),
+            "task_event": task_event(
+                "legacy:continue",
+                "task_observed",
+                objective="其他的呢",
+                intent_kind="ambiguous",
+                intent_confidence="low",
+                intent_source="fallback",
+            ),
+            "capsule": None,
+            "workfile": {"path": str(work_path)},
+        }
+    )
+    assert work_path.read_bytes() == before_replay
+    assert replay["workfile_receipt"]["changed"] is False
+
+
+def test_explicit_new_task_supersedes_active_capsule_in_the_same_workfile(tmp_path: Path) -> None:
+    load_workfile_module()
+    work_path = tmp_path / "switch.cumcwork"
+    script = HARNESS / "task_continuity.py"
+    requests = [
+        {
+            "id": "switch:1",
+            "op": "observe",
+            "route_receipt": route(),
+            "task_event": task_event(
+                "switch:old",
+                "task_observed",
+                objective="修复旧 R5 路由",
+                intent_kind="new_task",
+            ),
+            "capsule": None,
+            "workfile": {"path": str(work_path)},
+        },
+        {
+            "id": "switch:2",
+            "op": "observe",
+            "route_receipt": route(),
+            "task_event": task_event(
+                "switch:new",
+                "task_observed",
+                objective="实现可恢复的短期连续记忆",
+                intent_kind="new_task",
+                intent_confidence="high",
+                intent_source="explicit_marker",
+                intent_reason_codes=["explicit_global_replacement"],
+            ),
+            "capsule": None,
+            "workfile": {"path": str(work_path)},
+        },
+    ]
+    results = []
+    for request in requests:
+        completed = subprocess.run(
+            [sys.executable, "-B", str(script), "--worker-once"],
+            input=json.dumps(request, ensure_ascii=False),
+            text=True,
+            encoding="utf-8",
+            capture_output=True,
+            check=False,
+        )
+        assert completed.returncode == 0, completed.stderr
+        results.append(json.loads(completed.stdout))
+
+    old = results[0]["result"]["capsule"]
+    assert "error" not in results[1], results[1]
+    new = results[1]["result"]["capsule"]
+    assert new["capsule_id"] != old["capsule_id"]
+    assert new["supersedes_capsule_id"] == old["capsule_id"]
+    assert new["objective"] == "实现可恢复的短期连续记忆"
+    assert results[1]["result"]["workfile_receipt"]["work_revision"] == 2

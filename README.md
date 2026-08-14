@@ -107,8 +107,8 @@ integration reference, but not as proof of compatibility.
 - Re-run the local compatibility checks after the host client, hook protocol, or
   relevant configuration changes.
 
-Current main-branch version: `v1.2.4`.
-Latest tagged GitHub release: [`v1.2.4`](https://github.com/qimen039-code/claim-boundary-harness/releases/tag/v1.2.4).
+Current main-branch version: `v1.2.5`.
+Latest tagged GitHub release: [`v1.2.5`](https://github.com/qimen039-code/claim-boundary-harness/releases/tag/v1.2.5).
 For external current-version checks, use the default-branch `VERSION` together
 with GitHub [`releases/latest`](https://github.com/qimen039-code/claim-boundary-harness/releases/latest);
 both must identify the same release.
@@ -228,6 +228,9 @@ Fast paths:
 | Delete-risk advice | `dangerous_delete_guard.py` | On-demand risk classification without authorization or host blocking |
 | Policy and adoption checks | `compile_policy_from_toml.py`, `validate_policy.ps1`, `tools/cbh_doctor.py` | Drift and preflight checks |
 | Memory lanes and ledgers | `templates/project/memory-library/`, `templates/conversation-memory/`, `codex_session_ledger.py` | Templates and evidence indexes |
+| Pure-file semantic memory | `semantic_memory.py` | Future records and typed event clusters use append-only v3 JSONL plus a rebuildable compact meta index; legacy payloads remain read-only behind hash-bound links |
+| Task working continuity | `task_continuity.py`, `task_continuity_workfile.py`, `memory_runtime_bridge.py` | Bounded goal, purpose, outputs, criteria, current action, and selected-memory handles can be rehydrated for one host task without storing chain-of-thought or authority |
+| Completed-task memory handoff | `task_memory_checkpoint.py` | A fully verified retired task can produce a read-only, hash-bound candidate; a separate caller-owned promotion writes it synchronously and confirms that the exact v3 record is immediately searchable |
 | Model context selection | `harness_action_consumer.py`, router `memory_source_hints` | Exact indexed matches become compact, provenance-bearing agent context |
 | External retrieval planning | `external_retrieval_strategy.py`, `harness_external_research_gate.ps1` | Task-local exact-anchor, source-native, per-target receipt; the model agent still performs lookup |
 | Retrieval and reading | `docs/hybrid-memory-retrieval-contract.md`, `docs/content-reading-contract.md` | Meta-first, source-preserving, bounded windows |
@@ -333,6 +336,14 @@ separate memory lanes
 -> lane-scoped writes by default
 -> metadata-bearing retrieval results
 ```
+
+New durable records use a pure-file two-layer store: a compact `meta.jsonl`
+first identifies a bounded candidate, then only a strong selected match opens
+its exact line in append-only `records.jsonl`. Old Markdown memories are not
+bulk-converted; a hash-bound link can point to one exact legacy heading. The
+separate `.cumcwork` file is only the live task working set: it preserves why
+the current action exists and what completion means across adapter restarts,
+but it is not long-term semantic memory and never grants permission.
 
 The framework separates project memory, conversation memory, common-error
 records, self-reflection records, and optional global archive indexes. Those

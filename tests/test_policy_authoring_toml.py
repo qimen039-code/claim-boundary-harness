@@ -50,6 +50,17 @@ def test_policy_authoring_toml_is_machine_readable() -> None:
         "existing_active_capsule",
     ]
     assert continuity["progress_status_values"] == ["verified", "inferred", "unknown"]
+    engineering = router["engineering_execution_contract"]
+    assert engineering["schema"] == "cbh.engineering_execution_contract.v1"
+    assert engineering["profile_values"] == [
+        "tracer_bullet_plan",
+        "deep_module_review",
+        "skill_invocation_topology",
+        "adapter_seam_review",
+    ]
+    assert set(engineering["profile_triggers"]) == set(engineering["profile_values"])
+    assert engineering["state_storage"] == "none"
+    assert engineering["authority_granted"] is False
     lifecycle = router["correction_lifecycle_contract"]
     assert lifecycle["schema"] == "cbh.correction_lifecycle_contract.v1"
     assert lifecycle["objective_order"] == [

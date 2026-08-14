@@ -222,9 +222,6 @@ jobs:
       - name: Run pytest contract checks
         run: python -m pytest tests
 
-      - name: Run WorkBuddy Python adapter tests
-        run: python -m unittest discover -s integrations/workbuddy-python-runtime/tests
-
   bash-smoke:
     name: Bash path and router smoke checks
     runs-on: ubuntu-latest

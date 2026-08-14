@@ -1,7 +1,7 @@
 {
   "schema_version": "0.1",
   "manifest_type": "agent_memory_lane_compatibility_manifest",
-  "harness_version": "v1.2.4",
+  "harness_version": "v1.2.5",
   "adapter": {
     "name": "example-adapter",
     "version": "unverified",
@@ -125,6 +125,21 @@
     ],
     "durable_writes_require_context_complete_content": true,
     "strict_capsules_reject_orphan_fragments": true
+  },
+  "task_memory_checkpoint": {
+    "supported": "unverified",
+    "candidate_schema": "cbh.task_memory_checkpoint_candidate.v1",
+    "promotion_receipt_schema": "cbh.task_memory_checkpoint_promotion_receipt.v1",
+    "preparation_is_read_only": true,
+    "requires_retired_completed_task": true,
+    "requires_all_acceptance_verified": true,
+    "explicit_lane_binding": true,
+    "host_promotes_eligible_candidate": "unverified",
+    "synchronous_canonical_and_meta_update": true,
+    "background_queue_required": false,
+    "writes_hidden_reasoning": false,
+    "writes_raw_tool_output": false,
+    "grants_authority": false
   },
   "memory_integrity_policy": {
     "supported": "unverified",

@@ -8,6 +8,7 @@
 )
 
 $ErrorActionPreference = "Stop"
+. (Join-Path $PSScriptRoot "external_route_trigger_helpers.ps1")
 $policyPath = Join-Path $PSScriptRoot "embedded_harness_policy.json"
 $policy = Get-Content -LiteralPath $policyPath -Raw -Encoding UTF8 | ConvertFrom-Json
 
@@ -19,26 +20,6 @@ function ConvertTo-Array($value) {
     return @($value)
   }
   return @($value)
-}
-
-function ConvertTo-TriggerList($value) {
-  $items = @()
-  if ($null -eq $value) {
-    return @()
-  }
-  if ($value -is [System.Array]) {
-    foreach ($entry in $value) {
-      $items += ConvertTo-TriggerList $entry
-    }
-    return @($items)
-  }
-  if (($value -isnot [string]) -and $value.PSObject.Properties.Count -gt 0) {
-    foreach ($prop in $value.PSObject.Properties) {
-      $items += ConvertTo-TriggerList $prop.Value
-    }
-    return @($items)
-  }
-  return @([string]$value)
 }
 
 function Normalize-PathText([string]$path) {
@@ -146,29 +127,6 @@ function Import-LocalProjectLaneOverlay {
     })
     break
   }
-}
-
-function Test-EnglishTrigger([string]$text) {
-  return (($text -match '^[\x20-\x7E]+$') -and ($text -match '[A-Za-z0-9]'))
-}
-
-function New-TriggerRegex([string]$text) {
-  $escaped = [regex]::Escape($text)
-  if (Test-EnglishTrigger $text) {
-    return "(?i)(?<![A-Za-z0-9_])$escaped(?![A-Za-z0-9_])"
-  }
-  return $escaped
-}
-
-function Test-NegatedMatch([string]$source, [int]$index) {
-  $start = [Math]::Max(0, $index - 256)
-  $prefix = $source.Substring($start, $index - $start)
-  if ($prefix -match "(?i)(\bdo\s+not\b|\bdon't\b|\bnever\b|\bnot\b|\bno\b)[\s\w'-]{0,128}$") {
-    return $true
-  }
-  $shortStart = [Math]::Max(0, $index - 32)
-  $shortPrefix = $source.Substring($shortStart, $index - $shortStart)
-  return ($shortPrefix -match "(不需要|无需|不要|别|禁止|不)\s*$")
 }
 
 function Get-TriggerMatchSet($triggers) {
@@ -821,8 +779,8 @@ if ($projectLane -ne "PROJECTLESS") {
 }
 
 $externalRetrievalContract = Get-ObjectPropertyValue $policy.search_and_learning_decision_matrix "external_retrieval_contract"
-$externalResearchMatchSet = Get-TriggerMatchSet $policy.external_research_triggers
-$explicitSearchIntentMatchSet = Get-TriggerMatchSet (Get-ObjectPropertyValue $externalRetrievalContract "explicit_search_intent_terms")
+$externalResearchMatchSet = Get-ExternalTriggerMatchSet $TaskText $policy.external_research_triggers
+$explicitSearchIntentMatchSet = Get-ExternalTriggerMatchSet $TaskText (Get-ObjectPropertyValue $externalRetrievalContract "explicit_search_intent_terms")
 $localOnlySearchHits = Get-MatchedTriggers (Get-ObjectPropertyValue $externalRetrievalContract "local_only_exclusion_terms")
 $externalPositive = @(
   @($externalResearchMatchSet.positive) + @($explicitSearchIntentMatchSet.positive) |
@@ -832,14 +790,10 @@ $externalNegative = @(
   @($externalResearchMatchSet.negated) + @($explicitSearchIntentMatchSet.negated) |
     Select-Object -Unique
 )
-$currentnessPattern = '(?i)\bnow\b|\bcurrently\b|\bpresent\s+(?:role|office|holder)\b|现在|现任|目前'
-if ([regex]::IsMatch($TaskText, $currentnessPattern)) {
-  $externalPositive += "currentness_pattern"
-}
+$derivedExternalSignalMatchSet = Get-DerivedExternalSignalMatchSet $TaskText
+$externalPositive += @($derivedExternalSignalMatchSet.positive)
+$externalNegative += @($derivedExternalSignalMatchSet.negated)
 $typedExternalIdentifierPattern = '(?i)\bRFC\s*-?\s*\d{3,5}\b|\bCVE-\d{4}-\d{4,}\b|\b10\.\d{4,9}/[-._;()/:A-Z0-9]+\b|\barXiv\s*:\s*\d{4}\.\d{4,5}(?:v\d+)?\b|\barXiv\s+\d{4}\.\d{4,5}(?:v\d+)?\b|\b(?:ISO(?:/IEC)?|IEC|IEEE)\s+\d+(?:[-:]\d+)*(?::\d{4})?\b|(?<![A-Za-z0-9_.-])@[A-Za-z0-9][A-Za-z0-9._-]*/[A-Za-z0-9][A-Za-z0-9._-]*|\b(?:PyPI|npm|Hugging\s*Face)\b'
-if ([regex]::IsMatch($TaskText, $typedExternalIdentifierPattern)) {
-  $externalPositive += "typed_external_identifier_pattern"
-}
 $hasExplicitSearchIntent = @($explicitSearchIntentMatchSet.positive).Count -gt 0
 $ownerRepoPattern = '(?i)(?<![A-Za-z0-9_.-])[A-Za-z0-9](?:[A-Za-z0-9-]{0,38})/[A-Za-z0-9_.-]{1,100}(?![A-Za-z0-9_.-])'
 $hasOwnerRepoAnchor = $hasExplicitSearchIntent -and [regex]::IsMatch($TaskText, $ownerRepoPattern)
@@ -1611,6 +1565,18 @@ $taskContinuityDecision = [ordered]@{
   host_delivery = $(if ($taskContinuityArmed) { "ready" } else { "not_needed" })
 }
 
+$engineeringExecutionProfiles = @()
+$engineeringExecutionContract = Get-ObjectPropertyValue $policy.router_decision_contract "engineering_execution_contract"
+$engineeringProfileTriggers = Get-ObjectPropertyValue $engineeringExecutionContract "profile_triggers"
+if ($null -ne $engineeringProfileTriggers) {
+  foreach ($profile in $engineeringProfileTriggers.PSObject.Properties) {
+    if ((Get-MatchedTriggers $profile.Value).Count -gt 0) {
+      $engineeringExecutionProfiles += [string]$profile.Name
+    }
+  }
+}
+$engineeringExecutionProfiles = @($engineeringExecutionProfiles | Select-Object -Unique)
+
 $strongClaimTerms = Get-MatchedTriggers $policy.blocked_claim_phrases_without_schema
 if ($strongClaimTerms.Count -gt 0) {
   $claimRisk = "strong_claim_needs_schema"
@@ -1636,6 +1602,7 @@ if (($externalNeed.Count -gt 0) -and ($externalNeed[0] -ne "none")) { $moduleNee
 if ($claimRisk -ne "none") { $moduleNeed += "claim_schema_verifier" }
 if (($risk -eq "R5") -or ($classificationConfidence -eq "low")) { $moduleNeed += "runtime_gate" }
 if ($taskContinuityArmed) { $moduleNeed += "task_continuity" }
+if ($engineeringExecutionProfiles.Count -gt 0) { $moduleNeed += "engineering_execution" }
 if ($moduleNeed.Count -eq 0) { $moduleNeed += "none" }
 $moduleNeed = @($moduleNeed | Select-Object -Unique)
 
@@ -1700,6 +1667,13 @@ if ($taskContinuityArmed) {
   $actionBindings += [pscustomobject]@{
     action = "prepare_task_continuity_capsule"
     completion_evidence = "task_continuity_capsule_or_dormant_receipt"
+  }
+}
+if ($engineeringExecutionProfiles.Count -gt 0) {
+  $actionBindings += [pscustomobject]@{
+    action = "apply_engineering_execution_profile"
+    completion_evidence = "engineering_execution_profile_receipt"
+    profiles = @($engineeringExecutionProfiles)
   }
 }
 $actionBindingIds = @($actionBindings | ForEach-Object { [string]$_.action } | Select-Object -Unique)
@@ -1808,6 +1782,7 @@ $routingReceipt = [ordered]@{
   read_depth_profile = $readDepthProfile
   edit_operation_profile = $editOperationProfile
   task_continuity_decision = $taskContinuityDecision
+  engineering_execution_profiles = @($engineeringExecutionProfiles)
   memory_need = $memoryNeed
   hybrid_retrieval_profile = $hybridRetrievalProfile
   memory_mode = $memoryMode
@@ -1850,6 +1825,7 @@ $compactReceipt = [ordered]@{
   read_depth_profile = $readDepthProfile
   edit_operation_profile = $editOperationProfile
   task_continuity_decision = $taskContinuityDecision
+  engineering_execution_profiles = @($engineeringExecutionProfiles)
   memory_mode = $memoryMode
   hybrid_retrieval_profile = $hybridRetrievalProfile
   memory_write_profile = $memoryWriteProfile
@@ -1906,6 +1882,7 @@ $result = [ordered]@{
   read_depth_profile = $readDepthProfile
   edit_operation_profile = $editOperationProfile
   task_continuity_decision = $taskContinuityDecision
+  engineering_execution_profiles = @($engineeringExecutionProfiles)
   memory_need = $memoryNeed
   hybrid_retrieval_profile = $hybridRetrievalProfile
   memory_mode = $memoryMode

@@ -1,8 +1,8 @@
 """Task-local continuity, progress, reminder, and transport primitives for CBH.
 
-The module is deliberately process-local and side-effect free except for its
-optional JSONL worker entry point.  Callers own the returned capsule and must
-send it back with the next event; this module never writes task state to disk.
+Calls remain process-local by default.  A host may explicitly opt into the
+separate append-only ``.cumcwork`` adapter by supplying one exact task path;
+the reducer itself remains deterministic and has no implicit file discovery.
 """
 
 from __future__ import annotations
@@ -14,6 +14,7 @@ import json
 import re
 import sys
 from collections.abc import Mapping, Sequence
+from pathlib import Path
 from typing import Any
 
 
@@ -27,6 +28,16 @@ PAGE_SCHEMA = "cbh.transport_page.v1"
 WORKER_SCHEMA = "cbh.task_continuity_worker_response.v1"
 
 LIFECYCLES = {"DORMANT", "ARMED", "ACTIVE", "VERIFYING", "RETIRED"}
+INTENT_KINDS = {
+    "new_task",
+    "refine",
+    "continue_ack",
+    "correction",
+    "side_task",
+    "ambiguous",
+}
+RELATION_CONFIDENCES = {"low", "medium", "high"}
+RELATION_SOURCES = {"fallback", "explicit_marker", "semantic_review", "legacy_projection"}
 DEFAULT_MAX_CHARS = 20_000
 DEFAULT_MAX_ITEMS = 100
 MAX_EVENT_HISTORY = 256
@@ -64,6 +75,11 @@ _LONG_PROMPT = re.compile(
     r"\b(?:multi[- ]stage|long[- ]running|continue until|do not stop|after that|then)\b)"
 )
 _RESUME_PROMPT = re.compile(r"(?i)(继续|接续|恢复|未完成|中断|\b(?:resume|continue|interrupted)\b)")
+_LEGACY_GOAL_REVISION_PROMPT = re.compile(
+    r"(?i)(不对|不是.+而是|做偏了|判断逻辑.+窄|完全不符合预期|"
+    r"重点(?:是|中的重点)|需求.+不是|应该.+而不是|"
+    r"\b(?:correction|not .+ but|the requirement is|global goal)\b)"
+)
 _READ_ONLY_PROMPT = re.compile(
     r"(?i)(只读|不要修改|不修改|仅解释|只回答|讨论一下|"
     r"\b(?:read[- ]only|do not modify|explain only|discussion only)\b)"
@@ -88,6 +104,38 @@ def _bounded_text(value: Any, limit: int = MAX_OBJECTIVE_CHARS) -> str:
     return text if len(text) <= limit else text[:limit]
 
 
+_EVIDENCE_REF_KEYS = (
+    "ref_id", "record_id", "source_id", "path", "artifact_path", "original_path",
+    "resolved_path", "line", "line_start", "line_end", "line_sha256_16",
+    "sha256", "status", "locator_kind", "candidate_label",
+    "eligible_for_current_reuse",
+)
+
+
+def _bounded_evidence_ref(value: Any) -> str | dict[str, Any] | None:
+    if not isinstance(value, Mapping):
+        text = _bounded_text(value, 600)
+        return text or None
+    result: dict[str, Any] = {}
+    for key in _EVIDENCE_REF_KEYS:
+        item = value.get(key)
+        if item is None:
+            continue
+        if isinstance(item, (int, float, bool)):
+            result[key] = item
+        else:
+            bounded = _bounded_text(item, 800)
+            if bounded:
+                result[key] = bounded
+    if len(_canonical_json(result)) > 2_400:
+        result = {
+            key: result[key]
+            for key in ("ref_id", "source_id", "line", "line_sha256_16", "sha256", "status")
+            if key in result
+        }
+    return result or None
+
+
 def _estimated_tokens(value: str) -> int:
     """Conservative mixed-language estimate for the host's 1000-token entry cap."""
 
@@ -108,6 +156,143 @@ def _event_type(task_event: Mapping[str, Any]) -> str:
     if not isinstance(value, str) or not value.strip():
         raise ValueError("task_event.type must be a non-empty string")
     return value
+
+
+def _intent_kind(task_event: Mapping[str, Any]) -> str | None:
+    value = task_event.get("intent_kind") or task_event.get("intent_relation")
+    if value is None:
+        return None
+    normalized = str(value).strip()
+    return normalized if normalized in INTENT_KINDS else None
+
+
+def _last_user_delta(task_event: Mapping[str, Any]) -> dict[str, Any] | None:
+    kind = _intent_kind(task_event)
+    if kind is None:
+        return None
+    return {
+        "kind": kind,
+        "text": _bounded_text(task_event.get("objective") or task_event.get("prompt")),
+        "turn_ref": _event_id(task_event),
+    }
+
+
+def _turn_relation(
+    task_event: Mapping[str, Any],
+    capsule: Mapping[str, Any] | None,
+) -> dict[str, Any]:
+    kind = _intent_kind(task_event) or "ambiguous"
+    confidence = str(task_event.get("intent_confidence") or "low")
+    if confidence not in RELATION_CONFIDENCES:
+        confidence = "low"
+    source = str(task_event.get("intent_source") or "fallback")
+    if source not in RELATION_SOURCES:
+        source = "fallback"
+    raw_reasons = task_event.get("intent_reason_codes") or []
+    reasons = (
+        [
+            _bounded_text(value, 160)
+            for value in raw_reasons
+            if _bounded_text(value, 160)
+        ][:8]
+        if isinstance(raw_reasons, Sequence) and not isinstance(raw_reasons, (str, bytes))
+        else []
+    )
+    reviewed = task_event.get("reviewed_against")
+    if isinstance(reviewed, Mapping):
+        reviewed_against = {
+            "capsule_id": _bounded_text(reviewed.get("capsule_id"), 160),
+            "goal_revision": int(reviewed.get("goal_revision") or 0),
+        }
+    elif isinstance(capsule, Mapping):
+        reviewed_against = {
+            "capsule_id": _bounded_text(capsule.get("capsule_id"), 160),
+            "goal_revision": int(capsule.get("goal_revision") or 1),
+        }
+    else:
+        reviewed_against = None
+    relation = {
+        "kind": kind,
+        "confidence": confidence,
+        "source": source,
+        "reason_codes": reasons,
+        "reviewed_against": reviewed_against,
+    }
+    if task_event.get("semantic_review_passed") is True:
+        relation["semantic_review_passed"] = True
+    return relation
+
+
+def _relation_is_current(
+    relation: Mapping[str, Any], capsule: Mapping[str, Any]
+) -> bool:
+    reviewed = relation.get("reviewed_against")
+    return bool(
+        isinstance(reviewed, Mapping)
+        and reviewed.get("capsule_id") == capsule.get("capsule_id")
+        and int(reviewed.get("goal_revision") or 0)
+        == int(capsule.get("goal_revision") or 1)
+    )
+
+
+def _global_replacement_allowed(
+    relation: Mapping[str, Any], capsule: Mapping[str, Any]
+) -> bool:
+    if relation.get("kind") != "new_task" or relation.get("confidence") != "high":
+        return False
+    source = relation.get("source")
+    if source == "semantic_review" and relation.get("semantic_review_passed") is not True:
+        return False
+    return source in {"explicit_marker", "semantic_review"} and _relation_is_current(
+        relation, capsule
+    )
+
+
+def _normalize_reuse_candidates(values: Any) -> list[dict[str, Any]]:
+    if not isinstance(values, Sequence) or isinstance(values, (str, bytes)):
+        return []
+    normalized: list[dict[str, Any]] = []
+    for value in values:
+        ref = _bounded_evidence_ref(value)
+        if not isinstance(ref, Mapping):
+            continue
+        candidate = dict(ref)
+        if not any(candidate.get(key) for key in ("record_id", "ref_id", "source_id", "path", "artifact_path")):
+            continue
+        if candidate not in normalized:
+            normalized.append(candidate)
+    return normalized[:MAX_CONTEXT_LIST_ITEMS]
+
+
+def _global_goal_anchor(capsule: Mapping[str, Any]) -> dict[str, Any]:
+    objective = _bounded_text(capsule.get("objective"))
+    return {
+        "schema": "cbh.global_goal_anchor.v1",
+        "source_capsule_id": capsule.get("capsule_id"),
+        "objective": objective,
+        "objective_sha256": _sha256_text(objective),
+        "purpose": _bounded_text(capsule.get("purpose"), 1_000),
+        "required_outputs": _copy(capsule.get("required_outputs") or []),
+        "acceptance_criteria": _copy(capsule.get("acceptance_criteria") or []),
+        "constraints": _copy(capsule.get("constraints") or []),
+        "non_goals": _copy(capsule.get("non_goals") or []),
+        "stop_condition": _bounded_text(capsule.get("stop_condition"), 800),
+        "source_refs": _copy(capsule.get("evidence_refs") or []),
+        "goal_revision": int(capsule.get("goal_revision") or 1),
+    }
+
+
+def _local_delta(
+    task_event: Mapping[str, Any], relation: Mapping[str, Any]
+) -> dict[str, Any]:
+    return {
+        "kind": relation.get("kind"),
+        "text": _bounded_text(task_event.get("objective") or task_event.get("prompt")),
+        "turn_ref": _event_id(task_event),
+        "confidence": relation.get("confidence"),
+        "source": relation.get("source"),
+        "reason_codes": _copy(relation.get("reason_codes") or []),
+    }
 
 
 def _binding_ids(route_receipt: Mapping[str, Any]) -> set[str]:
@@ -190,6 +375,13 @@ def decide_task_continuity(
         if not reasons:
             reasons = ["existing_active_capsule"]
         host_delivery = "ready"
+    elif (
+        _intent_kind(task_event) in {"continue_ack", "ambiguous"}
+        and _event_type(task_event) == "task_observed"
+    ):
+        decision = "dormant"
+        reasons = []
+        host_delivery = "not_needed"
     elif reasons:
         decision = "arm"
         host_delivery = "ready"
@@ -236,6 +428,168 @@ def _normalize_criteria(
     return [{"id": "task_goal", "text": "task objective is satisfied", "status": "unknown"}]
 
 
+def _normalize_plan_steps(plan_steps: Any) -> list[dict[str, Any]]:
+    normalized: list[dict[str, Any]] = []
+    if not isinstance(plan_steps, Sequence) or isinstance(plan_steps, (str, bytes)):
+        return normalized
+    allowed = {"completed", "in_progress", "pending", "inferred", "unknown"}
+    aliases = {"inProgress": "in_progress", "in-progress": "in_progress"}
+    for index, item in enumerate(plan_steps):
+        if isinstance(item, Mapping):
+            step_id = _bounded_text(item.get("id") or f"plan-{index}", 160)
+            text = _bounded_text(item.get("text") or item.get("step") or step_id, 800)
+            status = aliases.get(str(item.get("status") or "unknown"), str(item.get("status") or "unknown"))
+        else:
+            step_id = f"plan-{index}"
+            text = _bounded_text(item, 800)
+            status = "unknown"
+        if step_id and text:
+            normalized.append(
+                {
+                    "id": step_id,
+                    "text": text,
+                    "status": status if status in allowed else "unknown",
+                }
+            )
+    return normalized
+
+
+def _normalize_required_outputs(outputs: Any) -> list[dict[str, Any]]:
+    normalized: list[dict[str, Any]] = []
+    if not isinstance(outputs, Sequence) or isinstance(outputs, (str, bytes)):
+        return normalized
+    for index, item in enumerate(outputs):
+        if isinstance(item, Mapping):
+            output_id = _bounded_text(item.get("id") or f"output-{index + 1}", 160)
+            text = _bounded_text(item.get("text") or item.get("description") or output_id, 800)
+            status = str(item.get("status") or "unknown")
+        else:
+            output_id = f"output-{index + 1}"
+            text = _bounded_text(item, 800)
+            status = "unknown"
+        if output_id and text:
+            normalized.append(
+                {
+                    "id": output_id,
+                    "text": text,
+                    "status": status if status in {"verified", "inferred", "unknown"} else "unknown",
+                }
+            )
+    return normalized
+
+
+def _memory_record_view(record: Any) -> dict[str, Any] | None:
+    if not isinstance(record, Mapping) or not record.get("record_id"):
+        return None
+    return {
+        key: _copy(record[key])
+        for key in (
+            "record_id",
+            "family",
+            "record_status",
+            "source_id",
+            "sha256",
+            "event_date",
+            "candidate_label",
+            "eligible_for_current_reuse",
+        )
+        if record.get(key) is not None
+    }
+
+
+def _memory_working_set(
+    task_event: Mapping[str, Any], capsule: Mapping[str, Any]
+) -> dict[str, Any]:
+    receipt = task_event.get("memory_consumption_receipt")
+    if not isinstance(receipt, Mapping):
+        raise ValueError("memory_consumption_receipt must be an object")
+    query_type = str(task_event.get("memory_query_type") or "history_reason")
+    if query_type not in {"current_state", "history_reason", "contradiction_check"}:
+        raise ValueError("invalid_memory_query_type")
+    query_basis = str(task_event.get("memory_query_basis") or "global_goal")
+    if query_basis not in {"global_goal", "current_turn", "both"}:
+        raise ValueError("invalid_memory_query_basis")
+    selected = [
+        view
+        for view in (_memory_record_view(item) for item in (receipt.get("selected_records") or []))
+        if view is not None
+    ][:8]
+    retrieval = receipt.get("retrieval") if isinstance(receipt.get("retrieval"), Mapping) else {}
+    candidate_source = (
+        retrieval.get("disambiguation_candidates")
+        or receipt.get("semantic_review_candidates")
+        or []
+    )
+    candidate_views = [
+        {
+            key: _copy(item[key])
+            for key in ("record_id", "event_date", "summary", "candidate_label", "status", "matched_facets")
+            if isinstance(item, Mapping) and item.get(key) is not None
+        }
+        for item in candidate_source
+        if isinstance(item, Mapping) and item.get("record_id")
+    ][:5]
+    evidence_handles: list[dict[str, Any]] = []
+    for record in receipt.get("selected_records") or []:
+        if not isinstance(record, Mapping):
+            continue
+        for handle in record.get("evidence_handles") or []:
+            if isinstance(handle, Mapping) and handle.get("source_id"):
+                value = {
+                    key: _copy(handle[key])
+                    for key in ("source_id", "original_path", "line", "line_sha256_16", "sha256")
+                    if handle.get(key) is not None
+                }
+                if value not in evidence_handles:
+                    evidence_handles.append(value)
+    conversation_handles: list[dict[str, Any]] = []
+    conversation_navigation = receipt.get("conversation_navigation")
+    if isinstance(conversation_navigation, Mapping):
+        for bundle in conversation_navigation.get("bundles") or []:
+            if not isinstance(bundle, Mapping) or not bundle.get("memory_id"):
+                continue
+            ledger = bundle.get("ledger") if isinstance(bundle.get("ledger"), Mapping) else {}
+            selected_link_ids = [
+                str(link["link_id"])
+                for link in (bundle.get("selected_links") or [])
+                if isinstance(link, Mapping) and link.get("link_id")
+            ][:8]
+            conversation_handles.append(
+                {
+                    "memory_id": str(bundle["memory_id"]),
+                    "root_path": str(bundle.get("root_path") or ""),
+                    "registry_path": str(bundle.get("registry_path") or ""),
+                    "isolation": str(bundle.get("isolation") or "route_declared"),
+                    "selected_link_ids": selected_link_ids,
+                    "ledger_index_path": str(ledger.get("index_path") or ""),
+                    "ledger_capsules_path": str(ledger.get("capsules_path") or ""),
+                    "ledger_evidence_refs_path": str(ledger.get("evidence_refs_path") or ""),
+                }
+            )
+    coverage_status = str(retrieval.get("coverage_status") or "not_requested")
+    return {
+        "query_type": query_type,
+        "query_basis": query_basis,
+        "bound_goal_revision": int(capsule.get("goal_revision") or 1),
+        "coverage_status": coverage_status,
+        "selected_record_ids": [str(item["record_id"]) for item in selected],
+        "selected_records": selected,
+        "candidate_views": candidate_views,
+        "source_ids": list(
+            dict.fromkeys(
+                str(item["source_id"])
+                for item in selected
+                if item.get("source_id")
+            )
+        ),
+        "evidence_handles": evidence_handles[:8],
+        "conversation_handles": conversation_handles[:4],
+        "opened_evidence_refs": [],
+        "unresolved_ambiguity": bool(candidate_views) or coverage_status == "semantic_review_required",
+        "receipt_sha256": _sha256_text(_canonical_json(_sanitize_for_transport(receipt))),
+    }
+
+
 def _progress_lists(capsule: dict[str, Any]) -> None:
     criteria = capsule.get("acceptance_criteria") or []
     capsule["verified_completed"] = [
@@ -257,6 +611,158 @@ def _first_remaining(capsule: Mapping[str, Any]) -> Mapping[str, Any] | None:
     if isinstance(values, Sequence) and not isinstance(values, (str, bytes)):
         return next((item for item in values if isinstance(item, Mapping)), None)
     return None
+
+
+def _legacy_side_frame(capsule: Mapping[str, Any]) -> dict[str, Any]:
+    return {
+        "source_capsule_id": capsule.get("capsule_id"),
+        "objective": _bounded_text(capsule.get("objective")),
+        "purpose": _bounded_text(capsule.get("purpose"), 1_000),
+        "progress_revision": int(capsule.get("progress_revision") or 0),
+        "resume_entry": _copy(capsule.get("resume_entry")) or {
+            "source": "legacy_projection",
+            "next_action": capsule.get("next_action"),
+        },
+    }
+
+
+def ensure_v3_capsule(
+    capsule: Mapping[str, Any],
+    *,
+    capsule_history: Sequence[Mapping[str, Any]] | None = None,
+    source_head_sha256: str | None = None,
+    source_chain_digest: str | None = None,
+) -> dict[str, Any]:
+    """Return an additive stable-frame projection without rewriting legacy records."""
+
+    if not isinstance(capsule, Mapping) or capsule.get("schema") != CAPSULE_SCHEMA:
+        raise ValueError("invalid task capsule")
+    current = _copy(capsule)
+    if int(current.get("state_version") or 0) >= 3 and isinstance(
+        current.get("global_goal_anchor"), Mapping
+    ):
+        current.setdefault("active_local_delta", None)
+        current.setdefault("turn_relation", None)
+        current.setdefault("suspended_task_stack", [])
+        current.setdefault("reuse_candidates", [])
+        return current
+
+    ordered: list[Mapping[str, Any]] = []
+    if isinstance(capsule_history, Sequence) and not isinstance(
+        capsule_history, (str, bytes)
+    ):
+        ordered = [item for item in capsule_history if isinstance(item, Mapping)]
+    root = ordered[0] if ordered else capsule
+    latest = ordered[-1] if ordered else capsule
+    anchor = _global_goal_anchor(root)
+    current["state_version"] = 3
+    current["objective"] = anchor["objective"]
+    current["purpose"] = anchor["purpose"]
+    current["required_outputs"] = _copy(anchor["required_outputs"])
+    current["acceptance_criteria"] = _copy(anchor["acceptance_criteria"])
+    current["constraints"] = _copy(anchor["constraints"])
+    current["non_goals"] = _copy(anchor["non_goals"])
+    current["stop_condition"] = anchor["stop_condition"]
+    current["goal_revision"] = int(anchor["goal_revision"] or 1)
+    current["global_goal_anchor"] = anchor
+    distinct_history = [
+        item
+        for index, item in enumerate(ordered)
+        if item.get("capsule_id")
+        and item.get("capsule_id")
+        not in {prior.get("capsule_id") for prior in ordered[:index]}
+    ]
+    latest_is_local = bool(
+        distinct_history
+        and latest.get("capsule_id") != root.get("capsule_id")
+    )
+    if latest_is_local:
+        legacy_relation = {
+            "kind": "ambiguous",
+            "confidence": "low",
+            "source": "legacy_projection",
+            "reason_codes": ["legacy_supersedes_chain_requires_semantic_review"],
+            "reviewed_against": {
+                "capsule_id": current.get("capsule_id"),
+                "goal_revision": current["goal_revision"],
+            },
+        }
+        current["active_local_delta"] = {
+            "kind": "ambiguous",
+            "text": _bounded_text(latest.get("objective")),
+            "turn_ref": (
+                latest.get("last_event", {}).get("event_id")
+                if isinstance(latest.get("last_event"), Mapping)
+                else None
+            ),
+            "confidence": "low",
+            "source": "legacy_projection",
+            "reason_codes": legacy_relation["reason_codes"],
+        }
+        current["turn_relation"] = legacy_relation
+        current["semantic_review_required"] = True
+    else:
+        initial_relation = {
+            "kind": (
+                current.get("last_user_delta", {}).get("kind")
+                if isinstance(current.get("last_user_delta"), Mapping)
+                else "ambiguous"
+            ),
+            "confidence": "low",
+            "source": "legacy_projection" if source_head_sha256 else "fallback",
+            "reason_codes": (
+                ["legacy_capsule_projected"] if source_head_sha256 else ["initial_task_frame"]
+            ),
+            "reviewed_against": {
+                "capsule_id": current.get("capsule_id"),
+                "goal_revision": current["goal_revision"],
+            },
+        }
+        current["turn_relation"] = initial_relation
+        current["active_local_delta"] = _copy(current.get("last_user_delta"))
+    current["suspended_task_stack"] = [
+        _legacy_side_frame(item) for item in distinct_history[1:-1]
+    ][-MAX_CONTEXT_LIST_ITEMS:]
+    legacy_goal_deltas = [
+        {
+            "kind": "correction",
+            "text": _bounded_text(item.get("objective")),
+            "source_ref": f"legacy_capsule:{item.get('capsule_id')}",
+        }
+        for item in distinct_history[1:]
+        if _bounded_text(item.get("objective"))
+        and _LEGACY_GOAL_REVISION_PROMPT.search(_bounded_text(item.get("objective")))
+    ][-MAX_CONTEXT_LIST_ITEMS:]
+    if legacy_goal_deltas:
+        current["goal_deltas"] = legacy_goal_deltas
+        current["goal_revision"] = 1 + len(legacy_goal_deltas)
+        current["global_goal_anchor"]["goal_revision"] = current["goal_revision"]
+        current["global_goal_anchor"]["goal_deltas"] = _copy(legacy_goal_deltas)
+        if isinstance(current.get("turn_relation"), Mapping):
+            current["turn_relation"]["reviewed_against"] = {
+                "capsule_id": current.get("capsule_id"),
+                "goal_revision": current["goal_revision"],
+            }
+    reuse_source: Any = current.get("reuse_candidates") or []
+    if not reuse_source and isinstance(current.get("memory_working_set"), Mapping):
+        reuse_source = current["memory_working_set"].get("evidence_handles") or []
+    current["reuse_candidates"] = _normalize_reuse_candidates(reuse_source)
+    if source_head_sha256:
+        current["legacy_projection"] = {
+            "source_head_sha256": source_head_sha256,
+            "source_chain_digest": source_chain_digest,
+            "projected_capsule_ids": [
+                str(item.get("capsule_id"))
+                for item in distinct_history
+                if item.get("capsule_id")
+            ],
+        }
+    _progress_lists(current)
+    first = _first_remaining(current)
+    if first is not None:
+        current["next_action"] = first.get("text")
+        current["next_action_reason"] = "earliest_incomplete_acceptance_item"
+    return current
 
 
 def new_task_capsule(
@@ -283,20 +789,52 @@ def new_task_capsule(
         write_intent="write_intent" in reasons,
         tool_required="tool_required" in reasons,
     )
+    capsule_id = _sha256_text(f"{task_key_sha256}:{event_id}")[:24]
     capsule: dict[str, Any] = {
         "schema": CAPSULE_SCHEMA,
-        "capsule_id": _sha256_text(f"{task_key_sha256}:{event_id}")[:24],
+        "capsule_id": capsule_id,
+        "working_set_id": capsule_id,
         "task_key_sha256": task_key_sha256,
         "host_task_key_sha256": (
             _sha256_text(str(task_event.get("task_key")))
             if task_event.get("task_key") is not None
             else None
         ),
-        "state_version": 1,
+        "state_version": 3,
         "lifecycle": "ARMED",
         "activation_reasons": decision["reasons"],
         "objective": objective,
+        "purpose": _bounded_text(task_event.get("purpose"), 1_000),
+        "required_outputs": _normalize_required_outputs(task_event.get("required_outputs")),
+        "stop_condition": _bounded_text(task_event.get("stop_condition"), 800),
+        "non_goals": [
+            _bounded_text(value, 800)
+            for value in (task_event.get("non_goals") or [])
+            if _bounded_text(value, 800)
+        ][:MAX_CONTEXT_LIST_ITEMS],
+        "goal_revision": 1,
+        "goal_deltas": [],
+        "last_user_delta": _last_user_delta(task_event),
+        "semantic_review_required": bool(task_event.get("semantic_review_required")),
+        "supersedes_capsule_id": task_event.get("supersedes_capsule_id"),
+        "retirement": None,
+        "memory_working_set": {
+            "query_type": None,
+            "query_basis": "global_goal",
+            "bound_goal_revision": 1,
+            "coverage_status": "not_requested",
+            "selected_record_ids": [],
+            "selected_records": [],
+            "candidate_views": [],
+            "source_ids": [],
+            "evidence_handles": [],
+            "conversation_handles": [],
+            "opened_evidence_refs": [],
+            "unresolved_ambiguity": False,
+            "receipt_sha256": None,
+        },
         "acceptance_criteria": criteria,
+        "plan_steps": [],
         "constraints": [
             _bounded_text(value, 800)
             for value in (task_event.get("constraints") or [])
@@ -307,6 +845,7 @@ def new_task_capsule(
         "inferred_progress": [],
         "unknown_progress": [],
         "current_step": None,
+        "current_action": None,
         "remaining_work": [],
         "next_action": None,
         "next_action_reason": "earliest_incomplete_acceptance_item",
@@ -315,8 +854,22 @@ def new_task_capsule(
         "unresolved_failures": [],
         "progress_revision": 1,
         "execution_log_cursor": task_event.get("execution_log_cursor"),
-        "evidence_refs": list(task_event.get("evidence_refs") or [])[:MAX_CONTEXT_LIST_ITEMS],
+        "evidence_refs": [
+            ref
+            for ref in (
+                _bounded_evidence_ref(value)
+                for value in (task_event.get("evidence_refs") or [])
+            )
+            if ref is not None
+        ][:MAX_CONTEXT_LIST_ITEMS],
         "active_frames": [],
+        "global_goal_anchor": None,
+        "active_local_delta": None,
+        "turn_relation": None,
+        "suspended_task_stack": [],
+        "reuse_candidates": _normalize_reuse_candidates(
+            task_event.get("reuse_candidates") or []
+        ),
         "transport": {},
         "resume_entry": None,
         "applied_event_ids": [event_id],
@@ -332,6 +885,10 @@ def new_task_capsule(
     _progress_lists(capsule)
     first = _first_remaining(capsule)
     capsule["next_action"] = first.get("text") if first else None
+    relation = _turn_relation(task_event, capsule)
+    capsule["global_goal_anchor"] = _global_goal_anchor(capsule)
+    capsule["active_local_delta"] = _local_delta(task_event, relation)
+    capsule["turn_relation"] = relation
     return capsule
 
 
@@ -386,6 +943,19 @@ def _merge_progress_snapshot(
     changed = normalized != capsule.get("acceptance_criteria")
     if changed:
         capsule["acceptance_criteria"] = normalized
+    return changed
+
+
+def _merge_plan_snapshot(
+    capsule: dict[str, Any], task_event: Mapping[str, Any]
+) -> bool:
+    incoming = task_event.get("plan_steps")
+    normalized = _normalize_plan_steps(incoming)
+    if incoming is None:
+        return False
+    changed = normalized != capsule.get("plan_steps")
+    if changed:
+        capsule["plan_steps"] = normalized
     return changed
 
 
@@ -456,7 +1026,15 @@ def apply_task_event(
             "event_type": event_type,
         }
 
-    updated = _copy(capsule)
+    event_evidence_refs = [
+        ref
+        for ref in (
+            _bounded_evidence_ref(value)
+            for value in (task_event.get("evidence_refs") or [])
+        )
+        if ref is not None
+    ][:MAX_CONTEXT_LIST_ITEMS]
+    updated = ensure_v3_capsule(capsule)
     previous_lifecycle = str(updated["lifecycle"])
     progress_delta: list[str] = []
     reasons: list[str] = []
@@ -465,26 +1043,121 @@ def apply_task_event(
         "event_id": event_id,
         "type": event_type,
         "observed_at": task_event.get("observed_at"),
-        "evidence_refs": list(task_event.get("evidence_refs") or [])[:MAX_CONTEXT_LIST_ITEMS],
+        "evidence_refs": _copy(event_evidence_refs),
     }
+    relation = _turn_relation(task_event, updated)
+    user_delta = _last_user_delta(task_event)
+    if user_delta is not None:
+        updated["last_user_delta"] = user_delta
+        active_local = _local_delta(task_event, relation)
+        if (
+            updated.get("suspended_task_stack")
+            and isinstance(updated.get("active_local_delta"), Mapping)
+            and updated["active_local_delta"].get("kind") == "side_task"
+            and relation.get("kind") != "side_task"
+        ):
+            active_local = _copy(updated["active_local_delta"])
+            active_local["latest_turn"] = {
+                "kind": relation.get("kind"),
+                "turn_ref": _event_id(task_event),
+            }
+        updated["active_local_delta"] = active_local
+        updated["turn_relation"] = relation
+        if user_delta["kind"] in {"ambiguous", "new_task"}:
+            updated["semantic_review_required"] = True
+        elif user_delta["kind"] in {"continue_ack", "refine", "correction"}:
+            if relation.get("confidence") == "high" and _relation_is_current(
+                relation, updated
+            ):
+                updated["semantic_review_required"] = False
+            if user_delta["kind"] in {"refine", "correction"}:
+                updated.setdefault("goal_deltas", []).append(
+                    {
+                        "kind": user_delta["kind"],
+                        "text": user_delta["text"],
+                        "source_ref": user_delta["turn_ref"],
+                    }
+                )
+                updated["goal_deltas"] = updated["goal_deltas"][-MAX_CONTEXT_LIST_ITEMS:]
+                updated["goal_revision"] = int(updated.get("goal_revision") or 1) + 1
+                if isinstance(updated.get("global_goal_anchor"), dict):
+                    updated["global_goal_anchor"]["goal_revision"] = updated["goal_revision"]
+                    updated["global_goal_anchor"]["goal_deltas"] = _copy(
+                        updated["goal_deltas"]
+                    )
+        elif user_delta["kind"] == "side_task":
+            if relation.get("confidence") == "high" and _relation_is_current(
+                relation, updated
+            ):
+                updated.setdefault("suspended_task_stack", []).append(
+                    {
+                        "source_capsule_id": updated.get("capsule_id"),
+                        "resume_entry": {
+                            "global_objective": updated.get("objective"),
+                            "current_stage": updated.get("current_stage"),
+                            "next_action": updated.get("next_action"),
+                            "progress_revision": updated.get("progress_revision"),
+                        },
+                    }
+                )
+                updated["suspended_task_stack"] = updated["suspended_task_stack"][-MAX_CONTEXT_LIST_ITEMS:]
+                updated["semantic_review_required"] = False
+            else:
+                updated["semantic_review_required"] = True
     if task_event.get("current_stage"):
         updated["current_stage"] = _bounded_text(task_event["current_stage"], 160)
-    if task_event.get("current_step"):
-        updated["current_step"] = _bounded_text(task_event["current_step"], 800)
-    if task_event.get("next_action"):
-        updated["next_action"] = _bounded_text(task_event["next_action"], 800)
-        updated["next_action_reason"] = _bounded_text(
-            task_event.get("next_action_reason") or "event_declared_next_action", 320
+    if "current_step" in task_event:
+        updated["current_step"] = (
+            _bounded_text(task_event["current_step"], 800)
+            if task_event.get("current_step") is not None
+            else None
+        )
+    if "next_action" in task_event:
+        updated["next_action"] = (
+            _bounded_text(task_event["next_action"], 800)
+            if task_event.get("next_action") is not None
+            else None
+        )
+    if event_type in {"candidate_selected", "preflight_completed", "tool_dispatched"}:
+        first_pending = _first_remaining(updated)
+        pending_output = next(
+            (
+                item
+                for item in (updated.get("required_outputs") or [])
+                if isinstance(item, Mapping) and item.get("status") != "verified"
+            ),
+            None,
+        )
+        action_text = _bounded_text(
+            task_event.get("current_step")
+            or task_event.get("next_action")
+            or event_type,
+            800,
+        )
+        criterion_ids = [str(first_pending.get("id"))] if first_pending else []
+        output_ids = [str(pending_output.get("id"))] if pending_output else []
+        if criterion_ids:
+            reason = f"serves_acceptance_criterion:{criterion_ids[0]}"
+        elif output_ids:
+            reason = f"serves_required_output:{output_ids[0]}"
+        else:
+            reason = "serves_task_objective"
+        updated["current_action"] = {
+            "text": action_text,
+            "serves_output_ids": output_ids,
+            "serves_criterion_ids": criterion_ids,
+            "reason": reason,
+        }
+        updated["next_action_reason"] = (
+            _bounded_text(task_event.get("next_action_reason"), 320)
+            if task_event.get("next_action") is not None
+            else None
         )
     if task_event.get("blocking_condition") is not None:
         updated["blocking_condition"] = _bounded_text(task_event["blocking_condition"], 400)
     if task_event.get("postcondition") is not None:
         updated["last_postcondition"] = _bounded_text(task_event["postcondition"], 800)
-    evidence_refs = [
-        _bounded_text(value, 600)
-        for value in (task_event.get("evidence_refs") or [])
-        if _bounded_text(value, 600)
-    ]
+    evidence_refs = event_evidence_refs
     for ref in evidence_refs:
         if ref not in updated["evidence_refs"]:
             updated["evidence_refs"].append(ref)
@@ -533,17 +1206,95 @@ def apply_task_event(
             "remaining_ids": [item.get("id") for item in updated.get("remaining_work", [])],
         }
         reasons.append("task_interrupted_with_open_state")
+    elif event_type == "side_task_completed":
+        stack = list(updated.get("suspended_task_stack") or [])
+        if task_event.get("postcondition_satisfied") is not True:
+            updated["lifecycle"] = "VERIFYING"
+            reasons.append("side_task_completion_requires_verification")
+        elif stack:
+            resume = stack.pop()
+            updated["suspended_task_stack"] = stack
+            updated["active_local_delta"] = {
+                "kind": "resume",
+                "turn_ref": event_id,
+                "resume_entry": _copy(resume.get("resume_entry"))
+                if isinstance(resume, Mapping)
+                else None,
+            }
+            updated["turn_relation"] = {
+                "kind": "continue_ack",
+                "confidence": "high",
+                "source": "semantic_review",
+                "reason_codes": ["verified_side_task_completed"],
+                "reviewed_against": {
+                    "capsule_id": updated.get("capsule_id"),
+                    "goal_revision": updated.get("goal_revision"),
+                },
+            }
+            updated["semantic_review_required"] = False
+            updated["lifecycle"] = "ACTIVE"
+            reasons.append("suspended_global_task_resumed")
+        else:
+            updated["lifecycle"] = "ACTIVE"
+            reasons.append("side_task_stack_already_empty")
     elif event_type == "task_abandoned":
         updated["lifecycle"] = "RETIRED"
+        updated["retirement"] = {
+            "outcome": "abandoned",
+            "reason": "task_explicitly_abandoned",
+            "evidence_refs": evidence_refs,
+        }
         reasons.append("task_explicitly_abandoned")
     elif event_type == "task_complete_requested":
         updated["lifecycle"] = "VERIFYING"
         reasons.append("completion_requires_all_acceptance_items")
     elif event_type == "progress_snapshot":
-        if _merge_progress_snapshot(updated, task_event):
+        if _merge_plan_snapshot(updated, task_event):
             progress_delta.append("plan_progress_refreshed")
         updated["lifecycle"] = "ACTIVE"
         reasons.append("observable_plan_progress_refreshed")
+    elif event_type == "memory_context_selected":
+        updated["memory_working_set"] = _memory_working_set(task_event, updated)
+        updated["reuse_candidates"] = _normalize_reuse_candidates(
+            [
+                *(updated["memory_working_set"].get("selected_records") or []),
+                *(updated["memory_working_set"].get("evidence_handles") or []),
+            ]
+        )
+        updated["lifecycle"] = "ACTIVE"
+        reasons.append("memory_context_bound_to_task_working_set")
+    elif event_type == "memory_evidence_opened":
+        evidence_ref = task_event.get("evidence_ref")
+        if not isinstance(evidence_ref, Mapping):
+            raise ValueError("memory_evidence_ref_must_be_an_object")
+        memory_state = updated.get("memory_working_set")
+        if not isinstance(memory_state, dict):
+            raise ValueError("memory_working_set_required")
+        source_id = str(evidence_ref.get("source_id") or "")
+        selected_handles = [
+            item
+            for item in (memory_state.get("evidence_handles") or [])
+            if isinstance(item, Mapping) and str(item.get("source_id") or "") == source_id
+        ]
+        if not selected_handles:
+            raise ValueError("evidence_source_not_selected")
+        if str(evidence_ref.get("status") or "") not in {"original_verified", "relocated_verified"}:
+            raise ValueError("evidence_open_not_verified")
+        selected_handle = selected_handles[0]
+        for key in ("line", "line_sha256_16"):
+            if selected_handle.get(key) is not None and evidence_ref.get(key) != selected_handle.get(key):
+                raise ValueError("evidence_anchor_mismatch")
+        opened = {
+            key: _copy(evidence_ref[key])
+            for key in ("source_id", "resolved_path", "line", "line_sha256_16", "sha256", "status")
+            if evidence_ref.get(key) is not None
+        }
+        opened_refs = list(memory_state.get("opened_evidence_refs") or [])
+        if opened not in opened_refs:
+            opened_refs.append(opened)
+        memory_state["opened_evidence_refs"] = opened_refs[:8]
+        updated["lifecycle"] = "ACTIVE"
+        reasons.append("verified_selected_memory_evidence_opened")
     elif event_type in {"stage_exit", "continuation_required", "transport_threshold_crossed"}:
         updated["lifecycle"] = "ACTIVE"
         reasons.append(event_type)
@@ -554,18 +1305,27 @@ def apply_task_event(
 
     _progress_lists(updated)
     all_verified = bool(updated["acceptance_criteria"]) and not updated["remaining_work"]
+    can_retire = all_verified and not updated.get("blocking_condition")
     if event_type in {"verifier_completed", "task_complete_requested", "stage_exit"}:
-        if all_verified and task_event.get("retire_if_complete") is True:
+        if can_retire and (
+            event_type == "verifier_completed"
+            or task_event.get("retire_if_complete") is True
+        ):
             updated["lifecycle"] = "RETIRED"
             updated["next_action"] = None
             updated["next_action_reason"] = "all_acceptance_items_verified"
+            updated["retirement"] = {
+                "outcome": "completed",
+                "reason": "all_acceptance_items_verified",
+                "evidence_refs": evidence_refs,
+            }
             reasons.append("all_acceptance_items_verified")
         elif event_type == "task_complete_requested" and not all_verified:
             updated["lifecycle"] = "VERIFYING"
 
     if updated["lifecycle"] != "RETIRED":
         first = _first_remaining(updated)
-        if first is not None and not task_event.get("next_action"):
+        if first is not None and "next_action" not in task_event:
             updated["next_action"] = first.get("text")
             updated["next_action_reason"] = "earliest_incomplete_acceptance_item"
     updated["progress_revision"] = int(updated.get("progress_revision") or 0) + 1
@@ -595,6 +1355,26 @@ def _reminder_candidate(
 ) -> tuple[str, str, str] | None:
     event_type = str(transition.get("event_type") or "")
     last_event = capsule.get("last_event") if isinstance(capsule.get("last_event"), Mapping) else {}
+    if event_type == "task_observed" and capsule.get("semantic_review_required"):
+        return (
+            "global_alignment_required",
+            f"global_alignment:{capsule.get('goal_revision')}:{last_event.get('event_id')}",
+            "interpret the current turn against the stable global goal; preserve it unless current replacement evidence is explicit and reviewed",
+        )
+    if event_type in {"candidate_selected", "preflight_completed", "tool_dispatched"} and capsule.get(
+        "reuse_candidates"
+    ):
+        return (
+            "reuse_before_regenerate",
+            f"reuse_before_regenerate:{capsule.get('goal_revision')}:{last_event.get('event_id')}",
+            "reuse or copy the exact compatible source before generating an equivalent replacement",
+        )
+    if event_type == "side_task_completed":
+        return (
+            "resume_suspended_task",
+            f"resume_suspended_task:{last_event.get('event_id')}",
+            "resume the preserved global task from its earliest incomplete acceptance item",
+        )
     if event_type == "unchanged_dispatch_repeated":
         failures = capsule.get("unresolved_failures") or []
         signature = failures[-1].get("signature") if failures and isinstance(failures[-1], Mapping) else "unknown"
@@ -762,8 +1542,22 @@ def page_result(
 
     if not isinstance(transport_plan, Mapping) or transport_plan.get("schema") != TRANSPORT_SCHEMA:
         raise ValueError("invalid transport plan")
-    max_chars = _positive_int(transport_plan.get("max_chars"), name="max_chars", default=DEFAULT_MAX_CHARS)
-    max_items = _positive_int(transport_plan.get("max_items"), name="max_items", default=DEFAULT_MAX_ITEMS)
+    max_chars = min(
+        DEFAULT_MAX_CHARS,
+        _positive_int(
+            transport_plan.get("max_chars"),
+            name="max_chars",
+            default=DEFAULT_MAX_CHARS,
+        ),
+    )
+    max_items = min(
+        DEFAULT_MAX_ITEMS,
+        _positive_int(
+            transport_plan.get("max_items"),
+            name="max_items",
+            default=DEFAULT_MAX_ITEMS,
+        ),
+    )
     safe = _sanitize_for_transport(normalized_result)
     if isinstance(safe, list):
         mode = "items"
@@ -841,6 +1635,76 @@ def _context_item(item: Any) -> Any:
     return _bounded_text(item, 800)
 
 
+def _context_global_anchor(anchor: Any) -> dict[str, Any] | None:
+    if not isinstance(anchor, Mapping):
+        return None
+    return _compact_context_mapping(
+        {
+            "schema": anchor.get("schema"),
+            "source_capsule_id": anchor.get("source_capsule_id"),
+            "objective": anchor.get("objective"),
+            "objective_sha256": anchor.get("objective_sha256"),
+            "purpose": anchor.get("purpose"),
+            "required_output_ids": [
+                str(item.get("id"))
+                for item in (anchor.get("required_outputs") or [])
+                if isinstance(item, Mapping) and item.get("id")
+            ][:MAX_CONTEXT_LIST_ITEMS],
+            "acceptance_ids": [
+                str(item.get("id"))
+                for item in (anchor.get("acceptance_criteria") or [])
+                if isinstance(item, Mapping) and item.get("id")
+            ][:MAX_CONTEXT_LIST_ITEMS],
+            "stop_condition": anchor.get("stop_condition"),
+            "goal_revision": anchor.get("goal_revision"),
+        },
+        required={"schema", "objective", "objective_sha256", "goal_revision"},
+    )
+
+
+def _context_side_frame(item: Any) -> dict[str, Any] | None:
+    if not isinstance(item, Mapping):
+        return None
+    resume = item.get("resume_entry") if isinstance(item.get("resume_entry"), Mapping) else {}
+    return _compact_context_mapping(
+        {
+            "source_capsule_id": item.get("source_capsule_id"),
+            "objective": item.get("objective"),
+            "resume_entry": {
+                key: _copy(resume.get(key))
+                for key in (
+                    "global_objective",
+                    "current_stage",
+                    "next_action",
+                    "progress_revision",
+                )
+                if resume.get(key) is not None
+            },
+        },
+        required=set(),
+    )
+
+
+def _compact_context_mapping(
+    payload: Mapping[str, Any],
+    *,
+    required: set[str],
+) -> dict[str, Any]:
+    """Drop only semantically empty optional fields from model-facing context."""
+
+    compact: dict[str, Any] = {}
+    for key, value in payload.items():
+        if key in required:
+            compact[key] = value
+            continue
+        if value is None or value == "" or value is False:
+            continue
+        if isinstance(value, (list, tuple, dict, set)) and not value:
+            continue
+        compact[key] = value
+    return compact
+
+
 def build_task_capsule_context(
     capsule: Mapping[str, Any],
     reminders: Sequence[Mapping[str, Any]],
@@ -875,11 +1739,34 @@ def build_task_capsule_context(
     )
     source_lists = {
         "constraints": list(capsule.get("constraints") or []),
+        "required_outputs": list(capsule.get("required_outputs") or []),
+        "plan_steps": list(capsule.get("plan_steps") or []),
         "verified_completed": list(capsule.get("verified_completed") or []),
         "inferred_progress": list(capsule.get("inferred_progress") or []),
         "remaining_work": list(capsule.get("remaining_work") or []),
         "unresolved_failures": list(capsule.get("unresolved_failures") or []),
+        "suspended_task_stack": list(capsule.get("suspended_task_stack") or []),
+        "reuse_candidates": list(capsule.get("reuse_candidates") or []),
     }
+    memory_working_set = _copy(capsule.get("memory_working_set") or {})
+    if (
+        isinstance(memory_working_set, Mapping)
+        and memory_working_set.get("coverage_status") == "not_requested"
+        and not any(
+            memory_working_set.get(key)
+            for key in (
+                "selected_record_ids",
+                "selected_records",
+                "candidate_views",
+                "source_ids",
+                "evidence_handles",
+                "conversation_handles",
+                "opened_evidence_refs",
+            )
+        )
+        and memory_working_set.get("unresolved_ambiguity") is not True
+    ):
+        memory_working_set = {}
     uncovered_counts = {
         name: max(0, len(values) - MAX_CONTEXT_LIST_ITEMS)
         for name, values in source_lists.items()
@@ -891,8 +1778,60 @@ def build_task_capsule_context(
         "state_version": capsule.get("state_version"),
         "lifecycle": capsule.get("lifecycle"),
         "progress_revision": capsule.get("progress_revision"),
+        "reading_order": [
+            "global_goal_anchor",
+            "goal_deltas",
+            "remaining_work",
+            "next_action",
+            "active_local_delta",
+            "suspended_task_stack",
+            "reuse_candidates",
+        ],
+        "global_goal_anchor": _context_global_anchor(capsule.get("global_goal_anchor")),
         "objective": capsule.get("objective"),
+        "purpose": capsule.get("purpose"),
+        "required_outputs": [
+            _context_item(item)
+            for item in source_lists["required_outputs"][:MAX_CONTEXT_LIST_ITEMS]
+        ],
+        "stop_condition": capsule.get("stop_condition"),
+        "goal_revision": capsule.get("goal_revision"),
+        "goal_deltas": list(capsule.get("goal_deltas") or [])[-MAX_CONTEXT_LIST_ITEMS:],
+        "last_user_delta": (
+            {
+                key: _copy(capsule["last_user_delta"].get(key))
+                for key in ("kind", "turn_ref")
+                if capsule["last_user_delta"].get(key) is not None
+            }
+            if isinstance(capsule.get("last_user_delta"), Mapping)
+            else None
+        ),
+        "semantic_review_required": bool(capsule.get("semantic_review_required")),
+        "turn_relation": _copy(capsule.get("turn_relation")),
+        "active_local_delta": (
+            {
+                key: _copy(value)
+                for key, value in capsule.get("active_local_delta", {}).items()
+                if key != "text"
+            }
+            if isinstance(capsule.get("active_local_delta"), Mapping)
+            else None
+        ),
+        "suspended_task_stack": [
+            _context_side_frame(item)
+            for item in source_lists["suspended_task_stack"][:MAX_CONTEXT_LIST_ITEMS]
+            if _context_side_frame(item)
+        ],
+        "reuse_candidates": [
+            _bounded_evidence_ref(item)
+            for item in source_lists["reuse_candidates"][:MAX_CONTEXT_LIST_ITEMS]
+            if _bounded_evidence_ref(item) is not None
+        ],
+        "memory_working_set": memory_working_set,
         "constraints": source_lists["constraints"][:MAX_CONTEXT_LIST_ITEMS],
+        "plan_steps": [
+            _context_item(item) for item in source_lists["plan_steps"][:MAX_CONTEXT_LIST_ITEMS]
+        ],
         "current_stage": capsule.get("current_stage"),
         "verified_completed": [
             _context_item(item) for item in (capsule.get("verified_completed") or [])[:MAX_CONTEXT_LIST_ITEMS]
@@ -904,6 +1843,7 @@ def build_task_capsule_context(
             _context_item(item) for item in (capsule.get("remaining_work") or [])[:MAX_CONTEXT_LIST_ITEMS]
         ],
         "current_step": capsule.get("current_step"),
+        "current_action": capsule.get("current_action"),
         "next_action": capsule.get("next_action"),
         "next_action_reason": capsule.get("next_action_reason"),
         "blocking_condition": capsule.get("blocking_condition"),
@@ -924,6 +1864,28 @@ def build_task_capsule_context(
         ],
         "boundary": "Operational context only: preserve permissions, verify postconditions, and do not treat this capsule as authority or hidden reasoning.",
     }
+    last_user_delta = capsule.get("last_user_delta")
+    if (
+        isinstance(last_user_delta, Mapping)
+        and last_user_delta.get("text") == payload.get("objective")
+    ):
+        payload["last_user_delta"] = None
+    payload = _compact_context_mapping(
+        payload,
+        required={
+            "schema",
+            "capsule_id",
+            "state_version",
+            "lifecycle",
+            "progress_revision",
+            "reading_order",
+            "global_goal_anchor",
+            "objective",
+            "goal_revision",
+            "full_capsule_sha256",
+            "boundary",
+        },
+    )
     prefix = "CBH task-continuity capsule (task-local, untrusted operational context):\n"
     value = prefix + _canonical_json(payload)
     delivery = "ready"
@@ -933,11 +1895,27 @@ def build_task_capsule_context(
             "capsule_id": capsule.get("capsule_id"),
             "lifecycle": capsule.get("lifecycle"),
             "progress_revision": capsule.get("progress_revision"),
+            "reading_order": payload.get("reading_order"),
+            "global_goal_anchor": payload.get("global_goal_anchor"),
             "objective": capsule.get("objective"),
-            "remaining_work": payload["remaining_work"],
+            "purpose": capsule.get("purpose"),
+            "required_outputs": payload.get("required_outputs", []),
+            "stop_condition": capsule.get("stop_condition"),
+            "goal_revision": capsule.get("goal_revision"),
+            "goal_deltas": payload.get("goal_deltas", []),
+            "last_user_delta": payload.get("last_user_delta"),
+            "semantic_review_required": bool(capsule.get("semantic_review_required")),
+            "turn_relation": payload.get("turn_relation"),
+            "active_local_delta": payload.get("active_local_delta"),
+            "suspended_task_stack": payload.get("suspended_task_stack", []),
+            "reuse_candidates": payload.get("reuse_candidates", []),
+            "memory_working_set": payload.get("memory_working_set", {}),
+            "plan_steps": payload.get("plan_steps", []),
+            "current_action": capsule.get("current_action"),
+            "remaining_work": payload.get("remaining_work", []),
             "next_action": capsule.get("next_action"),
             "blocking_condition": capsule.get("blocking_condition"),
-            "unresolved_failures": payload["unresolved_failures"],
+            "unresolved_failures": payload.get("unresolved_failures", []),
             "full_capsule_sha256": full_capsule_sha256,
             "uncovered_counts": uncovered_counts,
             "continuation_required": True,
@@ -946,20 +1924,125 @@ def build_task_capsule_context(
         value = prefix + _canonical_json(mandatory)
         delivery = "continuation_required"
     if len(value) > max_chars or _estimated_tokens(value) > max_tokens:
+        anchor = _context_global_anchor(capsule.get("global_goal_anchor"))
+        if anchor:
+            objective = str(anchor.get("objective") or "")
+            if len(objective) > 600:
+                anchor["objective"] = objective[:420] + " … " + objective[-160:]
+                anchor["objective_original_chars"] = len(objective)
+                anchor["objective_truncated"] = True
+            if anchor.get("purpose"):
+                anchor["purpose"] = _bounded_text(anchor["purpose"], 240)
+            for key in ("required_output_ids", "acceptance_ids"):
+                if isinstance(anchor.get(key), list):
+                    anchor[key] = anchor[key][:4]
         identity = {
             "schema": CAPSULE_SCHEMA,
             "capsule_id": capsule.get("capsule_id"),
             "progress_revision": capsule.get("progress_revision"),
             "full_capsule_sha256": full_capsule_sha256,
+            "global_goal_anchor": anchor,
+            "goal_revision": capsule.get("goal_revision"),
             "semantic_review_required": True,
+            "turn_relation": _copy(capsule.get("turn_relation")),
+            "next_action": _bounded_text(capsule.get("next_action"), 320),
+            "continuation_required": True,
         }
+        identity = _compact_context_mapping(
+            identity,
+            required={
+                "schema",
+                "capsule_id",
+                "progress_revision",
+                "full_capsule_sha256",
+                "global_goal_anchor",
+                "goal_revision",
+                "semantic_review_required",
+                "continuation_required",
+            },
+        )
         value = prefix + _canonical_json(identity)
         delivery = "semantic_review_required"
     if len(value) > max_chars or _estimated_tokens(value) > max_tokens:
-        raise ValueError("mandatory_capsule_identity_exceeds_host_limit")
+        raw_anchor = (
+            capsule.get("global_goal_anchor")
+            if isinstance(capsule.get("global_goal_anchor"), Mapping)
+            else {}
+        )
+        objective = re.sub(r"\s+", " ", str(raw_anchor.get("objective") or "")).strip()
+        relation = (
+            {
+                key: _copy(capsule["turn_relation"].get(key))
+                for key in ("kind", "confidence", "source")
+                if capsule["turn_relation"].get(key) is not None
+            }
+            if isinstance(capsule.get("turn_relation"), Mapping)
+            else None
+        )
+
+        def compact_identity(objective_limit: int, next_action_limit: int) -> dict[str, Any]:
+            objective_preview = _bounded_text(objective, objective_limit)
+            compact_anchor = {
+                "objective": objective_preview,
+                "objective_sha256": raw_anchor.get("objective_sha256") or _sha256_text(objective),
+                "goal_revision": raw_anchor.get("goal_revision") or capsule.get("goal_revision"),
+            }
+            if len(objective_preview) < len(objective):
+                compact_anchor["objective_original_chars"] = len(objective)
+                compact_anchor["objective_truncated"] = True
+            return _compact_context_mapping(
+                {
+                    "schema": CAPSULE_SCHEMA,
+                    "capsule_id": capsule.get("capsule_id"),
+                    "progress_revision": capsule.get("progress_revision"),
+                    "full_capsule_sha256": full_capsule_sha256,
+                    "global_goal_anchor": compact_anchor,
+                    "goal_revision": capsule.get("goal_revision"),
+                    "semantic_review_required": True,
+                    "turn_relation": relation,
+                    "next_action": _bounded_text(capsule.get("next_action"), next_action_limit),
+                    "continuation_required": True,
+                },
+                required={
+                    "schema",
+                    "capsule_id",
+                    "progress_revision",
+                    "full_capsule_sha256",
+                    "global_goal_anchor",
+                    "goal_revision",
+                    "semantic_review_required",
+                    "continuation_required",
+                },
+            )
+
+        fitted_identity: dict[str, Any] | None = None
+        for next_action_limit in (160, 80, 0):
+            low = 1 if objective else 0
+            high = min(600, len(objective))
+            best_for_next: dict[str, Any] | None = None
+            while low <= high:
+                middle = (low + high) // 2
+                candidate = compact_identity(middle, next_action_limit)
+                candidate_value = prefix + _canonical_json(candidate)
+                if len(candidate_value) <= max_chars and _estimated_tokens(candidate_value) <= max_tokens:
+                    best_for_next = candidate
+                    low = middle + 1
+                else:
+                    high = middle - 1
+            if best_for_next is not None:
+                fitted_identity = best_for_next
+                break
+        if fitted_identity is None:
+            raise ValueError("mandatory_capsule_identity_exceeds_host_limit")
+        identity = fitted_identity
+        value = prefix + _canonical_json(identity)
+        delivery = "semantic_review_required"
     first_remaining = _first_remaining(capsule)
     lifecycle = str(capsule.get("lifecycle") or "ACTIVE")
-    if lifecycle == "VERIFYING":
+    semantic_review_required = bool(capsule.get("semantic_review_required"))
+    if semantic_review_required:
+        required_action_code = "adjudicate_current_turn_without_replacing_global_goal"
+    elif lifecycle == "VERIFYING":
         required_action_code = "verify_semantic_postcondition_before_completion"
     elif capsule.get("unresolved_failures"):
         required_action_code = "change_failed_action_then_verify"
@@ -972,6 +2055,18 @@ def build_task_capsule_context(
         "capsule_id": capsule.get("capsule_id"),
         "lifecycle": lifecycle,
         "progress_revision": capsule.get("progress_revision"),
+        "goal_revision": capsule.get("goal_revision"),
+        "global_goal_anchor_sha256": (
+            capsule.get("global_goal_anchor", {}).get("objective_sha256")
+            if isinstance(capsule.get("global_goal_anchor"), Mapping)
+            else None
+        ),
+        "turn_delta_kind": (
+            capsule.get("last_user_delta", {}).get("kind")
+            if isinstance(capsule.get("last_user_delta"), Mapping)
+            else None
+        ),
+        "semantic_review_required": bool(capsule.get("semantic_review_required")),
         "required_action_code": required_action_code,
         "earliest_pending_id": first_remaining.get("id") if first_remaining else None,
         "reminder_triggers": [
@@ -983,6 +2078,15 @@ def build_task_capsule_context(
         "authority_granted": False,
         "boundary": "Use the separate untrusted evidence entry for task text. Preserve permissions and verify postconditions before completion.",
     }
+    if semantic_review_required:
+        control_payload["turn_relation_options"] = [
+            "global_goal_delta",
+            "bounded_side_conversation",
+            "explicit_global_replacement",
+        ]
+        control_payload["bounded_side_conversation_policy"] = (
+            "answer_current_turn_then_keep_global_goal_resumable"
+        )
     control_value = (
         "CBH task-continuity control (generated lifecycle codes only):\n"
         + _canonical_json(control_payload)
@@ -996,11 +2100,16 @@ def build_task_capsule_context(
         "char_count": len(value),
         "control_char_count": len(control_value),
         "estimated_tokens": _estimated_tokens(value),
+        "control_estimated_tokens": _estimated_tokens(control_value),
         "delivery": delivery,
     }
 
 
-def process_worker_request(request: Mapping[str, Any]) -> dict[str, Any]:
+def process_worker_request(
+    request: Mapping[str, Any],
+    *,
+    _workfile_transaction: Any | None = None,
+) -> dict[str, Any]:
     if request.get("op") != "observe":
         raise ValueError("unsupported worker operation")
     route = request.get("route_receipt")
@@ -1008,10 +2117,98 @@ def process_worker_request(request: Mapping[str, Any]) -> dict[str, Any]:
     capsule = request.get("capsule")
     if not isinstance(route, Mapping) or not isinstance(task_event, Mapping):
         raise ValueError("route_receipt and task_event must be objects")
+    workfile = request.get("workfile")
+    if workfile is not None and _workfile_transaction is None:
+        if not isinstance(workfile, Mapping) or not isinstance(workfile.get("path"), str):
+            raise ValueError("workfile.path must be a non-empty string")
+        task_key = task_event.get("task_key")
+        if task_key is None:
+            raise ValueError("workfile_requires_task_key")
+        from task_continuity_workfile import cumcwork_transaction
+
+        with cumcwork_transaction(
+            Path(str(workfile["path"])),
+            expected_host_task_key_sha256=_sha256_text(str(task_key)),
+        ) as transaction:
+            return process_worker_request(
+                request,
+                _workfile_transaction=transaction,
+            )
+    workfile_state: dict[str, Any] | None = None
+    workfile_path: Path | None = None
+    workfile_scope: str | None = None
+    if workfile is not None:
+        if not isinstance(workfile, Mapping) or not isinstance(workfile.get("path"), str):
+            raise ValueError("workfile.path must be a non-empty string")
+        task_key = task_event.get("task_key")
+        if task_key is None:
+            raise ValueError("workfile_requires_task_key")
+        workfile_path = Path(str(workfile["path"]))
+        expected_scope = _sha256_text(str(task_key))
+        workfile_scope = expected_scope
+        if _workfile_transaction is None:
+            raise ValueError("cumcwork_transaction_required")
+        workfile_state = _workfile_transaction.state
+        if workfile_state["status"] == "tail_repair_required":
+            raise ValueError("cumcwork_tail_repair_required")
+        persisted_capsule = workfile_state.get("active_capsule")
+        if isinstance(capsule, Mapping) and isinstance(persisted_capsule, Mapping):
+            if capsule.get("capsule_id") != persisted_capsule.get("capsule_id"):
+                raise ValueError("cumcwork_capsule_identity_mismatch")
+        capsule = (
+            ensure_v3_capsule(
+                persisted_capsule,
+                capsule_history=workfile_state.get("capsule_history"),
+                source_head_sha256=workfile_state.get("head_sha256"),
+                source_chain_digest=workfile_state.get("chain_digest"),
+            )
+            if isinstance(persisted_capsule, Mapping)
+            else None
+        )
+        persisted_reminders = workfile_state.get("pending_reminders") or []
+        if request.get("pending_reminders") is None:
+            request = {**request, "pending_reminders": persisted_reminders}
+    prior_capsule = (
+        ensure_v3_capsule(capsule)
+        if isinstance(capsule, Mapping)
+        else None
+    )
+    effective_event = _copy(task_event)
+    if (
+        prior_capsule
+        and effective_event.get("intent_source") == "explicit_marker"
+        and not isinstance(effective_event.get("reviewed_against"), Mapping)
+    ):
+        effective_event["reviewed_against"] = {
+            "capsule_id": prior_capsule.get("capsule_id"),
+            "goal_revision": prior_capsule.get("goal_revision"),
+        }
+    relation = _turn_relation(effective_event, prior_capsule)
+    superseding = bool(
+        prior_capsule
+        and prior_capsule.get("lifecycle") != "RETIRED"
+        and _global_replacement_allowed(relation, prior_capsule)
+    )
+    preserve_global_goal = bool(
+        prior_capsule
+        and prior_capsule.get("lifecycle") != "RETIRED"
+        and relation.get("kind") == "new_task"
+        and not superseding
+    )
+    if superseding:
+        effective_event["continuity_requested"] = True
+        effective_event["supersedes_capsule_id"] = prior_capsule.get("capsule_id")
+    elif preserve_global_goal:
+        effective_event["intent_kind"] = "ambiguous"
+        effective_event["semantic_review_required"] = True
+        effective_event["intent_reason_codes"] = [
+            *list(effective_event.get("intent_reason_codes") or [])[:7],
+            "global_replacement_evidence_not_current",
+        ]
     decision = decide_task_continuity(
         route,
-        task_event,
-        capsule if isinstance(capsule, Mapping) else None,
+        effective_event,
+        None if superseding else prior_capsule,
     )
     transition: dict[str, Any] | None = None
     reminders: list[dict[str, Any]] = []
@@ -1032,22 +2229,40 @@ def process_worker_request(request: Mapping[str, Any]) -> dict[str, Any]:
             for item in pending_reminders[:8]
             if isinstance(item, Mapping)
         ]
-        if isinstance(pending_reminders, Sequence)
+        if not superseding
+        and isinstance(pending_reminders, Sequence)
         and not isinstance(pending_reminders, (str, bytes))
         else []
     )
     current: dict[str, Any] | None
-    if capsule is None:
+    if superseding:
+        current, _ = initialize_task_capsule(route, effective_event)
+        transition = {
+            "schema": TRANSITION_SCHEMA,
+            "capsule": current,
+            "changed": True,
+            "previous_lifecycle": str(prior_capsule.get("lifecycle")),
+            "lifecycle": current["lifecycle"],
+            "progress_delta": ["task_superseded"],
+            "event_outcome": "new_task_started",
+            "transition_reasons": ["incompatible_new_task_superseded_prior_working_set"],
+            "event_type": _event_type(effective_event),
+        }
+    elif capsule is None:
         if decision["decision"] != "dormant":
-            current, transition = initialize_task_capsule(route, task_event)
+            current, transition = initialize_task_capsule(route, effective_event)
         else:
             current = None
     else:
         if capsule.get("lifecycle") == "RETIRED":
             current = _copy(capsule)
         else:
-            transition = apply_task_event(capsule, task_event)
+            transition = apply_task_event(capsule, effective_event)
             current = transition["capsule"]
+            if preserve_global_goal:
+                transition["transition_reasons"] = [
+                    "global_goal_preserved_pending_semantic_review"
+                ]
             reminders = build_dynamic_reminders(current, transition)
         if reminders:
             current = reminders[-1]["capsule_snapshot"]
@@ -1067,10 +2282,13 @@ def process_worker_request(request: Mapping[str, Any]) -> dict[str, Any]:
             "entry": None,
             "control_entry": None,
             "char_count": 0,
+            "control_char_count": 0,
+            "estimated_tokens": 0,
+            "control_estimated_tokens": 0,
             "delivery": "not_needed",
         }
     )
-    return {
+    result = {
         "schema": WORKER_SCHEMA,
         "decision": decision,
         "capsule": current,
@@ -1085,10 +2303,76 @@ def process_worker_request(request: Mapping[str, Any]) -> dict[str, Any]:
             "delivery": context["delivery"],
             "char_count": context["char_count"],
             "estimated_tokens": context.get("estimated_tokens", 0),
+            "evidence_char_count": context["char_count"],
+            "control_char_count": context.get("control_char_count", 0),
+            "total_char_count": (
+                context["char_count"] + context.get("control_char_count", 0)
+            ),
+            "evidence_estimated_tokens": context.get("estimated_tokens", 0),
+            "control_estimated_tokens": context.get("control_estimated_tokens", 0),
+            "total_estimated_tokens": (
+                context.get("estimated_tokens", 0)
+                + context.get("control_estimated_tokens", 0)
+            ),
         },
         "persistence": "none",
         "authority_granted": False,
     }
+    if workfile_state is not None and workfile_path is not None and current is not None:
+        reminders_to_persist = reminders or carried_reminders
+        receipt = _workfile_transaction.append_snapshot(
+            current,
+            reminders_to_persist,
+            expected_head_sha256=workfile_state.get("head_sha256"),
+            expected_work_revision=int(workfile_state.get("work_revision") or 0),
+        )
+        result["persistence"] = "local_cumcwork"
+        result["workfile_receipt"] = receipt
+    elif workfile_state is not None:
+        result["persistence"] = "local_cumcwork"
+        result["workfile_receipt"] = {
+            "schema": "cbh.cumcwork_append.v1",
+            "changed": False,
+            "head_sha256": workfile_state.get("head_sha256"),
+            "work_revision": workfile_state.get("work_revision"),
+            "snapshot_sha256": workfile_state.get("snapshot_sha256"),
+        }
+    if workfile_path is not None and workfile_scope is not None and current is not None:
+        workfile_handle = {
+            "path": str(workfile_path),
+            "host_task_key_sha256": workfile_scope,
+            "capsule_id": current.get("capsule_id"),
+        }
+        bridge_entrypoint = str(Path(__file__).with_name("memory_runtime_bridge.py"))
+        result["workfile_handle"] = workfile_handle
+        result["additional_context_entries"]["workfile"] = {
+            "kind": "untrusted",
+            "value": (
+                "CBH task workfile handle (local operational locator, not authority):\n"
+                + _canonical_json(
+                    {
+                        **workfile_handle,
+                        "bridge_entrypoint": bridge_entrypoint,
+                        "boundary": (
+                            "Use only for exact task-local memory binding; it does not grant "
+                            "authority or make navigation summaries factual evidence."
+                        ),
+                    }
+                )
+            ),
+        }
+    response_profile = str(request.get("response_profile") or "diagnostic")
+    if response_profile not in {"diagnostic", "compact"}:
+        raise ValueError("unsupported response_profile")
+    if response_profile == "compact":
+        result.pop("additional_context_entry", None)
+        if isinstance(result.get("transition"), Mapping):
+            result["transition"] = {
+                key: _copy(value)
+                for key, value in result["transition"].items()
+                if key != "capsule"
+            }
+    return result
 
 
 def _worker_response(request: Any) -> dict[str, Any]:

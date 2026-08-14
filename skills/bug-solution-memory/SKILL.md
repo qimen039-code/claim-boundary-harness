@@ -13,13 +13,23 @@ This file starts empty by design. Add real solution records only after the corre
 - Agent error records live in `agent-error-memory`.
 - Each solution point must include `paired_error_ids`.
 
-## Solution Point Index
+## Storage Contract
+
+The table and field list below document the record shape; they are not the
+writable memory store. New records use `cbh.semantic_memory_record.v3` and are
+appended with `../embedded-harness/semantic_memory.py` to the adopting lane's
+private `memory-v3/` directory. The canonical `records.jsonl` is append-only;
+`meta.jsonl` is a compact, rebuildable navigation surface. Existing Markdown
+records, when present in an older deployment, stay read-only and are exposed
+through hash-bound legacy links instead of being copied or rewritten.
+
+## Reference Index Shape
 
 | Solution ID | Outer retrieval surface | Paired errors |
 | --- | --- | --- |
 | `SOL-EXAMPLE-YYYY-MM-DD` | example solution trigger words | `ERR-EXAMPLE-YYYY-MM-DD` |
 
-## Solution Point Template
+## Draft Field Guide
 
 ```text
 ## SOL-EXAMPLE-YYYY-MM-DD

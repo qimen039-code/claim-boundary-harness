@@ -1,6 +1,24 @@
 schema_version = "credits/v1"
 
 [[influence]]
+id = "mattpocock-skills-codebase-design"
+name = "mattpocock/skills codebase-design"
+url = "https://github.com/mattpocock/skills/tree/main/skills/engineering/codebase-design"
+source_type = "public_github"
+used_for = [
+  "deletion thought experiment adapted into a reversible deep-module freeze or temporary-isolation probe",
+  "two-independent-adapter real-seam criterion",
+]
+not_adopted = [
+  "the full skill collection",
+  "always-on engineering context",
+  "autonomous code deletion",
+  "a second task scheduler or durable task ledger",
+]
+boundary = "adapted source-prior design mechanisms; CBH implements bounded task-local advisory receipts and validates them with its own tests"
+docs_ref = "docs/influences-and-attribution.md"
+
+[[influence]]
 id = "rohitg00-agentmemory"
 name = "rohitg00/agentmemory"
 url = "https://github.com/rohitg00/agentmemory"

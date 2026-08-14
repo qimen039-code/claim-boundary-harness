@@ -87,8 +87,8 @@ CBH 做的是把目标、相关记忆、可用工具、执行记录和验证依�
 - 宿主不支持的能力应标记为 `checked_missing` 或 `checked_blocked`，不能静默宣称启用。
 - 客户端、Hook 协议或相关配置更新后，需要重新运行本地兼容性检查。
 
-当前 main 分支版本：`v1.2.4`。
-最新已打 tag 的 GitHub Release：[`v1.2.4`](https://github.com/qimen039-code/claim-boundary-harness/releases/tag/v1.2.4)。
+当前 main 分支版本：`v1.2.5`。
+最新已打 tag 的 GitHub Release：[`v1.2.5`](https://github.com/qimen039-code/claim-boundary-harness/releases/tag/v1.2.5)。
 外部查询当前版本时，应同时核对默认分支 `VERSION` 与 GitHub
 [`releases/latest`](https://github.com/qimen039-code/claim-boundary-harness/releases/latest)，
 二者必须指向同一版本。
@@ -186,6 +186,9 @@ CBH 为 Codex 类宿主大模型 Agent 增加一层低成本、面向模型的�
 | 删除风险提示 | `dangerous_delete_guard.py` | 按需风险分类，不产生授权或宿主阻断 |
 | 策略与适配预检 | `compile_policy_from_toml.py`、`validate_policy.ps1`、`tools/cbh_doctor.py` | 漂移和预检工具 |
 | 记忆 lane 与账本 | `templates/project/memory-library/`、`templates/conversation-memory/`、`codex_session_ledger.py` | 模板和证据索引 |
+| 纯文件语义记忆 | `semantic_memory.py` | 此后新记录和带类型的事件簇使用只追加的 v3 JSONL 与可重建的紧凑元索引；旧正文保持只读并通过哈希绑定链接接入 |
+| 任务工作连续记忆 | `task_continuity.py`、`task_continuity_workfile.py`、`memory_runtime_bridge.py` | 在一个宿主任务内持续保留目标、原因、交付物、验收标准、当前动作和已选记忆句柄；不保存思维链，也不产生权限 |
+| 已完成任务的长期记忆交接 | `task_memory_checkpoint.py` | 只有已经完整验证并退役的任务才能生成只读、哈希绑定候选；另一次由调用方负责的提升动作会同步写入，并确认该条 v3 记录已经可以立即检索 |
 | 模型上下文选择 | `harness_action_consumer.py`、router 的 `memory_source_hints` | 把精确索引命中转成保留来源的紧凑 Agent 上下文 |
 | 通用外部检索规划 | `external_retrieval_strategy.py`、`harness_external_research_gate.ps1` | 保留精确锚点、按原生来源与目标分别规划；实际检索仍由模型 Agent 执行 |
 | 检索与读取 | `docs/hybrid-memory-retrieval-contract.md`、`docs/content-reading-contract.md` | meta-first、保留来源、有界窗口 |
@@ -286,6 +289,12 @@ CBH 的记忆不是“越多越好”，而是 lane-and-link：
 -> 默认 lane 内写入
 -> 返回带 source/provenance/belief 元数据的结果
 ```
+
+此后新增的长期语义记录使用纯文件双层结构：先读取紧凑的 `meta.jsonl` 找到少量候选，
+只有强命中的选中项才打开只追加 `records.jsonl` 中对应的一行。旧 Markdown 记忆不批量
+改写，而由带哈希的链接精确指向原记录。另一个 `.cumcwork` 文件只保存当前任务的工作
+状态，让重启后的适配器仍知道为什么做、要交付什么、怎样才算完成；它不是长期语义记忆，
+也不会产生执行权限。
 
 项目记忆、长对话记忆、common-error 语料、自反省记录、静态知识和归档索引可以互相指向，
 但不默认复制内容。跨 lane payload 读取、写入、合并、归档或删除都必须有明确路由决策，

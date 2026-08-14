@@ -82,13 +82,19 @@ This keeps Codex-style, Claude-style, WorkBuddy-style, and custom local adapters
 
 ## Task Continuity Boundary
 
-`task_continuity.py` maintains process-local objective, acceptance progress,
-earliest incomplete work, next action, dynamic reminders, and hash-bound
-transport pages. It stores no chain-of-thought, grants no permission, and writes
-no task-memory file. A `host_delivery: ready` decision only means a bounded
-context entry was constructed; automatic model visibility requires a verified
-host adapter. Without that adapter the status is library-ready/host-pending,
-not an automatic continuous-memory claim.
+`task_continuity.py` maintains a process-local stable global goal, acceptance
+progress, earliest incomplete work, next action, local-turn relation, bounded
+side-task resume stack, reusable-source refs, dynamic reminders, and hash-bound
+transport pages. An unmatched active-task turn is a local ambiguous delta and
+cannot replace the global goal. Global replacement requires high-confidence
+explicit or current-revision-reviewed evidence. A bounded unrelated question
+can be answered as a temporary side conversation while the same global frame
+remains resumable; it does not need to create another durable task frame.
+An explicit return resumes that preserved frame. It stores no chain-of-thought,
+grants no permission, and writes no task-memory file. A `host_delivery: ready`
+decision only means a bounded context entry was constructed; automatic model
+visibility requires a verified host adapter. Without that adapter the status
+is library-ready/host-pending, not an automatic continuous-memory claim.
 
 ## Capability Exposure Short-Circuit
 
