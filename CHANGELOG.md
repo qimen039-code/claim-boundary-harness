@@ -6,6 +6,12 @@ This project uses `vMAJOR.MINOR.PATCH` version labels.
 
 ## Unreleased
 
+## v1.2.6 - 2026-08-14
+
+- Removed the remaining core documentation-contract reads of the frozen
+  WorkBuddy integration, so clean CI and local core validation use the same
+  non-WorkBuddy dependency boundary.
+
 ## v1.2.5 - 2026-08-14
 
 - Reworked task continuity around one stable global goal frame. Unmatched turns

@@ -107,8 +107,8 @@ integration reference, but not as proof of compatibility.
 - Re-run the local compatibility checks after the host client, hook protocol, or
   relevant configuration changes.
 
-Current main-branch version: `v1.2.5`.
-Latest tagged GitHub release: [`v1.2.5`](https://github.com/qimen039-code/claim-boundary-harness/releases/tag/v1.2.5).
+Current main-branch version: `v1.2.6`.
+Latest tagged GitHub release: [`v1.2.6`](https://github.com/qimen039-code/claim-boundary-harness/releases/tag/v1.2.6).
 For external current-version checks, use the default-branch `VERSION` together
 with GitHub [`releases/latest`](https://github.com/qimen039-code/claim-boundary-harness/releases/latest);
 both must identify the same release.
